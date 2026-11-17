@@ -8,7 +8,8 @@ export const ACCOUNTS = {
 } as const;
 
 export async function signIn(page: Page, username = 'admin', password = 'Admin123!') {
-  await page.goto('/login');
+  // Reuse the sign-in page after signOut: reloading would reset the in-memory mock data.
+  if (!/\/login(\?|$)/.test(page.url())) await page.goto('/login');
   await page.getByLabel('Username', { exact: true }).fill(username);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();

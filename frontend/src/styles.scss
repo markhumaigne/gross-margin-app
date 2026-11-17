@@ -1386,3 +1386,52 @@ tbody tr:last-child td {
     padding: 0 16px;
   }
 }
+.panel-body {
+  padding: 20px 25px 23px;
+}
+.panel-body > .subtle {
+  margin-bottom: 14px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.form-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inline-select {
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.username {
+  font-weight: 600;
+  color: var(--ink);
+}
+.you-tag {
+  margin-left: 6px;
+  font-size: 8px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #6a85a4;
+  background: #f2f6fb;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.role-head {
+  display: block;
+  font-weight: 600;
+  color: #244564;
+}
+.role-hint {
+  font-size: 9px;
+  color: #95a0ae;
+}
+.table-action {
+  font-size: 10px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+}
