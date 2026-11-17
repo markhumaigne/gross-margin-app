@@ -3,5 +3,6 @@ import './core.test';
 import './user-accounts.test';
 import './pricing.test';
 import './price-books.test';
+import './sales-report.test';
 
 void runAll();
