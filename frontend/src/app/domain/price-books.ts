@@ -1,0 +1,219 @@
+import { isIsoDate } from './dates';
+import {
+  entryFromDraft,
+  entryToDraft,
+  PriceBookEntry,
+  PriceBookEntryDraft,
+  Product,
+  validateEntryDraft,
+} from './pricing';
+import { fail, ok, Result } from './result';
+
+export interface PriceBook {
+  id: string;
+  name: string;
+  description: string;
+  effectiveDate: string;
+  expirationDate: string | null;
+  active: boolean;
+  entries: PriceBookEntry[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface PriceBookDraft {
+  name: string;
+  description: string;
+  effectiveDate: string;
+  expirationDate: string;
+  active: boolean;
+  entries: PriceBookEntryDraft[];
+}
+
+export interface PriceBookErrors {
+  name?: string;
+  effectiveDate?: string;
+  expirationDate?: string;
+  entries: Record<string, string[]>;
+  form: string[];
+}
+
+export type StatusFilter = 'all' | 'active' | 'inactive';
+
+const NOT_FOUND = 'Price book not found.';
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+export function emptyDraft(today: string): PriceBookDraft {
+  return {
+    name: '',
+    description: '',
+    effectiveDate: today,
+    expirationDate: '',
+    active: true,
+    entries: [],
+  };
+}
+
+export function draftFromBook(book: PriceBook): PriceBookDraft {
+  return {
+    name: book.name,
+    description: book.description,
+    effectiveDate: book.effectiveDate,
+    expirationDate: book.expirationDate ?? '',
+    active: book.active,
+    entries: book.entries.map(entryToDraft),
+  };
+}
+
+export function newEntryDraft(
+  productId: string,
+  book: Pick<PriceBookDraft, 'effectiveDate' | 'expirationDate'>,
+): PriceBookEntryDraft {
+  return {
+    productId,
+    updatedPrice: '',
+    promoPrice: '',
+    effectiveStart: book.effectiveDate,
+    effectiveEnd: book.expirationDate,
+    memo: '',
+  };
+}
+
+export function validatePriceBook(
+  draft: PriceBookDraft,
+  books: readonly PriceBook[],
+  catalog: readonly Product[],
+  editingId: string | null,
+): PriceBookErrors {
+  const errors: PriceBookErrors = { entries: {}, form: [] };
+  const name = draft.name.trim();
+  if (!name) errors.name = 'Price book name is required.';
+  else if (name.length > 80) errors.name = 'Name must be 80 characters or fewer.';
+  else if (books.some((b) => b.id !== editingId && sameName(b.name, name)))
+    errors.name = `A price book named "${name}" already exists.`;
+
+  const effectiveValid = isIsoDate(draft.effectiveDate);
+  if (!effectiveValid) errors.effectiveDate = 'Effective date is required.';
+  if (draft.expirationDate.trim()) {
+    if (!isIsoDate(draft.expirationDate))
+      errors.expirationDate = 'Expiration date must be a valid date.';
+    else if (effectiveValid && draft.expirationDate < draft.effectiveDate)
+      errors.expirationDate = 'Expiration date cannot be before the effective date.';
+  }
+
+  const seen = new Set<string>();
+  for (const entry of draft.entries) {
+    if (seen.has(entry.productId)) {
+      const message = `Product ${entry.productId} is listed more than once.`;
+      if (!errors.form.includes(message)) errors.form.push(message);
+      continue;
+    }
+    seen.add(entry.productId);
+    const product = catalog.find((p) => p.id === entry.productId);
+    const entryErrors = validateEntryDraft(entry, product, draft);
+    if (entryErrors.length) errors.entries[entry.productId] = entryErrors;
+  }
+  return errors;
+}
+
+export function hasErrors(errors: PriceBookErrors): boolean {
+  return (
+    !!errors.name ||
+    !!errors.effectiveDate ||
+    !!errors.expirationDate ||
+    errors.form.length > 0 ||
+    Object.keys(errors.entries).length > 0
+  );
+}
+
+export function nextPriceBookId(books: readonly PriceBook[]): string {
+  const max = Math.max(0, ...books.map((b) => Number(/^PB-(\d+)$/.exec(b.id)?.[1] ?? 0)));
+  return 'PB-' + String(max + 1).padStart(4, '0');
+}
+
+export function savePriceBook(
+  books: readonly PriceBook[],
+  draft: PriceBookDraft,
+  editingId: string | null,
+  catalog: readonly Product[],
+  actor: string,
+  now: Date,
+): Result<{ books: PriceBook[]; book: PriceBook }> {
+  if (editingId !== null && !books.some((b) => b.id === editingId)) return fail(NOT_FOUND);
+  if (hasErrors(validatePriceBook(draft, books, catalog, editingId)))
+    return fail('Fix the highlighted fields before saving.');
+  const book: PriceBook = {
+    id: editingId ?? nextPriceBookId(books),
+    name: draft.name.trim(),
+    description: draft.description.trim(),
+    effectiveDate: draft.effectiveDate,
+    expirationDate: draft.expirationDate.trim() ? draft.expirationDate : null,
+    active: draft.active,
+    entries: draft.entries.map(entryFromDraft),
+    updatedAt: now.toISOString(),
+    updatedBy: actor,
+  };
+  const next =
+    editingId === null ? [...books, book] : books.map((b) => (b.id === editingId ? book : b));
+  return ok({ books: next, book });
+}
+
+function copyName(books: readonly PriceBook[], name: string): string {
+  for (let n = 1; ; n++) {
+    const candidate = `${name} (copy${n === 1 ? '' : ' ' + n})`;
+    if (!books.some((b) => sameName(b.name, candidate))) return candidate;
+  }
+}
+
+export function duplicatePriceBook(
+  books: readonly PriceBook[],
+  id: string,
+  actor: string,
+  now: Date,
+): Result<{ books: PriceBook[]; book: PriceBook }> {
+  const source = books.find((b) => b.id === id);
+  if (!source) return fail(NOT_FOUND);
+  const book: PriceBook = {
+    ...source,
+    id: nextPriceBookId(books),
+    name: copyName(books, source.name),
+    active: false,
+    entries: source.entries.map((e) => ({ ...e })),
+    updatedAt: now.toISOString(),
+    updatedBy: actor,
+  };
+  return ok({ books: [...books, book], book });
+}
+
+export function setPriceBookActive(
+  books: readonly PriceBook[],
+  id: string,
+  active: boolean,
+  actor: string,
+  now: Date,
+): Result<PriceBook[]> {
+  if (!books.some((b) => b.id === id)) return fail(NOT_FOUND);
+  return ok(
+    books.map((b) =>
+      b.id === id ? { ...b, active, updatedAt: now.toISOString(), updatedBy: actor } : b,
+    ),
+  );
+}
+
+export function filterPriceBooks(
+  books: readonly PriceBook[],
+  query: string,
+  status: StatusFilter,
+): PriceBook[] {
+  const q = query.trim().toLowerCase();
+  return books
+    .filter((b) => status === 'all' || b.active === (status === 'active'))
+    .filter(
+      (b) =>
+        !q ||
+        b.id.toLowerCase().includes(q) ||
+        b.name.toLowerCase().includes(q) ||
+        b.description.toLowerCase().includes(q),
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
