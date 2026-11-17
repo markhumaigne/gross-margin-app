@@ -1,26 +1,20 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Product, searchProducts } from '../domain/pricing';
-import { PRODUCTS } from '../mock-data/products';
+import { PricingWorkspaceService } from './pricing-workspace.service';
 
 /**
- * In-memory product catalog: the demo products plus any imported from a sales export this session.
+ * Shared browser catalog: the demo products plus any imported from a sales export.
  * Master list prices here are never changed by price books.
  */
 @Injectable({ providedIn: 'root' })
 export class ProductCatalogService {
-  private readonly store = signal<readonly Product[]>(PRODUCTS);
-  readonly products = this.store.asReadonly();
+  readonly products = inject(PricingWorkspaceService).products;
 
   byId(id: string): Product | undefined {
-    return this.store().find((p) => p.id === id);
+    return this.products().find((p) => p.id === id);
   }
 
   search(query: string): Product[] {
-    return searchProducts(this.store(), query);
-  }
-
-  /** Replaces the catalog, e.g. with demo products plus newly imported ones. */
-  replaceAll(products: readonly Product[]): void {
-    this.store.set(products);
+    return searchProducts(this.products(), query);
   }
 }

@@ -32,6 +32,7 @@ interface Source {
 })
 export class ProductInsightsComponent {
   private readonly priceBooks = inject(PriceBookService);
+  readonly pricingError = this.priceBooks.storageError;
   readonly issueLimit = 200;
   readonly matchLabels = PRICE_MATCH_LABELS;
   readonly loading = signal(false);

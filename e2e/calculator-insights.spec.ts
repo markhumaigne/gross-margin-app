@@ -114,3 +114,110 @@ test('product sections fit a phone and clear when inputs change', async ({ page 
   await page.getByLabel('Rate percentage', { exact: true }).fill('3.00');
   await expect(page.getByRole('table', { name: 'Gross margin by product' })).toHaveCount(0);
 });
+
+async function createSavedHeadsetPrice(page: Page) {
+  await page.getByRole('link', { name: 'New price book' }).click();
+  await page.getByLabel('Auto ID').uncheck();
+  await page.getByLabel('Price ID', { exact: true }).fill('PS000015');
+  await page.getByLabel('Price book name').fill('Saved headset prices');
+  await page.getByRole('button', { name: 'Add products', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  for (const [label, value] of Object.entries({
+    'Product ID': '4800000600016',
+    Name: 'Wireless Headset',
+    Qty: '1',
+    'to Qty': '',
+    Unit: 'PCS',
+    'Master List Price': '2995',
+    'Unit Price': '2795',
+    'Disc %': '10.55',
+    Discount: '295',
+    'Net Price': '2500',
+    Cost: '1960',
+    Margin: '21.60',
+  }))
+    await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('Price book PS000015 saved.');
+}
+
+test('saved price books still calculate after a refresh and Accounting sign-in', async ({
+  page,
+}) => {
+  await signIn(page, ...ACCOUNTS.product);
+  await createSavedHeadsetPrice(page);
+  await signOut(page);
+  await page.reload();
+  await signIn(page, ...ACCOUNTS.accounting);
+  await uploadAndCalculate(page);
+  const row = comparisonRow(page, 'PS000015', '4800000600016');
+  await expect(row).toContainText('Matched');
+  await expect(row).toContainText('₱5,000.00');
+  await expect(row).toContainText('₱590.00');
+});
+
+test('a browser storage failure keeps the draft and never claims the price was saved', async ({
+  page,
+}) => {
+  await signIn(page, ...ACCOUNTS.product);
+  await page.getByRole('link', { name: 'Edit PL000013' }).click();
+  await page.getByLabel('Updated selling price for 4800000100011').fill('5695');
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Object.defineProperty(window, '__restorePricingStorage', {
+      value: () => {
+        Storage.prototype.setItem = original;
+      },
+    });
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === 'ledger.pricing.v1') throw new DOMException('Storage full', 'QuotaExceededError');
+      original.call(this, key, value);
+    };
+  });
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
+  await expect(page.getByRole('alert').first()).toContainText('Price books were not saved');
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByLabel('Updated selling price for 4800000100011')).toHaveValue('5695');
+  await page.evaluate(() =>
+    (window as unknown as { __restorePricingStorage: () => void }).__restorePricingStorage(),
+  );
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  await signOut(page);
+  await page.reload();
+  await signIn(page, ...ACCOUNTS.accounting);
+  await uploadAndCalculate(page);
+  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱200.00');
+});
+
+test('unreadable saved data is reported and preserved when a user tries to save', async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem('ledger.pricing.v1', '{broken'));
+  await signIn(page, ...ACCOUNTS.product);
+  await expect(page.getByRole('alert')).toContainText('Saved price books could not be read');
+  await page.getByRole('link', { name: 'Edit PL000013' }).click();
+  await page.getByLabel('Updated selling price for 4800000100011').fill('5000');
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
+  expect(await page.evaluate(() => localStorage.getItem('ledger.pricing.v1'))).toBe('{broken');
+  await expect(page.getByRole('status')).toHaveCount(0);
+});
+
+test('an open Accounting tab receives newly saved Product Team prices', async ({
+  page,
+  context,
+}) => {
+  await signIn(page, ...ACCOUNTS.product);
+  const accounting = await context.newPage();
+  await signIn(accounting, ...ACCOUNTS.accounting);
+  await uploadAndCalculate(accounting);
+  const row = comparisonRow(accounting, 'PS000015', '4800000600016');
+  await expect(row).toContainText('Price ID not found');
+  await createSavedHeadsetPrice(page);
+  await expect(row).toContainText('Matched');
+  await expect(row).toContainText('₱5,000.00');
+  await expect(row).toContainText('₱590.00');
+});

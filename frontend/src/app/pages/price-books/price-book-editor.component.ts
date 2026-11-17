@@ -7,7 +7,8 @@ import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
 import { ProductCatalogService } from '../../core/product-catalog.service';
 import { isIsoDate, todayInManila } from '../../domain/dates';
-import { parseMoney } from '../../domain/money';
+import { fromCents, parseMoney, toCents } from '../../domain/money';
+import { ManualProductDraft, MANUAL_PRODUCT_FIELDS } from '../../domain/manual-products';
 import {
   draftFromBook,
   emptyDraft,
@@ -29,7 +30,7 @@ type Mode = 'create' | 'edit' | 'view';
 type HeaderField = 'id' | 'name' | 'description' | 'effectiveDate' | 'expirationDate';
 type EntryField = 'updatedPrice' | 'promoPrice' | 'effectiveStart' | 'effectiveEnd' | 'memo';
 
-const NO_ERRORS: PriceBookErrors = { entries: {}, form: [] };
+const NO_ERRORS: PriceBookErrors = { entries: Object.create(null), form: [] };
 
 function positive(text: string): number | null {
   const value = parseMoney(text);
@@ -61,6 +62,12 @@ export class PriceBookEditorComponent {
   private initialDraft = '';
   readonly attempted = signal(false);
   readonly pickerOpen = signal(false);
+  readonly editingProductId = signal<string | null>(null);
+  readonly editingEntry = computed(
+    () => this.draft().entries.find((e) => e.productId === this.editingProductId()) ?? null,
+  );
+  readonly manualFields = MANUAL_PRODUCT_FIELDS;
+  readonly parseAmount = parseMoney;
   readonly notice = signal('');
   readonly error = signal('');
 
@@ -98,6 +105,11 @@ export class PriceBookEditorComponent {
         product,
         discount,
         margin,
+        netPrice: price ?? product?.masterListPrice ?? null,
+        discountAmount:
+          product && price !== null
+            ? fromCents(toCents(product.masterListPrice) - toCents(price))
+            : null,
         discountSource: promo !== null ? 'promo' : 'updated',
         status: isIsoDate(entry.effectiveStart)
           ? entryStatus(
@@ -109,7 +121,11 @@ export class PriceBookEditorComponent {
       };
     }),
   );
-  readonly productIds = computed(() => this.draft().entries.map((e) => e.productId));
+  readonly productIds = computed(() =>
+    this.draft()
+      .entries.filter((e) => e.productId !== this.editingProductId())
+      .map((e) => e.productId),
+  );
   readonly nextId = computed(() => nextPriceBookId(this.service.books()));
 
   updateAutoId(event: Event) {
@@ -161,6 +177,31 @@ export class PriceBookEditorComponent {
       entries: [...d.entries, ...ids.map((id) => newEntryDraft(id, d))],
     }));
     this.pickerOpen.set(false);
+  }
+
+  openProductPicker(productId: string | null = null) {
+    this.editingProductId.set(productId);
+    this.pickerOpen.set(true);
+  }
+
+  saveManualProduct(value: { productId: string; manual: ManualProductDraft }) {
+    this.draft.update((draft) => {
+      const existing = draft.entries.find((e) => e.productId === this.editingProductId());
+      const entry: PriceBookEntryDraft = {
+        ...(existing ?? newEntryDraft(value.productId, draft)),
+        ...value,
+        updatedPrice: value.manual.netPrice,
+        promoPrice: '',
+      };
+      return {
+        ...draft,
+        entries: existing
+          ? draft.entries.map((e) => (e === existing ? entry : e))
+          : [...draft.entries, entry],
+      };
+    });
+    this.pickerOpen.set(false);
+    this.editingProductId.set(null);
   }
 
   removeProduct(productId: string) {
@@ -235,6 +276,7 @@ export class PriceBookEditorComponent {
     this.attempted.set(false);
     this.error.set('');
     this.pickerOpen.set(false);
+    this.editingProductId.set(null);
   }
 
   private isDirty() {

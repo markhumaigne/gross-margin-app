@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import {
   duplicatePriceBook,
   PriceBook,
@@ -13,20 +13,21 @@ import { hasPermission } from '../domain/roles';
 import { importFromExport, ImportSummary } from '../domain/sales-import';
 import { findHeaderRow, sheetSizeError, validateUploadFile } from '../domain/sales-report';
 import { UserAccount } from '../domain/user-accounts';
-import { SEED_PRICE_BOOKS } from '../mock-data/price-books';
 import { ProductCatalogService } from './product-catalog.service';
+import { PricingWorkspaceService } from './pricing-workspace.service';
 
 const NO_PERMISSION = 'You do not have permission to manage price books.';
 
-/** In-memory price book store. Replace with an API-backed service when a backend exists. */
+/** Price books shared by demo accounts, persisted in this browser with the product catalog. */
 @Injectable({ providedIn: 'root' })
 export class PriceBookService {
   private readonly catalog = inject(ProductCatalogService);
-  private readonly store = signal<readonly PriceBook[]>(SEED_PRICE_BOOKS);
-  readonly books = this.store.asReadonly();
+  private readonly workspace = inject(PricingWorkspaceService);
+  readonly books = this.workspace.books;
+  readonly storageError = this.workspace.error;
 
   /**
-   * Imports products and price lists from a POS sales export (in memory for this session only).
+   * Imports products and price lists from a POS sales export into shared browser storage.
    * Existing products and price book entries are never changed.
    */
   async importFromExport(actor: UserAccount, file: File): Promise<Result<ImportSummary>> {
@@ -41,29 +42,33 @@ export class PriceBookService {
     }
     const sizeError = sheetSizeError(rows, Math.max(findHeaderRow(rows), 0));
     if (sizeError) return fail(sizeError);
+    const loaded = this.workspace.reload();
+    if (!loaded.ok) return loaded;
     const result = importFromExport(
       rows,
       file.name,
       todayInManila(),
       this.catalog.products(),
-      this.store(),
+      this.books(),
       new Date(),
       actor.displayName,
     );
     if (!result.ok) return result;
-    this.catalog.replaceAll(result.value.products);
-    this.store.set(result.value.books);
+    const saved = this.workspace.commit(result.value.books, result.value.products);
+    if (!saved.ok) return saved;
     return ok(result.value.summary);
   }
 
   byId(id: string): PriceBook | undefined {
-    return this.store().find((b) => b.id === id);
+    return this.books().find((b) => b.id === id);
   }
 
   save(actor: UserAccount, draft: PriceBookDraft, editingId: string | null): Result<PriceBook> {
     if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
+    const loaded = this.workspace.reload();
+    if (!loaded.ok) return loaded;
     const result = savePriceBook(
-      this.store(),
+      this.books(),
       draft,
       editingId,
       this.catalog.products(),
@@ -71,23 +76,30 @@ export class PriceBookService {
       new Date(),
     );
     if (!result.ok) return result;
-    this.store.set(result.value.books);
+    const saved = this.workspace.commit(result.value.books);
+    if (!saved.ok) return saved;
     return ok(result.value.book);
   }
 
   duplicate(actor: UserAccount, id: string): Result<PriceBook> {
     if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const result = duplicatePriceBook(this.store(), id, actor.displayName, new Date());
+    const loaded = this.workspace.reload();
+    if (!loaded.ok) return loaded;
+    const result = duplicatePriceBook(this.books(), id, actor.displayName, new Date());
     if (!result.ok) return result;
-    this.store.set(result.value.books);
+    const saved = this.workspace.commit(result.value.books);
+    if (!saved.ok) return saved;
     return ok(result.value.book);
   }
 
   setActive(actor: UserAccount, id: string, active: boolean): Result<PriceBook> {
     if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const result = setPriceBookActive(this.store(), id, active, actor.displayName, new Date());
+    const loaded = this.workspace.reload();
+    if (!loaded.ok) return loaded;
+    const result = setPriceBookActive(this.books(), id, active, actor.displayName, new Date());
     if (!result.ok) return result;
-    this.store.set(result.value);
+    const saved = this.workspace.commit(result.value);
+    if (!saved.ok) return saved;
     return ok(this.byId(id)!);
   }
 }

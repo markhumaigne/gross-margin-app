@@ -1,5 +1,12 @@
 import { isIsoDate } from './dates';
 import { isBlank, parseMoney, percentOf, toCents } from './money';
+import {
+  ManualProduct,
+  ManualProductDraft,
+  manualProductFromDraft,
+  manualProductToDraft,
+  validateManualProduct,
+} from './manual-products';
 
 export interface Product {
   id: string;
@@ -21,6 +28,7 @@ export type EntryStatus = 'Active' | 'Scheduled' | 'Expired';
 
 /** A product's prices inside one price book. The master list price stays on the Product. */
 export interface PriceBookEntry {
+  manual?: ManualProduct;
   productId: string;
   updatedPrice: number | null;
   promoPrice: number | null;
@@ -31,6 +39,7 @@ export interface PriceBookEntry {
 
 /** Editable form values for an entry; prices are kept as typed until validated. */
 export interface PriceBookEntryDraft {
+  manual?: ManualProductDraft;
   productId: string;
   updatedPrice: string;
   promoPrice: string;
@@ -85,23 +94,26 @@ export function validateEntryDraft(
   book: { effectiveDate: string; expirationDate: string },
 ): string[] {
   const errors: string[] = [];
-  if (!product) errors.push('Product is not in the catalog.');
+  if (draft.manual)
+    errors.push(...Object.values(validateManualProduct(draft.productId, draft.manual)));
+  else if (!product) errors.push('Product is not in the catalog.');
 
-  const updated = isBlank(draft.updatedPrice) ? null : positivePrice(draft.updatedPrice);
-  const promo = isBlank(draft.promoPrice) ? null : positivePrice(draft.promoPrice);
-  if (!isBlank(draft.updatedPrice) && updated === null)
-    errors.push('Updated selling price must be a positive amount with up to 2 decimals.');
-  if (!isBlank(draft.promoPrice) && promo === null)
-    errors.push('Promotional price must be a positive amount with up to 2 decimals.');
-  if (promo !== null) {
-    if (updated !== null) {
-      if (promo > updated)
-        errors.push('Promotional price cannot exceed the updated selling price.');
-    } else if (product && promo > product.masterListPrice) {
-      errors.push('Promotional price cannot exceed the master list price.');
+  if (!draft.manual) {
+    const updated = isBlank(draft.updatedPrice) ? null : positivePrice(draft.updatedPrice);
+    const promo = isBlank(draft.promoPrice) ? null : positivePrice(draft.promoPrice);
+    if (!isBlank(draft.updatedPrice) && updated === null)
+      errors.push('Updated selling price must be a positive amount with up to 2 decimals.');
+    if (!isBlank(draft.promoPrice) && promo === null)
+      errors.push('Promotional price must be a positive amount with up to 2 decimals.');
+    if (promo !== null) {
+      if (updated !== null) {
+        if (promo > updated)
+          errors.push('Promotional price cannot exceed the updated selling price.');
+      } else if (product && promo > product.masterListPrice) {
+        errors.push('Promotional price cannot exceed the master list price.');
+      }
     }
   }
-
   const startValid = isIsoDate(draft.effectiveStart);
   const endBlank = !draft.effectiveEnd.trim();
   const endValid = !endBlank && isIsoDate(draft.effectiveEnd);
@@ -109,7 +121,8 @@ export function validateEntryDraft(
   if (!endBlank && !endValid) errors.push('Effective end must be a valid date.');
   if (startValid && endValid && draft.effectiveEnd < draft.effectiveStart)
     errors.push('Effective end cannot be before effective start.');
-  if (promo !== null && endBlank) errors.push('Promotional prices need an effective end date.');
+  if (!draft.manual && positivePrice(draft.promoPrice) !== null && endBlank)
+    errors.push('Promotional prices need an effective end date.');
   if (startValid && isIsoDate(book.effectiveDate) && draft.effectiveStart < book.effectiveDate)
     errors.push('Effective start cannot be before the price book effective date.');
   if (
@@ -123,9 +136,18 @@ export function validateEntryDraft(
 /** Converts a validated draft. Blank prices become null. */
 export function entryFromDraft(draft: PriceBookEntryDraft): PriceBookEntry {
   return {
-    productId: draft.productId,
-    updatedPrice: isBlank(draft.updatedPrice) ? null : parseMoney(draft.updatedPrice),
-    promoPrice: isBlank(draft.promoPrice) ? null : parseMoney(draft.promoPrice),
+    productId: draft.productId.trim(),
+    updatedPrice: draft.manual
+      ? parseMoney(draft.manual.netPrice)
+      : isBlank(draft.updatedPrice)
+        ? null
+        : parseMoney(draft.updatedPrice),
+    promoPrice: draft.manual
+      ? null
+      : isBlank(draft.promoPrice)
+        ? null
+        : parseMoney(draft.promoPrice),
+    ...(draft.manual ? { manual: manualProductFromDraft(draft.manual) } : {}),
     effectiveStart: draft.effectiveStart,
     effectiveEnd: draft.effectiveEnd.trim() ? draft.effectiveEnd : null,
     memo: draft.memo.trim(),
@@ -135,6 +157,7 @@ export function entryFromDraft(draft: PriceBookEntryDraft): PriceBookEntry {
 export function entryToDraft(entry: PriceBookEntry): PriceBookEntryDraft {
   return {
     productId: entry.productId,
+    ...(entry.manual ? { manual: manualProductToDraft(entry.manual) } : {}),
     updatedPrice: entry.updatedPrice === null ? '' : entry.updatedPrice.toFixed(2),
     promoPrice: entry.promoPrice === null ? '' : entry.promoPrice.toFixed(2),
     effectiveStart: entry.effectiveStart,

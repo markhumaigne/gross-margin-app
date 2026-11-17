@@ -11,6 +11,7 @@ import {
 import { filter } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../core/auth.service';
+import { PricingWorkspaceService } from '../core/pricing-workspace.service';
 import { Permission, ROLE_LABELS } from '../domain/roles';
 
 interface NavItem {
@@ -35,6 +36,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 export class ShellComponent {
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
+  readonly pricing = inject(PricingWorkspaceService);
   readonly user = this.auth.currentUser;
   readonly roleLabel = computed(() => {
     const role = this.auth.role();

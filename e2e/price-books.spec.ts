@@ -56,7 +56,11 @@ test.describe('Price book editor', () => {
     await page.getByLabel('Effective date').fill('2099-01-01');
     await page.getByLabel('Expiration date').fill('2099-01-31');
     await page.getByRole('button', { name: 'Add products' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Select products' });
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Search catalog', exact: true })
+      .click();
+    const dialog = page.getByRole('dialog', { name: 'Add products' });
     await dialog.getByLabel('Search products').fill('4800000100011');
     await dialog.getByLabel('Select 4800000100011').check();
     await dialog.getByLabel('Search products').fill('keyboard and mouse');
@@ -93,6 +97,10 @@ test.describe('Price book editor', () => {
     await page.getByLabel('Effective date').fill('2099-02-01');
     await page.getByLabel('Expiration date').fill('2099-01-01');
     await page.getByRole('button', { name: 'Add products' }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Search catalog', exact: true })
+      .click();
     await page.getByRole('dialog').getByLabel('Select 4800000100011').check();
     await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
     await page.getByLabel('Promotional price for 4800000100011').fill('abc');
@@ -119,6 +127,10 @@ test.describe('Price book editor', () => {
     await page.getByLabel('Description / memo').fill('Revised shelf prices');
     await page.getByRole('button', { name: 'Remove 4800000200014' }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Search catalog', exact: true })
+      .click();
     await expect(page.getByRole('dialog').getByLabel('Select 4800000100011')).toBeDisabled();
     await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
     await page.getByRole('button', { name: 'Save price book' }).click();
@@ -149,6 +161,10 @@ test.describe('Price book editor', () => {
     await signIn(page, ...ACCOUNTS.product);
     await page.getByRole('link', { name: 'Edit PL000013' }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Search catalog', exact: true })
+      .click();
     await page.getByRole('dialog').getByLabel('Select 4800000400010').check();
     await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
     const row = page
@@ -214,6 +230,8 @@ test.describe('Price IDs and sales export import', () => {
     await expect(page.getByRole('status')).toHaveText(
       'Imported 1 products and 2 price lists from export.xlsx (1 new, 1 extended).',
     );
+    await page.reload();
+    await signIn(page, ...ACCOUNTS.product);
     await expect(page.getByRole('row').filter({ hasText: 'PS000015' })).toContainText(
       'Imported PS000015',
     );
@@ -226,6 +244,10 @@ test.describe('Price IDs and sales export import', () => {
     ).toContainText('₱3,795.00');
     await page.getByRole('link', { name: 'Edit', exact: true }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Search catalog', exact: true })
+      .click();
     await page.getByRole('dialog').getByLabel('Search products').fill('Real Import');
     await expect(
       page.getByRole('dialog').getByRole('row').filter({ hasText: '9900000000001' }),

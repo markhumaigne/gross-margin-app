@@ -8,7 +8,7 @@ export const ACCOUNTS = {
 } as const;
 
 export async function signIn(page: Page, username = 'admin', password = 'Admin123!') {
-  // Reuse the sign-in page after signOut: reloading would reset the in-memory mock data.
+  // Reuse the sign-in page after signOut: account changes are still held in memory.
   if (!/\/login(\?|$)/.test(page.url())) await page.goto('/login');
   await page.getByLabel('Username', { exact: true }).fill(username);
   await page.getByLabel('Password', { exact: true }).fill(password);
@@ -18,7 +18,7 @@ export async function signIn(page: Page, username = 'admin', password = 'Admin12
 
 /**
  * Navigates without reloading the page. A full page.goto would reset the in-memory session and
- * mock data, so this pushes the URL and lets the Angular router handle it (guards included).
+ * account changes and uploaded reports, so this lets the Angular router handle it (guards included).
  */
 export async function navigateInApp(page: Page, url: string) {
   await page.evaluate((target) => {

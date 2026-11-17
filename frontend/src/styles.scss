@@ -1606,6 +1606,7 @@ textarea.invalid {
   overflow: hidden;
 }
 .modal-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1640,6 +1641,7 @@ textarea.invalid {
   color: #9aa7b7;
 }
 .modal-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1649,6 +1651,63 @@ textarea.invalid {
   font-size: 10px;
   color: #8a9aaf;
   flex-wrap: wrap;
+}
+.product-entry-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.product-entry-tabs .selected {
+  background: #edf3fb;
+  color: #234e7b;
+}
+.manual-product-form {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 20px;
+}
+.manual-product-hint {
+  font-size: 11px;
+  color: #657b95;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.manual-product-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 16px;
+}
+.manual-product-grid .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.manual-product-grid label {
+  color: #496583;
+  font-size: 12px;
+}
+.manual-product-grid input {
+  width: 100%;
+  min-width: 0;
+}
+.manual-name-field {
+  grid-column: span 3;
+}
+@media (max-width: 700px) {
+  .manual-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .manual-name-field {
+    grid-column: auto;
+  }
+}
+@media (max-width: 420px) {
+  .manual-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .demo-badge {
   display: flex;

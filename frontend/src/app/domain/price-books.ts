@@ -1,4 +1,5 @@
 import { isIsoDate } from './dates';
+import { productIdKey } from './manual-products';
 import {
   entryFromDraft,
   entryToDraft,
@@ -101,7 +102,7 @@ export function validatePriceBook(
   catalog: readonly Product[],
   editingId: string | null,
 ): PriceBookErrors {
-  const errors: PriceBookErrors = { entries: {}, form: [] };
+  const errors: PriceBookErrors = { entries: Object.create(null), form: [] };
   if (editingId === null && !draft.autoId) {
     const id = normalizePriceId(draft.id);
     if (!PRICE_ID_PATTERN.test(id))
@@ -126,12 +127,12 @@ export function validatePriceBook(
 
   const seen = new Set<string>();
   for (const entry of draft.entries) {
-    if (seen.has(entry.productId)) {
+    if (seen.has(productIdKey(entry.productId))) {
       const message = `Product ${entry.productId} is listed more than once.`;
       if (!errors.form.includes(message)) errors.form.push(message);
       continue;
     }
-    seen.add(entry.productId);
+    seen.add(productIdKey(entry.productId));
     const product = catalog.find((p) => p.id === entry.productId);
     const entryErrors = validateEntryDraft(entry, product, draft);
     if (entryErrors.length) errors.entries[entry.productId] = entryErrors;
@@ -152,9 +153,21 @@ export function hasErrors(errors: PriceBookErrors): boolean {
 
 export function nextPriceBookId(books: readonly PriceBook[]): string {
   let max = 0;
+  const used = new Set<string>();
   for (const b of books) {
     const match = /^PL(\d{6})$/.exec(b.id);
-    if (match) max = Math.max(max, Number(match[1]));
+    if (match) {
+      max = Math.max(max, Number(match[1]));
+      used.add(b.id);
+    }
+  }
+  // A manually entered/imported high ID must not overflow the six-digit POS format.
+  if (max === 999999) {
+    for (let n = 1; n <= 999999; n++) {
+      const id = 'PL' + String(n).padStart(6, '0');
+      if (!used.has(id)) return id;
+    }
+    return '';
   }
   return 'PL' + String(max + 1).padStart(6, '0');
 }
@@ -170,8 +183,10 @@ export function savePriceBook(
   if (editingId !== null && !books.some((b) => b.id === editingId)) return fail(NOT_FOUND);
   if (hasErrors(validatePriceBook(draft, books, catalog, editingId)))
     return fail('Fix the highlighted fields before saving.');
+  const id = editingId ?? (draft.autoId ? nextPriceBookId(books) : normalizePriceId(draft.id));
+  if (!id) return fail('No automatic Price IDs are available. Enter an unused manual Price ID.');
   const book: PriceBook = {
-    id: editingId ?? (draft.autoId ? nextPriceBookId(books) : normalizePriceId(draft.id)),
+    id,
     name: draft.name.trim(),
     description: draft.description.trim(),
     effectiveDate: draft.effectiveDate,
@@ -201,12 +216,17 @@ export function duplicatePriceBook(
 ): Result<{ books: PriceBook[]; book: PriceBook }> {
   const source = books.find((b) => b.id === id);
   if (!source) return fail(NOT_FOUND);
+  const nextId = nextPriceBookId(books);
+  if (!nextId) return fail('No automatic Price IDs are available.');
   const book: PriceBook = {
     ...source,
-    id: nextPriceBookId(books),
+    id: nextId,
     name: copyName(books, source.name),
     active: false,
-    entries: source.entries.map((e) => ({ ...e })),
+    entries: source.entries.map((e) => ({
+      ...e,
+      ...(e.manual ? { manual: { ...e.manual } } : {}),
+    })),
     updatedAt: now.toISOString(),
     updatedBy: actor,
   };

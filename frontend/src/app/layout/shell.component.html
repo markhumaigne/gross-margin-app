@@ -26,7 +26,7 @@
     </nav>
     <div class="sidebar-note">
       <span class="local-dot"></span> Mock session
-      <p>Demo accounts only.<br />No database. Data resets on refresh.</p>
+      <p>Demo accounts only.<br />Price books are saved in this browser.</p>
     </div>
     @if (user(); as account) {
       <div class="sidebar-footer">
@@ -53,6 +53,14 @@
       </div>
     </header>
     <main>
+      @if (pricing.error()) {
+        <div class="page-alert error-message" role="alert">
+          {{ pricing.error() }}
+          <button mat-button type="button" (click)="pricing.reload()">
+            Retry loading saved prices
+          </button>
+        </div>
+      }
       <router-outlet />
     </main>
   </div>

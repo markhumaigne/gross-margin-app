@@ -48,7 +48,7 @@ Editing the file selection, mappings, cost basis or configuration clears the pre
 
 ## Mock accounts, price books and product sales (frontend prototype)
 
-These modules are a **frontend-only demonstration**. Accounts, price books, products and sample sales are mock data held in browser memory: there is no database, API or backend authentication for them. **Refreshing the browser signs you out and resets all mock data.** Do not use real customer or employee information.
+These modules are a **frontend-only demonstration** with no database or backend authentication. Price books and imported products are saved together in browser localStorage and shared by the Product Team, Admin and Accounting demo accounts on the same browser profile and site address. Refreshing signs you out and clears account changes and uploaded reports, but keeps saved pricing data. Other browsers, profiles and computers have separate pricing data. Clearing this site's browser storage removes saved price books and products. Do not use real customer or employee information.
 
 ### Development accounts and access
 
@@ -68,11 +68,11 @@ The old `/sales-report` address forwards to the calculator. The sidebar shows on
 
 ### Price books
 
-Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books, and add or remove products through the catalog picker (search by Product ID or name).
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Saving persists the pricing workspace before showing success. Other tabs at the same site receive the changes and update Accounting's price comparison automatically. Blocked/full browser storage is reported as an error instead of a successful save.
 
 Price IDs follow the POS format: `PL` or `PS` followed by six digits (e.g. `PL000013`, `PS000015`). With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a POS price list. IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
 
-**Import from sales export** reads a POS "Sales Report by Product" export (`.xlsx`, `.xls` or `.csv`): products not yet in the catalog are added (name, unit, Master Price, Selling Price, unit Cost; tagged *Imported*), and each Price ID becomes a price book holding the POS Selling Price per product — `PL` prices as the updated price, `PS` prices at or below Master Price as the promotional price. Existing products and price book entries are never changed; existing Price IDs only gain missing products. Imports last for the session. **Download sample export** provides a demo file.
+**Import from sales export** reads a POS "Sales Report by Product" export (`.xlsx`, `.xls` or `.csv`): products not yet in the catalog are added (name, unit, Master Price, Selling Price, unit Cost; tagged *Imported*), and each Price ID becomes a price book holding the POS Selling Price per product — `PL` prices as the updated price, `PS` prices at or below Master Price as the promotional price. Existing products and price book entries are never changed; existing Price IDs only gain missing products. Imports persist in this browser across refreshes and sign-ins. **Download sample export** provides a demo file.
 
 Each product keeps three separate prices:
 

@@ -180,7 +180,18 @@
         <p>Sales recorded under a Price ID compared with that price book's current price.</p>
       </div>
     </div>
-    @if (result.priceComparison.lines.length) {
+    @if (pricingError()) {
+      <div class="info-line">
+        Price book comparison is unavailable until saved prices can be loaded. Retry loading saved
+        prices above.
+      </div>
+    } @else if (result.priceComparison.lines.length) {
+      @if (result.priceComparison.matchedLines === 0) {
+        <div class="info-line">
+          No sales matched a saved, active price book. The Product Team must save matching Price IDs
+          and Product IDs in this browser.
+        </div>
+      }
       <div class="metrics-grid">
         <div class="metric">
           <span>Price-book sales (actual)</span

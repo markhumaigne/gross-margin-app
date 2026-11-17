@@ -15,6 +15,7 @@ import {
 } from '../src/app/domain/price-books';
 import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
 import { PRODUCTS } from '../src/app/mock-data/products';
+import { matchPriceBook } from '../src/app/domain/price-match';
 
 const now = new Date('2026-11-17T02:00:00Z');
 const base = (): PriceBookDraft => ({
@@ -167,4 +168,136 @@ test('editing never changes the Price ID', () => {
     expectOk(savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', PRODUCTS, 'x', now)).book.id,
     'PL000013',
   );
+});
+
+const manualEntry = () => ({
+  ...newEntryDraft('001-NEW', { effectiveDate: '2026-11-17', expirationDate: '' }),
+  manual: {
+    name: ' Custom monitor ',
+    qty: '1.5',
+    toQty: '10',
+    unit: ' PCS ',
+    masterListPrice: '₱1,200.00',
+    unitPrice: '1000',
+    discountPercent: '10',
+    discount: '100',
+    netPrice: '900',
+    cost: '950',
+    margin: '-5.56',
+  },
+});
+
+test('manual products save without catalog records, retain all fields, and resolve net price', () => {
+  const entry = manualEntry();
+  const catalogBefore = JSON.stringify(PRODUCTS);
+  const { book } = expectOk(
+    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
+  );
+  assert.equal(JSON.stringify(PRODUCTS), catalogBefore);
+  assert.deepEqual(JSON.parse(JSON.stringify(book.entries[0])).manual, {
+    name: 'Custom monitor',
+    qty: 1.5,
+    toQty: 10,
+    unit: 'PCS',
+    masterListPrice: 1200,
+    unitPrice: 1000,
+    discountPercent: 10,
+    discount: 100,
+    netPrice: 900,
+    cost: 950,
+    margin: -5.56,
+  });
+  assert.deepEqual(matchPriceBook([book], book.id, '001-NEW', null), {
+    status: 'matched',
+    price: 900,
+    source: 'updated',
+  });
+  const reopened = draftFromBook(book);
+  const savedAgain = expectOk(savePriceBook([book], reopened, book.id, PRODUCTS, 'x', now)).book;
+  assert.deepEqual(savedAgain.entries, book.entries);
+  const copy = expectOk(duplicatePriceBook([book], book.id, 'x', now)).book;
+  assert.deepEqual(copy.entries, book.entries);
+  assert.notEqual(Reflect.get(copy.entries[0], 'manual'), Reflect.get(book.entries[0], 'manual'));
+});
+
+test('manual products reject invalid identity, ranges, and numbers before saving', () => {
+  const invalidValues = [
+    { name: ' ' },
+    { unit: '' },
+    { qty: '0' },
+    { qty: 'abc' },
+    { toQty: '1' },
+    { masterListPrice: '-1' },
+    { unitPrice: '1.234' },
+    { discountPercent: '101' },
+    { discount: '-5' },
+    { netPrice: 'NaN' },
+    { cost: '' },
+    { margin: 'Infinity' },
+  ];
+  for (const patch of invalidValues) {
+    const entry = manualEntry();
+    entry.productId = PRODUCTS[0].id;
+    const draft = { ...base(), entries: [{ ...entry, manual: { ...entry.manual, ...patch } }] };
+    assert.equal(
+      hasErrors(validatePriceBook(draft, [], PRODUCTS, null)),
+      true,
+      JSON.stringify(patch),
+    );
+    expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+  }
+  for (const productId of ['', '   ']) {
+    const draft = { ...base(), entries: [{ ...manualEntry(), productId }] };
+    assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true);
+  }
+});
+
+test('manual products accept zero prices and an open quantity range without changing the catalog', () => {
+  const entry = manualEntry();
+  entry.productId = PRODUCTS[0].id;
+  entry.manual = {
+    ...entry.manual,
+    toQty: '',
+    masterListPrice: '0',
+    unitPrice: '0',
+    discountPercent: '0',
+    discount: '0',
+    netPrice: '0',
+    cost: '0',
+    margin: '0',
+  };
+  const { book } = expectOk(
+    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
+  );
+  assert.equal(JSON.parse(JSON.stringify(book.entries[0])).manual.toQty, null);
+  assert.equal(matchPriceBook([book], book.id, entry.productId, 500).price, 0);
+});
+
+test('duplicate manual product IDs are rejected after trimming and case normalization', () => {
+  const entry = manualEntry();
+  entry.productId = PRODUCTS[0].id;
+  const draft = { ...base(), entries: [entry, { ...entry, productId: ` ${entry.productId} ` }] };
+  assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true);
+  expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+});
+
+test('manual product IDs cannot hide entry validation errors behind object prototype keys', () => {
+  for (const productId of ['__proto__', 'constructor', 'toString']) {
+    const entry = { ...manualEntry(), productId, effectiveStart: '' };
+    const draft = { ...base(), entries: [entry] };
+    assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true, productId);
+    expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+  }
+});
+
+test('small decimal quantities can be saved again after reopening', () => {
+  const entry = manualEntry();
+  entry.manual.qty = '0.0000001';
+  const { book } = expectOk(
+    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
+  );
+  const saved = expectOk(
+    savePriceBook([book], draftFromBook(book), book.id, PRODUCTS, 'x', now),
+  ).book;
+  assert.deepEqual(saved.entries, book.entries);
 });
