@@ -11,6 +11,7 @@ import {
 } from '../../../shared/models';
 import { normalize } from '../config/config.service';
 import { reportDate } from './report-date';
+import { isFooterRow } from './footer';
 
 export const FIELDS: Record<string, string[]> = {
   productId: ['Product ID', 'ProductID', 'SKU', 'Item Code', 'Product Code'],
@@ -179,6 +180,8 @@ export class ExcelService {
     for (let r = header + 1; r <= range.e.r; r++) {
       const cells = headers.map((_, c) => this.text(sheet[XLSX.utils.encode_cell({ r, c })], true));
       if (!cells.some((v) => v.trim())) continue;
+      if (isFooterRow(cells, headers.indexOf(mapping.productId), headers.indexOf(mapping.invoice)))
+        continue;
       recordCount++;
       if (preview.length < 10) {
         const dc = headers.indexOf(mapping.date);
@@ -233,6 +236,14 @@ export class ExcelService {
     for (let r = desc.headerRow; r <= range.e.r; r++) {
       const row = desc.headers.map((_, c) => this.text(sheet[XLSX.utils.encode_cell({ r, c })]));
       if (!row.some((v) => v.trim())) continue;
+      if (
+        isFooterRow(
+          row,
+          desc.headers.indexOf(mapping.productId),
+          desc.headers.indexOf(mapping.invoice),
+        )
+      )
+        continue;
       const cells: Record<string, string> = {},
         original: Record<string, string> = {},
         notes: string[] = [],

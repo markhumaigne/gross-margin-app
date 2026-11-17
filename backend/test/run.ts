@@ -2391,6 +2391,57 @@ test('One-file HTTP workflow previews, calculates, downloads and imports its con
     await app.close();
   }
 });
+test('POS export footer rows are not parsed as sales', () => {
+  const file = upload(
+    workbook({
+      'Sales Report by Product': [
+        ['DEMO'],
+        ['Sales Report by Product'],
+        ['Sale Date=10/01/2026'],
+        [],
+        [
+          'Product ID',
+          'Product Name',
+          'Date',
+          'TM-INV#',
+          'Qty',
+          'Price',
+          'Cost',
+          'Discount',
+          'Net Total',
+          'Payment',
+          'Branch',
+        ],
+        [
+          '000123',
+          'Laptop',
+          '10/01/2026',
+          '0001',
+          1,
+          30000,
+          25000,
+          0,
+          30000,
+          'BDO STRAIGHT',
+          'ASUS',
+        ],
+        [null, null, null, 'TOTAL:', 1, null, null, 0, 30000, null, null],
+        ['1 items  ******** NOTHING FOLLOWS ********'],
+      ],
+    }),
+  );
+  const s = excel.preview(file).sheets[0];
+  assert.equal(s.headerRow, 5);
+  assert.equal(s.recordCount, 1);
+  const sales = excel.parse(file, {
+    sheet: s.name,
+    headerRow: s.headerRow,
+    mapping: s.suggestedMapping,
+  });
+  assert.equal(sales.length, 1);
+  assert.equal(sales[0].invoice, '0001');
+});
+
 async function main() {
   let passed = 0;
   for (const t of tests) {
