@@ -1728,3 +1728,7 @@ textarea.invalid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.modal-toolbar .mat-mdc-button-base,
+.modal-footer .mat-mdc-button-base {
+  font-size: 11px;
+}

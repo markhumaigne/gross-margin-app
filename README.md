@@ -11,7 +11,7 @@ npm install
 npm start
 ```
 
-Open **http://127.0.0.1:4200**. The API runs at **http://127.0.0.1:3000**. Stop with Ctrl+C.
+Open **http://127.0.0.1:4200** and sign in with a development account (see below). The API runs at **http://127.0.0.1:3000**. Stop with Ctrl+C.
 
 To run separately:
 
@@ -41,7 +41,47 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 6. Review all 17 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons.
 7. Click **Download Calculated Excel Report**.
 
-Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again.
+Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again. The calculator lives at `/calculator`; leaving that page clears its upload and results.
+
+## Mock accounts, price books and product sales (frontend prototype)
+
+These modules are a **frontend-only demonstration**. Accounts, price books, products and sample sales are mock data held in browser memory: there is no database, API or backend authentication for them. **Refreshing the browser signs you out and resets all mock data.** Do not use real customer or employee information.
+
+### Development accounts and access
+
+| Username    | Password       | Role            |
+| ----------- | -------------- | --------------- |
+| admin       | Admin123!      | Admin           |
+| accounting  | Accounting123! | Accounting Head |
+| productteam | Product123!    | Product Team    |
+
+| Module                                    | Admin | Accounting Head | Product Team |
+| ----------------------------------------- | ----- | --------------- | ------------ |
+| Bank rate calculator (`/calculator`)      | ✓     | ✓               | –            |
+| Sales report by product (`/sales-report`) | ✓     | ✓               | –            |
+| Price books (`/price-books`)              | ✓     | –               | ✓            |
+| User accounts (`/users`)                  | ✓     | –               | –            |
+
+The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
+
+### Price books
+
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books, and add or remove products through the catalog picker (search by Product ID or name). Each product keeps three separate prices:
+
+- **Master List Price** — read from the catalog and never written by a price book.
+- **Updated Selling Price** — optional new selling price.
+- **Promotional Price** — optional; needs an effective end date and cannot exceed the price it discounts.
+
+Discount % = (Master List Price − Promotional Price, or Updated Selling Price) ÷ Master List Price × 100, rounded to 2 decimals; negative values show as markup. Entry status is Scheduled, Active or Expired from its effective dates (Asia/Manila calendar date), and entry dates must fall inside the price book's validity. Amounts accept `₱`, `PHP` and comma groups; more than two decimals, zero, negative and non-numeric prices are rejected.
+
+### Sales report by product
+
+Upload a `.csv`, `.xlsx` or `.xls` file (up to 10 MB) — parsed in the browser — or click **Load demo report** / **Download sample CSV**. Product ID, Quantity and Net sales columns are detected (Product ID/SKU/Item Code, Qty/Quantity, Net Total/Net Sales/Line Total/Amount, Unit Cost or Total Cost) and can be remapped. Rows are matched to the mock catalog by Product ID; missing or unknown IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Rows needing review**.
+
+- Gross Profit = Net Sales Revenue − Cost of Goods Sold
+- Gross Margin % = Gross Profit ÷ Net Sales Revenue × 100
+
+COGS uses the cost in the uploaded report (unit cost × quantity, or line total cost). When the report has no cost, COGS, gross profit and margin stay blank for that product and the row is flagged — current mock cost is never substituted silently. Ticking **Use current mock cost as an estimate** fills those rows and labels them "Estimate (current mock cost)". Cost totals include only products with known cost. All figures are labelled demonstration data.
 
 ## Workbook
 
@@ -54,25 +94,25 @@ The filename is Sales_Bank_Rate_Deductions_YYYYMMDD_HHMMSS.xlsx, with generation
 
 The main sheet has these exact columns:
 
-| Column | Name |
-| --- | --- |
-| A | Product ID |
-| B | Sales Date |
-| C | Branch |
-| D | Invoice Number |
-| E | Product Name |
-| F | Quantity |
-| G | Price |
-| H | Cost |
-| I | Discount |
-| J | Line Total |
-| K | Payment |
-| L | Applied Bank Rate |
-| M | Bank Charges / Subsidy |
-| N | GrossMargin |
-| O | Sales Source Row |
-| P | Tender |
-| Q | Calculation Explanation |
+| Column | Name                    |
+| ------ | ----------------------- |
+| A      | Product ID              |
+| B      | Sales Date              |
+| C      | Branch                  |
+| D      | Invoice Number          |
+| E      | Product Name            |
+| F      | Quantity                |
+| G      | Price                   |
+| H      | Cost                    |
+| I      | Discount                |
+| J      | Line Total              |
+| K      | Payment                 |
+| L      | Applied Bank Rate       |
+| M      | Bank Charges / Subsidy  |
+| N      | GrossMargin             |
+| O      | Sales Source Row        |
+| P      | Tender                  |
+| Q      | Calculation Explanation |
 
 Payment copies the original Sales Report Payment cell verbatim, including line breaks. Tender is the matched configured card name. Original BNPL/SNPL Tender descriptions also appear in Calculation Explanation, including when they came from separate Tender columns inside the Sales Report. Bank and Status are omitted from the main worksheet and its preview; review reasons remain in Calculation Explanation and Needs Review. There is no separate payment-report input or cross-report invoice matching.
 
@@ -143,14 +183,14 @@ Use **Export settings**, or edit Configuration Settings from a calculated report
 
 ## API
 
-| Endpoint | Request | Response |
-| --- | --- | --- |
-| GET /api/config/defaults | None | Default JSON |
-| POST /api/excel/preview | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
-| POST /api/excel/calculate | Multipart sales and JSON-string options | result and exportToken |
-| POST /api/excel/export | Unchanged result and exportToken | Four-sheet Excel file |
-| POST /api/config/import | Multipart file | Validated settings |
-| POST /api/config/export | Configuration JSON | Settings workbook |
+| Endpoint                  | Request                                  | Response                                             |
+| ------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| GET /api/config/defaults  | None                                     | Default JSON                                         |
+| POST /api/excel/preview   | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
+| POST /api/excel/calculate | Multipart sales and JSON-string options  | result and exportToken                               |
+| POST /api/excel/export    | Unchanged result and exportToken         | Four-sheet Excel file                                |
+| POST /api/config/import   | Multipart file                           | Validated settings                                   |
+| POST /api/config/export   | Configuration JSON                       | Settings workbook                                    |
 
 Calculation options contain sales: {sheet, headerRow, mapping, costBasis, paymentScope} and configuration. Mapping keys: productId, date, branch, invoice, product, quantity, price, cost, discount, lineTotal, payment, paymentAmount. Required mappings are invoice, product, quantity and lineTotal; missing optional data stays in the output with appropriate review/warnings. Cost basis is auto/unit/line; payment scope is invoice/line.
 
@@ -181,7 +221,9 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation and the product sales report. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+
+`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, and sales report parsing, validation and gross margin aggregation.
 
 Backend tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety and signed download validation.
 
@@ -192,8 +234,15 @@ frontend/src/app/
   components/excel-upload/          One file, worksheet, mapping and source preview
   components/configuration/         Session configuration editor
   components/calculation-results/   Seventeen columns, summaries and reviews
-  components/dashboard/             Upload → configure → calculate → download
+  components/dashboard/             Upload → configure → calculate → download (/calculator)
   services/                         HttpClient API and downloads
+  app.routes.ts                     Routes and role guards
+  core/                             Mock auth, guards and in-memory stores (backend seam)
+  layout/                           Shared sidebar/topbar shell
+  pages/                            Login, access denied, users, price books, product sales
+  domain/                           Framework-free pricing, accounts and sales logic
+  mock-data/                        Demo users, products, price books and sample sales
+frontend/test/                      Frontend domain checks (ts-node)
 backend/src/
   excel/                            SheetJS parser, endpoints and ExcelJS exporter
   calculation/                      Decimal.js calculations, allocations and matching
