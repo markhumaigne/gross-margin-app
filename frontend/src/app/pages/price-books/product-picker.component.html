@@ -63,14 +63,18 @@
               }
             </td>
             <td>{{ product.unit }}</td>
-            <td class="numeric">{{ product.onHand }}</td>
+            <td class="numeric">{{ product.onHand ?? '—' }}</td>
             <td class="numeric">
               {{ product.masterListPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
             </td>
             <td class="numeric">
               {{ product.sellingPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
             </td>
-            <td class="numeric">{{ product.cost | currency: 'PHP' : 'symbol' : '1.2-2' }}</td>
+            <td class="numeric">
+              {{
+                product.cost === null ? '—' : (product.cost | currency: 'PHP' : 'symbol' : '1.2-2')
+              }}
+            </td>
             <td class="numeric" [class.negative]="(margin(product) ?? 0) < 0">
               {{ margin(product) === null ? '—' : margin(product)!.toFixed(2) + '%' }}
             </td>

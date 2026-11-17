@@ -53,7 +53,7 @@ export class ProductPickerComponent implements AfterViewInit {
   }
 
   margin(product: Product) {
-    return marginPercent(product.sellingPrice, product.cost);
+    return product.cost === null ? null : marginPercent(product.sellingPrice, product.cost);
   }
 
   setQuery(value: string) {

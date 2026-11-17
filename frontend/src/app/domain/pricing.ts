@@ -5,12 +5,16 @@ export interface Product {
   id: string;
   name: string;
   unit: string;
-  onHand: number;
+  /** Unknown (null) for products imported from a sales export. */
+  onHand: number | null;
   /** Original catalog price. Price books never write to it. */
   masterListPrice: number;
   /** Current everyday selling price in the catalog. */
   sellingPrice: number;
-  cost: number;
+  /** Unit cost; null when an imported export had no cost for the product. */
+  cost: number | null;
+  /** Demo catalog item or one imported from a sales export this session. */
+  source?: 'demo' | 'import';
 }
 
 export type EntryStatus = 'Active' | 'Scheduled' | 'Expired';
