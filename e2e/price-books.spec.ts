@@ -45,3 +45,103 @@ test.describe('Price book list', () => {
     ).toBeTruthy();
   });
 });
+
+test.describe('Price book editor', () => {
+  test('Product Team creates a price book with updated and promotional prices', async ({
+    page,
+  }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'New price book' }).click();
+    await page.getByLabel('Price book name').fill('Weekend Flash Sale');
+    await page.getByLabel('Effective date').fill('2099-01-01');
+    await page.getByLabel('Expiration date').fill('2099-01-31');
+    await page.getByRole('button', { name: 'Add products' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Select products' });
+    await dialog.getByLabel('Search products').fill('4800000100011');
+    await dialog.getByLabel('Select 4800000100011').check();
+    await dialog.getByLabel('Search products').fill('keyboard and mouse');
+    await dialog.getByLabel('Select 4800000200014').check();
+    await dialog.getByRole('button', { name: 'Add 2 products' }).click();
+    await page.getByLabel('Updated selling price for 4800000100011').fill('₱5,495.00');
+    await page.getByLabel('Promotional price for 4800000200014').fill('999');
+    const table = page.getByRole('table', { name: 'Price book products' });
+    const r1 = table.getByRole('row').filter({ hasText: '4800000100011' });
+    await expect(r1).toContainText('₱5,795.00');
+    await expect(r1).toContainText('5.18%');
+    await expect(r1).toContainText('Scheduled');
+    await expect(table.getByRole('row').filter({ hasText: '4800000200014' })).toContainText(
+      '33.18%',
+    );
+    await page.getByRole('button', { name: 'Save price book' }).click();
+    await expect(page).toHaveURL(/\/price-books\/PB-0004$/);
+    await expect(page.getByRole('status')).toHaveText('Price book PB-0004 saved.');
+    await expect(
+      page
+        .getByRole('table', { name: 'Price book products' })
+        .getByRole('row')
+        .filter({ hasText: '4800000100011' }),
+    ).toContainText('₱5,795.00');
+    await page.getByRole('link', { name: 'Back to price books' }).click();
+    await expect(page.getByRole('row').filter({ hasText: 'PB-0004' })).toContainText(
+      'Weekend Flash Sale',
+    );
+  });
+
+  test('invalid entries are reported and nothing is saved', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'New price book' }).click();
+    await page.getByLabel('Effective date').fill('2099-02-01');
+    await page.getByLabel('Expiration date').fill('2099-01-01');
+    await page.getByRole('button', { name: 'Add products' }).click();
+    await page.getByRole('dialog').getByLabel('Select 4800000100011').check();
+    await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
+    await page.getByLabel('Promotional price for 4800000100011').fill('abc');
+    await page.getByRole('button', { name: 'Save price book' }).click();
+    await expect(page).toHaveURL(/\/price-books\/new$/);
+    await expect(page.getByRole('alert')).toContainText(
+      'Fix the highlighted fields before saving.',
+    );
+    for (const m of [
+      'Price book name is required.',
+      'Expiration date cannot be before the effective date.',
+      'Promotional price must be a positive amount with up to 2 decimals.',
+    ])
+      await expect(page.getByText(m)).toBeVisible();
+    await page.getByLabel('Promotional price for 4800000100011').fill('6000');
+    await expect(
+      page.getByText('Promotional price cannot exceed the master list price.'),
+    ).toBeVisible();
+  });
+
+  test('edit, remove a product, and cancel with confirmation', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'Edit PB-0001' }).click();
+    await page.getByLabel('Description / memo').fill('Revised shelf prices');
+    await page.getByRole('button', { name: 'Remove 4800000200014' }).click();
+    await page.getByRole('button', { name: 'Add products' }).click();
+    await expect(page.getByRole('dialog').getByLabel('Select 4800000100011')).toBeDisabled();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+    await page.getByRole('button', { name: 'Save price book' }).click();
+    await expect(page.getByRole('status')).toHaveText('Price book PB-0001 saved.');
+    await page.getByRole('link', { name: 'Back to price books' }).click();
+    const row = page.getByRole('row').filter({ hasText: 'PB-0001' });
+    await expect(row).toContainText('Revised shelf prices');
+    await expect(row.locator('td').nth(3)).toHaveText('1');
+    await page.getByRole('link', { name: 'Edit PB-0002' }).click();
+    await page.getByLabel('Price book name').fill('Changed');
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page).toHaveURL(/\/price-books\/PB-0002$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'November Monitor Sale' }),
+    ).toBeVisible();
+  });
+
+  test('Accounting Head cannot reach the editor', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.accounting);
+    for (const url of ['/price-books/new', '/price-books/PB-0001/edit']) {
+      await navigateInApp(page, url);
+      await expect(page).toHaveURL(/\/forbidden$/);
+    }
+  });
+});

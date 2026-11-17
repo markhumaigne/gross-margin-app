@@ -1,0 +1,338 @@
+@if (notFound()) {
+  <section class="section-card">
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">◫</div>
+      <h1 class="forbidden-title">Price book not found.</h1>
+      <p>It may have been removed when the page was reloaded. Mock data lives in memory only.</p>
+      <a mat-stroked-button class="forbidden-action" routerLink="/price-books"
+        >Back to price books</a
+      >
+    </div>
+  </section>
+} @else {
+  <div class="page-heading">
+    <div>
+      <div class="eyebrow">PRICING · {{ bookId() ?? 'NEW' }}</div>
+      <h1>{{ title() }}</h1>
+      <p>
+        @switch (mode()) {
+          @case ('create') {
+            Set the validity, then add products with their updated or promotional prices.
+          }
+          @case ('edit') {
+            Changes apply to this price book only. Master list prices are never changed.
+          }
+          @default {
+            {{ book()?.description || 'Price book details' }}
+          }
+        }
+      </p>
+    </div>
+    <div class="heading-actions">
+      @if (editable()) {
+        <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-flat-button type="button" (click)="save()">Save price book</button>
+      } @else {
+        <a mat-button routerLink="/price-books">Back to price books</a>
+        <button mat-stroked-button type="button" (click)="duplicate()">Duplicate</button>
+        <button mat-stroked-button type="button" (click)="toggleActive()">
+          {{ book()?.active ? 'Deactivate' : 'Activate' }}
+        </button>
+        <a mat-flat-button [routerLink]="['/price-books', bookId(), 'edit']">Edit</a>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="page-alert error-message" role="alert">
+      <strong>{{ error() }}</strong>
+      @for (message of shownErrors().form; track message) {
+        <span class="alert-line">{{ message }}</span>
+      }
+      <button class="delete-button" aria-label="Dismiss error" (click)="error.set('')">×</button>
+    </div>
+  }
+  @if (notice()) {
+    <div class="notice" role="status">{{ notice() }}</div>
+  }
+
+  <section class="section-card">
+    <div class="section-heading">
+      <div class="section-number">01</div>
+      <div>
+        <h2>Price book details</h2>
+        <p>Name, validity and status. Product validity must fall inside these dates.</p>
+      </div>
+      @if (!editable()) {
+        <span class="status-pill" [class.warning]="!book()?.active">{{
+          book()?.active ? 'Active' : 'Inactive'
+        }}</span>
+      }
+    </div>
+    @if (editable()) {
+      <div class="form-grid panel-body details-grid">
+        <div class="read-only-field">
+          <span>Price book ID</span><strong>{{ bookId() ?? 'Assigned on save' }}</strong>
+        </div>
+        <label
+          >Price book name *
+          <input
+            maxlength="80"
+            [value]="draft().name"
+            [class.invalid]="!!shownErrors().name"
+            (input)="updateField('name', $event)"
+          />
+          @if (shownErrors().name; as message) {
+            <small class="field-error">{{ message }}</small>
+          }
+        </label>
+        <label
+          >Effective date *
+          <input
+            type="date"
+            [value]="draft().effectiveDate"
+            [class.invalid]="!!shownErrors().effectiveDate"
+            (input)="updateField('effectiveDate', $event)"
+          />
+          @if (shownErrors().effectiveDate; as message) {
+            <small class="field-error">{{ message }}</small>
+          }
+        </label>
+        <label
+          >Expiration date
+          <input
+            type="date"
+            [value]="draft().expirationDate"
+            [class.invalid]="!!shownErrors().expirationDate"
+            (input)="updateField('expirationDate', $event)"
+          />
+          @if (shownErrors().expirationDate; as message) {
+            <small class="field-error">{{ message }}</small>
+          }
+        </label>
+        <label
+          >Status
+          <select (change)="updateStatus($event)">
+            <option value="active" [selected]="draft().active">Active</option>
+            <option value="inactive" [selected]="!draft().active">Inactive</option>
+          </select>
+        </label>
+        <label class="wide-field"
+          >Description / memo
+          <textarea
+            rows="2"
+            [value]="draft().description"
+            (input)="updateField('description', $event)"
+          ></textarea>
+        </label>
+      </div>
+    } @else if (book(); as current) {
+      <dl class="detail-list panel-body">
+        <div>
+          <dt>Price book ID</dt>
+          <dd>{{ current.id }}</dd>
+        </div>
+        <div>
+          <dt>Validity</dt>
+          <dd>
+            {{ current.effectiveDate | date: 'MMM d, y' }} –
+            {{
+              current.expirationDate ? (current.expirationDate | date: 'MMM d, y') : 'No end date'
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt>Last updated</dt>
+          <dd>
+            {{ current.updatedAt | date: 'MMM d, y, h:mm a' : '+0800' }} by {{ current.updatedBy }}
+          </dd>
+        </div>
+        <div class="wide-field">
+          <dt>Description / memo</dt>
+          <dd>{{ current.description || '—' }}</dd>
+        </div>
+      </dl>
+    }
+  </section>
+
+  <section class="section-card">
+    <div class="section-heading">
+      <div class="section-number">02</div>
+      <div>
+        <h2>Products ({{ draft().entries.length }})</h2>
+        <p>
+          Master list prices come from the catalog and are never overwritten. Discount % compares
+          the promotional price (or the updated price) with the master list price.
+        </p>
+      </div>
+      @if (editable()) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="section-action"
+          (click)="pickerOpen.set(true)"
+        >
+          Add products
+        </button>
+      }
+    </div>
+    <div class="table-scroll">
+      <table aria-label="Price book products" class="entries-table">
+        <thead>
+          <tr>
+            <th scope="col">Product ID</th>
+            <th scope="col">Product Name</th>
+            <th scope="col" class="numeric">Master List Price</th>
+            <th scope="col">Updated Selling Price</th>
+            <th scope="col">Promotional Price</th>
+            <th scope="col" class="numeric">Discount %</th>
+            <th scope="col">Effective Start</th>
+            <th scope="col">Effective End</th>
+            <th scope="col">Status</th>
+            <th scope="col">Memo</th>
+            @if (editable()) {
+              <th scope="col"><span class="visually-hidden">Remove</span></th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.entry.productId) {
+            <tr [class.review-row]="row.errors.length">
+              <td class="nowrap">{{ row.entry.productId }}</td>
+              <td class="name-cell">{{ row.product?.name ?? 'Unknown product' }}</td>
+              <td class="numeric">
+                {{
+                  row.product
+                    ? (row.product.masterListPrice | currency: 'PHP' : 'symbol' : '1.2-2')
+                    : '—'
+                }}
+              </td>
+              @if (editable()) {
+                <td>
+                  <input
+                    class="price-input"
+                    inputmode="decimal"
+                    placeholder="—"
+                    [attr.aria-label]="entryLabel('Updated selling price', row.entry)"
+                    [value]="row.entry.updatedPrice"
+                    (input)="updateEntry(row.entry.productId, 'updatedPrice', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="price-input"
+                    inputmode="decimal"
+                    placeholder="—"
+                    [attr.aria-label]="entryLabel('Promotional price', row.entry)"
+                    [value]="row.entry.promoPrice"
+                    (input)="updateEntry(row.entry.productId, 'promoPrice', $event)"
+                  />
+                </td>
+              } @else {
+                <td class="numeric">
+                  {{
+                    row.entry.updatedPrice
+                      ? (+row.entry.updatedPrice | currency: 'PHP' : 'symbol' : '1.2-2')
+                      : '—'
+                  }}
+                </td>
+                <td class="numeric">
+                  {{
+                    row.entry.promoPrice
+                      ? (+row.entry.promoPrice | currency: 'PHP' : 'symbol' : '1.2-2')
+                      : '—'
+                  }}
+                </td>
+              }
+              <td class="numeric discount-cell" [class.negative]="(row.discount ?? 0) < 0">
+                {{ formatDiscount(row.discount) }}
+                @if (row.discount !== null) {
+                  <small>{{ row.discountSource }}</small>
+                }
+              </td>
+              @if (editable()) {
+                <td>
+                  <input
+                    type="date"
+                    class="date-input"
+                    [attr.aria-label]="entryLabel('Effective start', row.entry)"
+                    [value]="row.entry.effectiveStart"
+                    (input)="updateEntry(row.entry.productId, 'effectiveStart', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    class="date-input"
+                    [attr.aria-label]="entryLabel('Effective end', row.entry)"
+                    [value]="row.entry.effectiveEnd"
+                    (input)="updateEntry(row.entry.productId, 'effectiveEnd', $event)"
+                  />
+                </td>
+              } @else {
+                <td class="nowrap">{{ row.entry.effectiveStart | date: 'MMM d, y' }}</td>
+                <td class="nowrap">
+                  {{ row.entry.effectiveEnd ? (row.entry.effectiveEnd | date: 'MMM d, y') : '—' }}
+                </td>
+              }
+              <td>
+                @if (row.status) {
+                  <span class="status-pill" [class.warning]="row.status !== 'Active'">{{
+                    row.status
+                  }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              @if (editable()) {
+                <td>
+                  <input
+                    class="memo-input"
+                    [attr.aria-label]="entryLabel('Memo', row.entry)"
+                    [value]="row.entry.memo"
+                    (input)="updateEntry(row.entry.productId, 'memo', $event)"
+                  />
+                </td>
+                <td class="action-cell">
+                  <button
+                    type="button"
+                    class="delete-button"
+                    [attr.aria-label]="'Remove ' + row.entry.productId"
+                    (click)="removeProduct(row.entry.productId)"
+                  >
+                    ×
+                  </button>
+                </td>
+              } @else {
+                <td class="memo-cell">{{ row.entry.memo || '—' }}</td>
+              }
+            </tr>
+            @if (row.errors.length) {
+              <tr class="entry-error-row">
+                <td [attr.colspan]="editable() ? 11 : 10">
+                  @for (message of row.errors; track message) {
+                    <small class="field-error">{{ message }}</small>
+                  }
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr>
+              <td [attr.colspan]="editable() ? 11 : 10" class="empty-table">
+                No products yet. Use Add products to choose items from the catalog.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  @if (pickerOpen()) {
+    <app-product-picker
+      [excludedIds]="productIds()"
+      (add)="addProducts($event)"
+      (closed)="pickerOpen.set(false)"
+    ></app-product-picker>
+  }
+}

@@ -1,0 +1,95 @@
+<div class="modal-backdrop" (click)="close()"></div>
+<div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+  <div class="modal-header">
+    <div>
+      <h2 id="picker-title">Select products</h2>
+      <p>Search the catalog by Product ID or name, then add the products to this price book.</p>
+    </div>
+    <button type="button" class="delete-button" aria-label="Close" (click)="close()">×</button>
+  </div>
+  <form class="modal-toolbar" (submit)="$event.preventDefault(); setQuery(searchInput.value)">
+    <label class="search-label"
+      ><span aria-hidden="true">⌕</span
+      ><input
+        #searchInput
+        type="search"
+        aria-label="Search products"
+        placeholder="Product ID or name"
+        [value]="query()"
+        (input)="setQuery(searchInput.value)"
+    /></label>
+    <button mat-flat-button type="submit">Search</button>
+  </form>
+  <div class="table-scroll modal-table">
+    <table aria-label="Product catalog">
+      <thead>
+        <tr>
+          <th scope="col" class="check-cell">
+            <input
+              type="checkbox"
+              aria-label="Select all visible"
+              [checked]="allVisibleSelected()"
+              [disabled]="!selectable().length"
+              (change)="toggleAllVisible($event)"
+            />
+          </th>
+          <th scope="col">Product ID</th>
+          <th scope="col">Name</th>
+          <th scope="col">Unit</th>
+          <th scope="col" class="numeric">On hand</th>
+          <th scope="col" class="numeric">Master List Price</th>
+          <th scope="col" class="numeric">Selling Price</th>
+          <th scope="col" class="numeric">Cost</th>
+          <th scope="col" class="numeric">Margin %</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (product of results(); track product.id) {
+          <tr [class.row-added]="isExcluded(product.id)">
+            <td class="check-cell">
+              <input
+                type="checkbox"
+                [attr.aria-label]="'Select ' + product.id"
+                [disabled]="isExcluded(product.id)"
+                [checked]="isExcluded(product.id) || selected().has(product.id)"
+                (change)="toggle(product.id, $event)"
+              />
+            </td>
+            <td class="nowrap">{{ product.id }}</td>
+            <td class="name-cell">
+              {{ product.name }}
+              @if (isExcluded(product.id)) {
+                <span class="status-pill">Added</span>
+              }
+            </td>
+            <td>{{ product.unit }}</td>
+            <td class="numeric">{{ product.onHand }}</td>
+            <td class="numeric">
+              {{ product.masterListPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
+            </td>
+            <td class="numeric">
+              {{ product.sellingPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
+            </td>
+            <td class="numeric">{{ product.cost | currency: 'PHP' : 'symbol' : '1.2-2' }}</td>
+            <td class="numeric" [class.negative]="(margin(product) ?? 0) < 0">
+              {{ margin(product) === null ? '—' : margin(product)!.toFixed(2) + '%' }}
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="9" class="empty-table">No products match "{{ query() }}".</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="modal-footer">
+    <span>{{ results().length }} record(s) · {{ selected().size }} selected</span>
+    <div class="form-actions">
+      <button mat-button type="button" (click)="close()">Cancel</button>
+      <button mat-flat-button type="button" [disabled]="!selected().size" (click)="confirm()">
+        {{ selected().size === 1 ? 'Add 1 product' : 'Add ' + selected().size + ' products' }}
+      </button>
+    </div>
+  </div>
+</div>

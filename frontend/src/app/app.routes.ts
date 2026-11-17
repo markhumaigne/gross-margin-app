@@ -6,6 +6,7 @@ import { ForbiddenComponent } from './pages/forbidden/forbidden.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { UsersComponent } from './pages/users/users.component';
 import { PriceBookListComponent } from './pages/price-books/price-book-list.component';
+import { PriceBookEditorComponent } from './pages/price-books/price-book-editor.component';
 import { SalesReportComponent } from './pages/sales-report/sales-report.component';
 
 export const routes: Routes = [
@@ -39,6 +40,24 @@ export const routes: Routes = [
         component: PriceBookListComponent,
         data: { permission: 'price-books', label: 'Price books' },
         title: 'Ledger | Price Books',
+      },
+      {
+        path: 'price-books/new',
+        component: PriceBookEditorComponent,
+        data: { permission: 'price-books', label: 'Price books', mode: 'create' },
+        title: 'Ledger | New Price Book',
+      },
+      {
+        path: 'price-books/:id',
+        component: PriceBookEditorComponent,
+        data: { permission: 'price-books', label: 'Price books', mode: 'view' },
+        title: 'Ledger | Price Book',
+      },
+      {
+        path: 'price-books/:id/edit',
+        component: PriceBookEditorComponent,
+        data: { permission: 'price-books', label: 'Price books', mode: 'edit' },
+        title: 'Ledger | Edit Price Book',
       },
       {
         path: 'users',
