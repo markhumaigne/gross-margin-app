@@ -1267,3 +1267,122 @@ tbody tr:last-child td {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---- Price books, accounts and access control ---- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.nav-sublinks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px 0 4px 30px;
+  border-left: 1px solid #2a3e57;
+}
+.sidebar nav .nav-sublinks a {
+  padding: 7px 12px;
+  font-size: 11px;
+  color: #93a7bf;
+}
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sign-out-button {
+  font-size: 10px !important;
+  height: 30px !important;
+}
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 16px;
+  background: linear-gradient(180deg, #112740 0, #112740 220px, transparent 220px), #f5f7fa;
+}
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 8px 24px #192d4614;
+  padding: 30px 30px 24px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -1.2px;
+  color: #152d4c;
+  margin-bottom: 22px;
+}
+.login-brand .brand-mark {
+  color: #4c79a8;
+}
+.login-card h1 {
+  font-size: 22px;
+}
+.login-subtitle {
+  font-size: 12px;
+  color: #7c899b;
+  margin-top: 6px !important;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 20px 0 22px;
+}
+.login-button {
+  height: 40px !important;
+  margin-top: 4px;
+}
+.dev-accounts {
+  border: 1px solid #dce6ef;
+  background: #f7fafd;
+  border-radius: 6px;
+  padding: 14px 14px 8px;
+}
+.dev-accounts h2 {
+  font-size: 12px;
+}
+.dev-accounts p {
+  font-size: 10px;
+  color: #7c899b;
+  margin: 4px 0 8px;
+  line-height: 1.6;
+}
+.dev-accounts th,
+.dev-accounts td {
+  background: transparent;
+  padding: 6px 6px;
+  position: static;
+}
+.dev-accounts code {
+  font-size: 10px;
+}
+.forbidden-title {
+  font-size: 18px;
+  color: #617894;
+}
+.forbidden-action {
+  margin-top: 18px;
+}
+@media (max-width: 800px) {
+  .nav-sublinks,
+  .session-badge,
+  .breadcrumb,
+  .breadcrumb-separator {
+    display: none;
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+}

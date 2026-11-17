@@ -2,18 +2,20 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { RouterLink } from '@angular/router';
 import { ExcelUploadComponent } from '../excel-upload/excel-upload.component';
 import { ConfigurationComponent } from '../configuration/configuration.component';
 import { CalculationResultsComponent } from '../calculation-results/calculation-results.component';
 import { CalculationResponse, Configuration, ReportUpload } from '../../models';
 import { ExcelApiService, readableError, saveDownload } from '../../services/excel-api.service';
 @Component({
-  selector: 'app-root',
+  selector: 'app-calculator',
   standalone: true,
   imports: [
     CommonModule,
     MatButtonModule,
     MatProgressBarModule,
+    RouterLink,
     ExcelUploadComponent,
     ConfigurationComponent,
     CalculationResultsComponent,

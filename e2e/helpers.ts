@@ -1,0 +1,39 @@
+import { expect, Page } from '@playwright/test';
+
+/** Hardcoded development accounts (mock authentication only). */
+export const ACCOUNTS = {
+  admin: ['admin', 'Admin123!'],
+  accounting: ['accounting', 'Accounting123!'],
+  product: ['productteam', 'Product123!'],
+} as const;
+
+export async function signIn(page: Page, username = 'admin', password = 'Admin123!') {
+  await page.goto('/login');
+  await page.getByLabel('Username', { exact: true }).fill(username);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).not.toHaveURL(/\/login/);
+}
+
+/**
+ * Navigates without reloading the page. A full page.goto would reset the in-memory session and
+ * mock data, so this pushes the URL and lets the Angular router handle it (guards included).
+ */
+export async function navigateInApp(page: Page, url: string) {
+  await page.evaluate((target) => {
+    history.pushState(null, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+  }, url);
+}
+
+export async function signOut(page: Page) {
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/login/);
+}
+
+/** Top-level module links in the sidebar (calculator sub-links excluded). */
+export async function navLinks(page: Page): Promise<string[]> {
+  const links = page.locator('nav[aria-label="Main navigation"] > a');
+  await expect(links.first()).toBeVisible();
+  return (await links.allTextContents()).map((t) => t.replace(/^\W+/, '').trim());
+}

@@ -1,5 +1,6 @@
 import { test, expect, Download } from '@playwright/test';
 import ExcelJS from 'exceljs';
+import { signIn } from './helpers';
 import * as XLSX from 'xlsx';
 import {
   ITEM_COLUMNS,
@@ -54,7 +55,7 @@ test('Sales-only upload, exact 17 columns, search/sort, download and configurati
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await signIn(page);
   await expect(
     page.getByRole('heading', { name: 'Bank rate deduction calculator', exact: true }),
   ).toBeVisible();
@@ -221,7 +222,7 @@ test('Only configured bank-payment items appear in the preview and exported work
     ]),
   ]);
   f.buffer = XLSX.write(source, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   const calculated = page.waitForResponse((r) => r.url().endsWith('/api/excel/calculate'));
@@ -294,7 +295,7 @@ test('Sheet 1 Cost and Sheet 2 COGS use the same quantity-adjusted cost in previ
   source.F4.v = 3;
   source.J4.v = 6000;
   f.buffer = XLSX.write(b, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   const calculate = page.getByRole('button', { name: 'Calculate Bank Rate Deductions' });
@@ -350,7 +351,7 @@ test('Negative quantities move to review and contribute no sales or cost to eith
   source.J2 = { t: 'n', v: 30000 };
   source.K2 = { t: 's', v: 'BDO 6 MOS BNPL' };
   f.buffer = XLSX.write(b, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   await page.getByRole('button', { name: 'Calculate Bank Rate Deductions' }).click();
@@ -434,7 +435,7 @@ test('Requested warnings stay hidden and negative quantities remain available in
     ['VALID', '2026-10-01', 'ASUS', '4', 'Valid item', 1, 1000, 800, 0, 1000, 'BDO 6 MOS'],
   ]);
   f.buffer = XLSX.write(b, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   await page.getByRole('button', { name: 'Calculate Bank Rate Deductions' }).click();
@@ -502,7 +503,7 @@ test('PAYMAYA with cash change calculates the configured card fee in the preview
     ],
   ]);
   f.buffer = XLSX.write(b, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   await page.getByRole('button', { name: 'Calculate Bank Rate Deductions' }).click();
@@ -601,7 +602,7 @@ test('Older settings automatically calculate BDO PAY with the configured BDO PAY
     ]),
   ]);
   f.buffer = XLSX.write(b, { type: 'buffer', bookType: 'xlsx' });
-  await page.goto('/');
+  await signIn(page);
   await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(f);
   await page.getByLabel('Worksheet', { exact: true }).selectOption('Sales Report');
   const calculated = page.waitForResponse((r) => r.url().endsWith('/api/excel/calculate'));
@@ -652,7 +653,7 @@ test('Older settings automatically calculate BDO PAY with the configured BDO PAY
 
 test('Mobile layout, worksheet selection and manual Product ID mapping', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await signIn(page);
   await expect(page.getByRole('tab', { name: /Payment methods/ })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -689,7 +690,7 @@ test('Actual Sales Report: matched items retain source references in the four-sh
   page,
 }) => {
   test.skip(!process.env.SAMPLE_SALES, 'Set SAMPLE_SALES to run the actual-report browser test.');
-  await page.goto('/');
+  await signIn(page);
   await page
     .getByLabel('Upload Sales Report', { exact: true })
     .setInputFiles(process.env.SAMPLE_SALES!);

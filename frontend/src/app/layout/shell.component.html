@@ -1,0 +1,59 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/"
+      ><span class="brand-mark"
+        ><svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <path
+            d="M5 6h18v16H5zM9 3v22M5 11h18M5 17h18"
+            stroke="currentColor"
+            stroke-width="1.7"
+          /></svg></span
+      >ledger<span class="brand-dot">.</span></a
+    >
+    <div class="workspace-label">{{ roleLabel().toUpperCase() }} WORKSPACE</div>
+    <nav aria-label="Main navigation">
+      @for (item of navItems(); track item.path) {
+        <a [routerLink]="item.path" routerLinkActive="nav-current"
+          ><span aria-hidden="true">{{ item.icon }}</span> {{ item.label }}</a
+        >
+        @if (item.path === '/calculator' && onCalculator()) {
+          <div class="nav-sublinks">
+            <a routerLink="/calculator" fragment="configuration">Configuration settings</a>
+            <a routerLink="/calculator" fragment="results">Calculation results</a>
+          </div>
+        }
+      }
+    </nav>
+    <div class="sidebar-note">
+      <span class="local-dot"></span> Mock session
+      <p>Demo accounts only.<br />No database. Data resets on refresh.</p>
+    </div>
+    @if (user(); as account) {
+      <div class="sidebar-footer">
+        SIGNED IN AS<br /><span>{{ account.displayName }}</span>
+      </div>
+    }
+  </aside>
+  <div class="main-shell">
+    <header class="topbar">
+      <div>
+        <span class="breadcrumb">Workspace</span><span class="breadcrumb-separator">/</span
+        ><strong>{{ label() }}</strong>
+      </div>
+      <div class="topbar-user">
+        @if (user(); as account) {
+          <span class="session-badge"
+            ><span class="local-dot"></span
+            ><span class="session-user">{{ account.displayName }} · {{ roleLabel() }}</span></span
+          >
+        }
+        <button mat-stroked-button type="button" class="sign-out-button" (click)="signOut()">
+          Sign out
+        </button>
+      </div>
+    </header>
+    <main>
+      <router-outlet />
+    </main>
+  </div>
+</div>
