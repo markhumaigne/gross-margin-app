@@ -1,4 +1,6 @@
 import { fromCents, isBlank, parseMoney, percentOf, toCents } from './money';
+import { normalizePriceId, PriceBook } from './price-books';
+import { matchPriceBook, PriceMatchStatus } from './price-match';
 
 export type SalesField =
   | 'productId'
@@ -37,6 +39,34 @@ export interface ProductSalesLine {
   grossMarginPercent: number | null;
   costSource: CostSource;
   rowCount: number;
+  /** Distinct Price IDs recorded on this product's included rows, sorted. */
+  priceIds: string[];
+  /** Included rows sold without a Price ID (regular price). */
+  regularPriceRows: number;
+}
+
+export interface PriceComparisonLine {
+  priceId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  actualNetSales: number;
+  /** Most frequent POS Selling Price on these rows, when the export has that column. */
+  posSellingPrice: number | null;
+  price: number | null;
+  priceSource: 'promo' | 'updated' | 'master' | null;
+  expectedRevenue: number | null;
+  variance: number | null;
+  status: PriceMatchStatus;
+}
+
+export interface PriceComparison {
+  lines: PriceComparisonLine[];
+  /** Totals cover matched lines only. */
+  matchedLines: number;
+  actualNetSales: number;
+  expectedRevenue: number;
+  variance: number;
 }
 
 export interface SalesReportTotals {
@@ -64,6 +94,7 @@ export interface SalesReportResult {
   dataRows: number;
   includedRows: number;
   excludedRows: number;
+  priceComparison: PriceComparison;
 }
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -267,14 +298,47 @@ interface Accumulator {
   cogsCents: number;
   missingCost: boolean;
   rowCount: number;
+  priceIds: Set<string>;
+  regularPriceRows: number;
+}
+
+interface ComparisonAccumulator {
+  priceId: string;
+  productKey: string;
+  quantity: number;
+  actualCents: number;
+  expectedCents: number;
+  status: PriceMatchStatus;
+  price: number | null;
+  source: 'promo' | 'updated' | 'master' | null;
+  sellingPrices: Map<number, number>;
+}
+
+const PRICE_MATCH_MESSAGES: Record<Exclude<PriceMatchStatus, 'matched'>, (id: string) => string> = {
+  'not-found': (id) => `Price ID ${id} not found in price books.`,
+  inactive: (id) => `Price book ${id} is inactive; no price-book price applied.`,
+  'not-in-book': (id) => `Product is not in price book ${id}.`,
+};
+
+function mostFrequent(counts: Map<number, number>): number | null {
+  let best: number | null = null;
+  let bestCount = 0;
+  for (const [value, count] of counts)
+    if (count > bestCount) {
+      best = value;
+      bestCount = count;
+    }
+  return best;
 }
 
 export function buildSalesReport(
   rows: readonly unknown[][],
   options: SalesReportOptions,
+  priceBooks: readonly PriceBook[] = [],
 ): SalesReportResult {
   const { mapping } = options;
   const groups = new Map<string, Accumulator>();
+  const comparisons = new Map<string, ComparisonAccumulator>();
   const issues: SalesIssue[] = [];
   let dataRows = 0;
   let excludedRows = 0;
@@ -333,6 +397,8 @@ export function buildSalesReport(
       cogsCents: 0,
       missingCost: false,
       rowCount: 0,
+      priceIds: new Set<string>(),
+      regularPriceRows: 0,
     };
     if (!group.productName && name) group.productName = name;
     group.quantity = Math.round((group.quantity + quantity) * 1e6) / 1e6;
@@ -341,6 +407,42 @@ export function buildSalesReport(
     if (cogsCents === null) group.missingCost = true;
     else group.cogsCents += cogsCents;
     groups.set(key, group);
+
+    const priceId = normalizePriceId(cell(row, 'priceId'));
+    if (!priceId) {
+      group.regularPriceRows++;
+      continue;
+    }
+    group.priceIds.add(priceId);
+    const compareKey = priceId + '|' + key;
+    let line = comparisons.get(compareKey);
+    if (!line) {
+      const match = matchPriceBook(
+        priceBooks,
+        priceId,
+        productId,
+        parseMoney(cell(row, 'masterPrice')),
+      );
+      line = {
+        priceId,
+        productKey: key,
+        quantity: 0,
+        actualCents: 0,
+        expectedCents: 0,
+        status: match.status,
+        price: match.price,
+        source: match.source,
+        sellingPrices: new Map(),
+      };
+      comparisons.set(compareKey, line);
+    }
+    line.quantity = Math.round((line.quantity + quantity) * 1e6) / 1e6;
+    line.actualCents += toCents(net);
+    if (line.price !== null) line.expectedCents += Math.round(toCents(line.price) * quantity);
+    const selling = parseMoney(cell(row, 'sellingPrice'));
+    if (selling !== null)
+      line.sellingPrices.set(selling, (line.sellingPrices.get(selling) ?? 0) + 1);
+    if (line.status !== 'matched') warn(PRICE_MATCH_MESSAGES[line.status](priceId));
   }
 
   const lines: ProductSalesLine[] = [...groups.values()].map((g) => {
@@ -356,6 +458,8 @@ export function buildSalesReport(
       grossMarginPercent: known ? percentOf(profitCents, g.netCents) : null,
       costSource: known ? 'report' : 'missing',
       rowCount: g.rowCount,
+      priceIds: [...g.priceIds].sort(),
+      regularPriceRows: g.regularPriceRows,
     };
   });
   lines.sort((a, b) => b.netSales - a.netSales || a.productId.localeCompare(b.productId));
@@ -375,6 +479,31 @@ export function buildSalesReport(
     productsMissingCost: all.length - costed.length,
   };
 
+  const comparisonLines: PriceComparisonLine[] = [...comparisons.values()]
+    .map((c) => {
+      const product = groups.get(c.productKey)!;
+      const priced = c.status === 'matched' && c.price !== null;
+      return {
+        priceId: c.priceId,
+        productId: product.productId,
+        productName: product.productName || product.productId,
+        quantity: c.quantity,
+        actualNetSales: fromCents(c.actualCents),
+        posSellingPrice: mostFrequent(c.sellingPrices),
+        price: priced ? c.price : null,
+        priceSource: priced ? c.source : null,
+        expectedRevenue: priced ? fromCents(c.expectedCents) : null,
+        variance: priced ? fromCents(c.actualCents - c.expectedCents) : null,
+        status: c.status,
+      };
+    })
+    .sort((a, b) => a.priceId.localeCompare(b.priceId) || a.productId.localeCompare(b.productId));
+  const matched = [...comparisons.values()].filter(
+    (c) => c.status === 'matched' && c.price !== null,
+  );
+  const matchedActual = matched.reduce((sum, c) => sum + c.actualCents, 0);
+  const matchedExpected = matched.reduce((sum, c) => sum + c.expectedCents, 0);
+
   return {
     lines,
     issues,
@@ -382,5 +511,12 @@ export function buildSalesReport(
     dataRows,
     includedRows: dataRows - excludedRows,
     excludedRows,
+    priceComparison: {
+      lines: comparisonLines,
+      matchedLines: matched.length,
+      actualNetSales: fromCents(matchedActual),
+      expectedRevenue: fromCents(matchedExpected),
+      variance: fromCents(matchedActual - matchedExpected),
+    },
   };
 }
