@@ -40,6 +40,9 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 5. Click **Calculate Bank Rate Deductions**.
 6. Review all 17 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons.
 7. Click **Download Calculated Excel Report**.
+8. Below the results, review **05 Gross margin by product** and **06 Price book comparison** (see below).
+
+No file to hand? Click **Download sample Sales Report by Product** on the upload card: a demo export in the POS layout (title rows, header on row 5, Price IDs, footer rows) that runs through every step.
 
 Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again. The calculator lives at `/calculator`. Its upload, edited rates and results are kept while you visit other pages and are cleared when you sign out or refresh.
 
@@ -57,16 +60,21 @@ These modules are a **frontend-only demonstration**. Accounts, price books, prod
 
 | Module | Admin | Accounting Head | Product Team |
 | --- | --- | --- | --- |
-| Bank rate calculator (`/calculator`) | ✓ | ✓ | – |
-| Sales report by product (`/sales-report`) | ✓ | ✓ | – |
+| Bank rate calculator (`/calculator`, incl. product sections) | ✓ | ✓ | – |
 | Price books (`/price-books`) | ✓ | – | ✓ |
 | User accounts (`/users`) | ✓ | – | – |
 
-The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
+The old `/sales-report` address forwards to the calculator. The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
 
 ### Price books
 
-Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books, and add or remove products through the catalog picker (search by Product ID or name). Each product keeps three separate prices:
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books, and add or remove products through the catalog picker (search by Product ID or name).
+
+Price IDs follow the POS format: `PL` or `PS` followed by six digits (e.g. `PL000013`, `PS000015`). With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a POS price list. IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
+
+**Import from sales export** reads a POS "Sales Report by Product" export (`.xlsx`, `.xls` or `.csv`): products not yet in the catalog are added (name, unit, Master Price, Selling Price, unit Cost; tagged *Imported*), and each Price ID becomes a price book holding the POS Selling Price per product — `PL` prices as the updated price, `PS` prices at or below Master Price as the promotional price. Existing products and price book entries are never changed; existing Price IDs only gain missing products. Imports last for the session. **Download sample export** provides a demo file.
+
+Each product keeps three separate prices:
 
 - **Master List Price** — read from the catalog and never written by a price book.
 - **Updated Selling Price** — optional new selling price.
@@ -74,14 +82,20 @@ Product Team (and Admin) can search, filter, create, view, edit, duplicate (as a
 
 Discount % = (Master List Price − Promotional Price, or Updated Selling Price) ÷ Master List Price × 100, rounded to 2 decimals; negative values show as markup. Entry status is Scheduled, Active or Expired from its effective dates (Asia/Manila calendar date), and entry dates must fall inside the price book's validity. Amounts accept `₱`, `PHP` and comma groups; more than two decimals, zero, negative and non-numeric prices are rejected.
 
-### Sales report by product
+### Product sections on the calculator (05 and 06)
 
-Upload a `.csv`, `.xlsx` or `.xls` file (up to 10 MB) — parsed in the browser — or click **Load demo report** / **Download sample CSV**. Product ID, Quantity and Net sales columns are detected (Product ID/SKU/Item Code, Qty/Quantity, Net Total/Net Sales/Line Total/Amount, Unit Cost or Total Cost) and can be remapped. Rows are matched to the mock catalog by Product ID; missing or unknown IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Rows needing review**.
+After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change, and they update immediately when a price book changes.
+
+**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 17-column table keeps the after-charges GrossMargin.
 
 - Gross Profit = Net Sales Revenue − Cost of Goods Sold
 - Gross Margin % = Gross Profit ÷ Net Sales Revenue × 100
 
-COGS uses the cost in the uploaded report (unit cost × quantity, or line total cost). When the report has no cost, COGS, gross profit and margin stay blank for that product and the row is flagged — current mock cost is never substituted silently. Ticking **Use current mock cost as an estimate** fills those rows and labels them "Estimate (current mock cost)". Cost totals include only products with known cost. All figures are labelled demonstration data.
+COGS uses the report's cost (unit cost × quantity, or line total cost). A product with any row missing cost shows blank COGS, profit and margin (never a partial COGS) and is excluded from cost totals; cost is never estimated. Missing IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Product rows needing review** (first 200 shown).
+
+**06 Price book comparison** covers rows that carry a Price ID: for each Price ID and product it shows quantity, actual net sales, the POS selling price, the price-book price (promotional, else updated), expected revenue (quantity × price-book price) and variance (actual − expected), with status *Matched*, *Price ID not found*, *Price book inactive* or *Product not in price book*. Rows without a Price ID sold at regular price and are not compared; entry validity dates are not checked because the POS already applied the ID. Totals cover matched lines.
+
+The calculator's parser skips the POS export footer rows (`TOTAL:` and `… NOTHING FOLLOWS …`), so they are not counted as items or listed in Needs Review. All product and price-book figures are demonstration data.
 
 ## Workbook
 
@@ -221,11 +235,11 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation and the product sales report. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, sales-export import, and the calculator product and price-book sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
-`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, and sales report parsing, validation and gross margin aggregation.
+`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, sales export parsing and gross margin aggregation, Price ID matching, export import and the demo sample.
 
-Backend tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety and signed download validation.
+Backend tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety, signed download validation and skipping POS export footer rows.
 
 ## Project layout
 
@@ -235,13 +249,14 @@ frontend/src/app/
   components/configuration/         Session configuration editor
   components/calculation-results/   Seventeen columns, summaries and reviews
   components/dashboard/             Upload → configure → calculate → download (/calculator)
+  components/product-insights/      Sections 05/06: gross margin by product, price book comparison
   services/                         HttpClient API and downloads
   app.routes.ts                     Routes and role guards
   core/                             Mock auth, guards and in-memory stores (backend seam)
   layout/                           Shared sidebar/topbar shell
-  pages/                            Login, access denied, users, price books, product sales
+  pages/                            Login, access denied, users, price books
   domain/                           Framework-free pricing, accounts and sales logic
-  mock-data/                        Demo users, products, price books and sample sales
+  mock-data/                        Demo users, products, price books and sample export
 frontend/test/                      Frontend domain checks (ts-node)
 backend/src/
   excel/                            SheetJS parser, endpoints and ExcelJS exporter
