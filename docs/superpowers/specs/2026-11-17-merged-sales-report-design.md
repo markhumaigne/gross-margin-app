@@ -1,4 +1,4 @@
-# One "Sales report by product" page — Design (short)
+# One page: Bank rate calculator with product sections — Design (short)
 
 Date: 2026-11-17 · Branch: `test` · Supersedes the separate Sales Report page in
 `2026-11-17-price-book-design.md` and the "Output" part of `2026-11-17-price-book-sales-link-design.md`
@@ -13,8 +13,9 @@ deductions, gross margin by product and the Price ID / price book comparison on 
 
 ## Decided by the user
 
-- **One page, one upload**, named **Sales report by product**. The separate frontend-only Sales Report
-  page is removed.
+- **One page, one upload**, keeping the name **Bank rate calculator** (user changed this on
+  2026-11-17: the sidebar item "Sales report by product" is removed because the calculator already
+  processes the Sales Report by Product export). The separate frontend-only Sales Report page is removed.
 - **Products for price books:** demo catalog **plus** products imported from an uploaded export
   (in memory only; nothing saved to the repository).
 - **Excel download unchanged:** the 4-sheet workbook stays exactly as it is; the new sections are
@@ -24,20 +25,21 @@ deductions, gross margin by product and the Price ID / price book comparison on 
 
 ## Approaches considered
 
-- One page/one upload (chosen) vs keep the calculator name vs two pages sharing an upload.
+- One page/one upload keeping the calculator name (chosen) vs renaming it vs two pages sharing an upload.
 - Products: catalog + export import (chosen) vs demo catalog only vs comparing file prices only.
 - Excel: on screen only (chosen) vs adding two sheets via a backend change.
 
 ## Design (builder calls marked *)
 
 **Navigation and access**
-- One sidebar item **Sales report by product** at `/sales-report`, rendering the existing calculator
-  page (`DashboardComponent`) with new sections. `/calculator` redirects to `/sales-report`.
-- Permissions `calculator` + `sales-report` merge into `sales-report` (Admin, Accounting Head).
-  Admin and Accounting Head both land on `/sales-report`. Product Team unchanged.
-- Page heading becomes "Sales report by product"; *subtitle "Bank charges, gross margins and price
-  book pricing from one Sales Report by Product export."* Existing calculator sections, rates,
-  17-column results and download are unchanged.
+- One sidebar item **Bank rate calculator** at `/calculator` (existing `DashboardComponent`) with
+  the new sections. The "Sales report by product" sidebar item and `/sales-report` route are removed;
+  `/sales-report` redirects to `/calculator`.
+- Permission `sales-report` is removed; `calculator` (Admin, Accounting Head) covers everything.
+  Admin and Accounting Head both land on `/calculator`. Product Team unchanged.
+- Page name and heading stay "Bank rate deduction calculator"; *subtitle mentions gross margin by
+  product and price book pricing.* Existing calculator sections, rates, 17-column results and
+  download are unchanged.
 - The old `pages/sales-report` component, its CSV/demo upload and the opt-in mock-cost estimate are
   removed.
 
@@ -99,7 +101,6 @@ deductions, gross margin by product and the Price ID / price book comparison on 
 
 - Domain: per-product summary from file names (no catalog), cost basis, Price ID comparison incl.
   POS price, export product import (dedupe, fallbacks, skips).
-- E2E: Accounting downloads the sample, uploads it, calculates, sees bank results plus sections 05/06;
+- E2E: the sidebar shows no "Sales report by product" item; Accounting downloads the sample, uploads it, calculates, sees bank results plus sections 05/06;
   Product Team price edit/deactivation flows through; Product Team imports products from the sample
-  and adds one to a price book; `/calculator` redirects; existing calculator tests pass with the new
-  page name; Product Team still blocked from `/sales-report`.
+  and adds one to a price book; `/sales-report` redirects to `/calculator`; existing calculator tests pass unchanged; Product Team still blocked from `/calculator`.
