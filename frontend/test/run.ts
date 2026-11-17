@@ -6,5 +6,6 @@ import './price-books.test';
 import './sales-report.test';
 import './price-match.test';
 import './sales-import.test';
+import './sample-export.test';
 
 void runAll();
