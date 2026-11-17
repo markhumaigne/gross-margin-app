@@ -6,8 +6,12 @@ import {
   savePriceBook,
   setPriceBookActive,
 } from '../domain/price-books';
+import { todayInManila } from '../domain/dates';
+import { readSpreadsheet } from '../domain/read-spreadsheet';
 import { fail, ok, Result } from '../domain/result';
 import { hasPermission } from '../domain/roles';
+import { importFromExport, ImportSummary } from '../domain/sales-import';
+import { findHeaderRow, sheetSizeError, validateUploadFile } from '../domain/sales-report';
 import { UserAccount } from '../domain/user-accounts';
 import { SEED_PRICE_BOOKS } from '../mock-data/price-books';
 import { ProductCatalogService } from './product-catalog.service';
@@ -20,6 +24,37 @@ export class PriceBookService {
   private readonly catalog = inject(ProductCatalogService);
   private readonly store = signal<readonly PriceBook[]>(SEED_PRICE_BOOKS);
   readonly books = this.store.asReadonly();
+
+  /**
+   * Imports products and price lists from a POS sales export (in memory for this session only).
+   * Existing products and price book entries are never changed.
+   */
+  async importFromExport(actor: UserAccount, file: File): Promise<Result<ImportSummary>> {
+    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
+    const problem = validateUploadFile(file.name, file.size);
+    if (problem) return fail(problem);
+    let rows: unknown[][];
+    try {
+      rows = await readSpreadsheet(file);
+    } catch {
+      return fail('The file could not be read.');
+    }
+    const sizeError = sheetSizeError(rows, Math.max(findHeaderRow(rows), 0));
+    if (sizeError) return fail(sizeError);
+    const result = importFromExport(
+      rows,
+      file.name,
+      todayInManila(),
+      this.catalog.products(),
+      this.store(),
+      new Date(),
+      actor.displayName,
+    );
+    if (!result.ok) return result;
+    this.catalog.replaceAll(result.value.products);
+    this.store.set(result.value.books);
+    return ok(result.value.summary);
+  }
 
   byId(id: string): PriceBook | undefined {
     return this.store().find((b) => b.id === id);

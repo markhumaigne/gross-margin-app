@@ -11,6 +11,7 @@ import { parseMoney } from '../../domain/money';
 import {
   draftFromBook,
   emptyDraft,
+  nextPriceBookId,
   newEntryDraft,
   PriceBookDraft,
   PriceBookErrors,
@@ -25,7 +26,7 @@ import {
 import { ProductPickerComponent } from './product-picker.component';
 
 type Mode = 'create' | 'edit' | 'view';
-type HeaderField = 'name' | 'description' | 'effectiveDate' | 'expirationDate';
+type HeaderField = 'id' | 'name' | 'description' | 'effectiveDate' | 'expirationDate';
 type EntryField = 'updatedPrice' | 'promoPrice' | 'effectiveStart' | 'effectiveEnd' | 'memo';
 
 const NO_ERRORS: PriceBookErrors = { entries: {}, form: [] };
@@ -109,6 +110,12 @@ export class PriceBookEditorComponent {
     }),
   );
   readonly productIds = computed(() => this.draft().entries.map((e) => e.productId));
+  readonly nextId = computed(() => nextPriceBookId(this.service.books()));
+
+  updateAutoId(event: Event) {
+    const autoId = (event.target as HTMLInputElement).checked;
+    this.draft.update((d) => ({ ...d, autoId }));
+  }
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((params) => {

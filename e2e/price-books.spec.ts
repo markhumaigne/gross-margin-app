@@ -162,3 +162,85 @@ test.describe('Price book editor', () => {
     await expect(row).toContainText('-23.80%');
   });
 });
+
+test.describe('Price IDs and sales export import', () => {
+  test('manual Price ID mirrors a POS price list and is validated', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'New price book' }).click();
+    await expect(page.getByLabel('Price ID', { exact: true })).toBeDisabled();
+    await page.getByLabel('Auto ID').uncheck();
+    await page.getByLabel('Price book name').fill('Headset Promo');
+    await page.getByLabel('Price ID', { exact: true }).fill('pl000013');
+    await page.getByRole('button', { name: 'Save price book' }).click();
+    await expect(page.getByText('Price ID PL000013 is already used.')).toBeVisible();
+    await page.getByLabel('Price ID', { exact: true }).fill('PX12');
+    await expect(
+      page.getByText('Price ID must be PL or PS followed by 6 digits (e.g. PL000123).'),
+    ).toBeVisible();
+    await page.getByLabel('Price ID', { exact: true }).fill('ps000015');
+    await page.getByRole('button', { name: 'Save price book' }).click();
+    await expect(page).toHaveURL(/\/price-books\/PS000015$/);
+  });
+
+  test('Product Team imports products and price lists from a sales export', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    const XLSX = await import('xlsx');
+    const { SAMPLE_EXPORT_ROWS } = await import('../frontend/src/app/mock-data/sample-export');
+    const rows = SAMPLE_EXPORT_ROWS.map((r) => [...r]);
+    rows.splice(rows.length - 2, 0, [
+      '9900000000001',
+      'Real Import Item',
+      '10/01/2026',
+      'X1',
+      1,
+      'PCS',
+      999,
+      500,
+      0,
+      999,
+      1099,
+      999,
+      '',
+      'Cash',
+      'B',
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Sales Report by Product');
+    await page.getByLabel('Import products and price lists from a sales export').setInputFiles({
+      name: 'export.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+    });
+    await expect(page.getByRole('status')).toHaveText(
+      'Imported 1 products and 2 price lists from export.xlsx (1 new, 1 extended).',
+    );
+    await expect(page.getByRole('row').filter({ hasText: 'PS000015' })).toContainText(
+      'Imported PS000015',
+    );
+    await page.getByRole('link', { name: 'View PL000013' }).click();
+    await expect(
+      page
+        .getByRole('table', { name: 'Price book products' })
+        .getByRole('row')
+        .filter({ hasText: '4800000100035' }),
+    ).toContainText('₱3,795.00');
+    await page.getByRole('link', { name: 'Edit', exact: true }).click();
+    await page.getByRole('button', { name: 'Add products' }).click();
+    await page.getByRole('dialog').getByLabel('Search products').fill('Real Import');
+    await expect(
+      page.getByRole('dialog').getByRole('row').filter({ hasText: '9900000000001' }),
+    ).toContainText('Imported');
+  });
+
+  test('a file without Product ID and price columns is rejected', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByLabel('Import products and price lists from a sales export').setInputFiles({
+      name: 'notes.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('Name,Qty\r\nx,1'),
+    });
+    await expect(page.getByRole('alert')).toContainText(
+      'This file has no Product ID and price columns.',
+    );
+  });
+});

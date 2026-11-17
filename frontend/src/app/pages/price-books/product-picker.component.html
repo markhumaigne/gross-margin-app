@@ -58,6 +58,9 @@
             <td class="nowrap">{{ product.id }}</td>
             <td class="name-cell">
               {{ product.name }}
+              @if (product.source === 'import') {
+                <span class="status-pill import-pill">Imported</span>
+              }
               @if (isExcluded(product.id)) {
                 <span class="status-pill">Added</span>
               }

@@ -71,9 +71,39 @@
     </div>
     @if (editable()) {
       <div class="form-grid panel-body details-grid">
-        <div class="read-only-field">
-          <span>Price book ID</span><strong>{{ bookId() ?? 'Assigned on save' }}</strong>
-        </div>
+        @if (mode() === 'create') {
+          <div class="price-id-field">
+            <div class="price-id-heading">
+              <label for="price-id-input">Price ID</label>
+              <label class="checkbox-label inline-check"
+                ><input
+                  type="checkbox"
+                  [checked]="draft().autoId"
+                  (change)="updateAutoId($event)"
+                />
+                Auto ID</label
+              >
+            </div>
+            <input
+              id="price-id-input"
+              class="price-id-input"
+              maxlength="8"
+              autocomplete="off"
+              [disabled]="draft().autoId"
+              [value]="draft().autoId ? '' : draft().id"
+              [placeholder]="draft().autoId ? nextId() + ' (auto)' : 'e.g. PL000123'"
+              [class.invalid]="!!shownErrors().id"
+              (input)="updateField('id', $event)"
+            />
+            @if (shownErrors().id; as message) {
+              <small class="field-error">{{ message }}</small>
+            }
+          </div>
+        } @else {
+          <div class="read-only-field">
+            <span>Price ID</span><strong>{{ bookId() }}</strong>
+          </div>
+        }
         <label
           >Price book name *
           <input

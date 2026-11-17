@@ -4,10 +4,29 @@
     <h1>Price books</h1>
     <p>Create and manage selling and promotional price lists.</p>
   </div>
-  <a mat-flat-button class="heading-action" routerLink="/price-books/new"
-    ><span aria-hidden="true">+</span> New price book</a
-  >
+  <div class="heading-actions">
+    <input
+      #importInput
+      type="file"
+      class="sr-only"
+      accept=".xlsx,.xls,.csv"
+      aria-label="Import products and price lists from a sales export"
+      (change)="importFile($event)"
+    />
+    <button mat-button type="button" (click)="downloadSample()">Download sample export</button>
+    <button mat-stroked-button type="button" [disabled]="importing()" (click)="importInput.click()">
+      {{ importing() ? 'Importing…' : 'Import from sales export' }}
+    </button>
+    <a mat-flat-button class="heading-action" routerLink="/price-books/new"
+      ><span aria-hidden="true">+</span> New price book</a
+    >
+  </div>
 </div>
+<p class="subtle import-hint">
+  Import reads a POS “Sales Report by Product” export: new products join the catalog and each Price
+  ID becomes a price book with the POS selling prices. Existing entries are never changed. Data is
+  kept for this session only.
+</p>
 @if (error()) {
   <div class="page-alert error-message" role="alert">
     {{ error()

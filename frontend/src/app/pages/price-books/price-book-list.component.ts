@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
+import { downloadSampleExport } from '../../core/sample-download';
 import { filterPriceBooks, PriceBook, StatusFilter } from '../../domain/price-books';
 
 @Component({
@@ -22,6 +23,33 @@ export class PriceBookListComponent implements OnInit {
   );
   readonly notice = signal('');
   readonly error = signal('');
+  readonly importing = signal(false);
+
+  async importFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const actor = this.auth.currentUser();
+    if (!file || !actor) return;
+    this.importing.set(true);
+    try {
+      const result = await this.service.importFromExport(actor, file);
+      if (!result.ok) return this.show(result.error, true);
+      const s = result.value;
+      const created = s.booksCreated.length;
+      const extended = s.booksExtended.length;
+      this.show(
+        `Imported ${s.productsAdded} products and ${created + extended} price lists from ` +
+          `${s.fileName} (${created} new, ${extended} extended).`,
+      );
+    } finally {
+      this.importing.set(false);
+    }
+  }
+
+  downloadSample() {
+    void downloadSampleExport();
+  }
 
   ngOnInit() {
     const notice = (history.state as { notice?: unknown } | null)?.notice;
