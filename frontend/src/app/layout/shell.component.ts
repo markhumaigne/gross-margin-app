@@ -62,7 +62,7 @@ export class ShellComponent {
 
   signOut() {
     this.auth.logout();
-    void this.router.navigateByUrl('/login');
+    void this.router.navigateByUrl('/login').then(() => this.auth.discardKeptPages());
   }
 
   private syncRoute() {

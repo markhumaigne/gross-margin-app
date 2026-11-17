@@ -16,7 +16,12 @@ import {
   PriceBookErrors,
   validatePriceBook,
 } from '../../domain/price-books';
-import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../domain/pricing';
+import {
+  discountPercent,
+  entryStatus,
+  marginPercent,
+  PriceBookEntryDraft,
+} from '../../domain/pricing';
 import { ProductPickerComponent } from './product-picker.component';
 
 type Mode = 'create' | 'edit' | 'view';
@@ -83,10 +88,12 @@ export class PriceBookEditorComponent {
       const price = promo ?? updated;
       const discount =
         product && price !== null ? discountPercent(product.masterListPrice, price) : null;
+      const margin = product ? marginPercent(price ?? product.masterListPrice, product.cost) : null;
       return {
         entry,
         product,
         discount,
+        margin,
         discountSource: promo !== null ? 'promo' : 'updated',
         status: isIsoDate(entry.effectiveStart)
           ? entryStatus(

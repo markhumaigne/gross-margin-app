@@ -27,7 +27,9 @@ export class UsersComponent {
     { value: 'product-team', label: ROLE_LABELS['product-team'] },
   ];
   readonly candidates = computed(() =>
-    this.users().filter((u) => u.active && u.role !== 'accounting-head'),
+    this.users().filter(
+      (u) => u.active && u.role !== 'accounting-head' && u.id !== this.currentUserId(),
+    ),
   );
   readonly notice = signal('');
   readonly error = signal('');

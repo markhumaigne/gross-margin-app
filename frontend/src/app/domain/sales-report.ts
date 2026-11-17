@@ -64,6 +64,11 @@ export interface SalesReportResult {
 }
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/** Same limits as the backend Sales Report parser. */
+export const MAX_DATA_ROWS = 50000;
+export const MAX_COLUMNS = 200;
+/** Rows read from a sheet: the header may sit in the first 10 rows, plus one row to detect overflow. */
+export const READ_ROW_CAP = MAX_DATA_ROWS + 11;
 
 const ALIASES: Record<Exclude<SalesField, 'cost'>, string[]> = {
   productId: ['productid', 'sku', 'itemcode', 'productcode', 'barcode'],
@@ -141,6 +146,23 @@ export function normalizeProductId(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number' && Number.isInteger(value)) return BigInt(value).toString();
   return String(value).trim();
+}
+
+/** Widest row length, computed with a loop so very tall sheets cannot overflow the stack. */
+export function columnCount(rows: readonly unknown[][]): number {
+  let width = 0;
+  for (const row of rows) if (row && row.length > width) width = row.length;
+  return width;
+}
+
+export function sheetSizeError(rows: readonly unknown[][], headerRow: number): string | null {
+  const tooMany = 'Reports are limited to 50,000 rows. Split larger reports into batches.';
+  if (rows.length >= READ_ROW_CAP) return tooMany;
+  let dataRows = 0;
+  for (let i = headerRow + 1; i < rows.length; i++) if (!isBlankRow(rows[i])) dataRows++;
+  if (dataRows > MAX_DATA_ROWS) return tooMany;
+  if (columnCount(rows) > MAX_COLUMNS) return 'Reports are limited to 200 columns.';
+  return null;
 }
 
 export function missingRequiredFields(mapping: ColumnMapping): SalesField[] {

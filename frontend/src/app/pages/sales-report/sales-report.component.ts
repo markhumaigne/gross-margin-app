@@ -12,10 +12,12 @@ import {
   CostSource,
   detectMapping,
   FIELD_LABELS,
+  columnCount,
   findHeaderRow,
   missingRequiredFields,
   REQUIRED_FIELDS,
   SalesField,
+  sheetSizeError,
   validateUploadFile,
 } from '../../domain/sales-report';
 import { SAMPLE_SALES_ROWS, sampleSalesCsv } from '../../mock-data/sample-sales';
@@ -64,7 +66,7 @@ export class SalesReportComponent {
     const index = this.headerRow();
     if (!rows || index < 0) return [];
     const header = rows[index] ?? [];
-    const width = Math.max(header.length, ...rows.map((r) => r?.length ?? 0));
+    const width = columnCount(rows);
     return Array.from({ length: width }, (_, i) => ({
       index: i,
       label: String(header[i] ?? '').trim() || `Column ${i + 1}`,
@@ -74,6 +76,8 @@ export class SalesReportComponent {
     (this.rows() ?? []).slice(this.headerRow() + 1).filter(nonBlankRow),
   );
   readonly previewRows = computed(() => this.dataRows().slice(0, 10));
+  /** The review table renders at most this many issues to keep the page responsive. */
+  readonly issueLimit = 200;
   readonly missingFields = computed(() => missingRequiredFields(this.mapping()));
   readonly report = computed(() => {
     const rows = this.rows();
@@ -153,6 +157,8 @@ export class SalesReportComponent {
     const header = findHeaderRow(rows);
     if (header < 0 || !rows.slice(header + 1).some(nonBlankRow))
       return this.fail('No data rows were found.');
+    const sizeError = sheetSizeError(rows, header);
+    if (sizeError) return this.fail(sizeError);
     const detected = detectMapping(rows[header]);
     this.uploadError.set('');
     this.fileName.set(name);

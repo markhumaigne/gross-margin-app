@@ -91,3 +91,23 @@ test('sign out protects routes again; shell fits a phone', async ({ page }) => {
   await navigateInApp(page, '/calculator');
   await expect(page).toHaveURL(/\/login\?returnUrl=%2Fcalculator$/);
 });
+
+test('calculator and sales report keep their state between pages until sign-out', async ({
+  page,
+}) => {
+  await signIn(page, ...ACCOUNTS.admin);
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await page.getByLabel('Search payment methods').fill('BDO PAY/CASA');
+  await page.getByLabel('Rate percentage', { exact: true }).fill('4.00');
+  await nav.getByRole('link', { name: 'Sales report by product' }).click();
+  await page.getByRole('button', { name: 'Load demo report' }).click();
+  await nav.getByRole('link', { name: 'Price books' }).click();
+  await nav.getByRole('link', { name: 'Bank rate calculator' }).click();
+  await expect(page.getByLabel('Rate percentage', { exact: true })).toHaveValue('4.00');
+  await nav.getByRole('link', { name: 'Sales report by product' }).click();
+  await expect(page.getByRole('table', { name: 'Sales by product' })).toBeVisible();
+  await signOut(page);
+  await signIn(page, ...ACCOUNTS.admin);
+  await page.getByLabel('Search payment methods').fill('BDO PAY/CASA');
+  await expect(page.getByLabel('Rate percentage', { exact: true })).not.toHaveValue('4.00');
+});

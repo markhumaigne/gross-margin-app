@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Result } from '../domain/result';
 import { hasPermission, Permission } from '../domain/roles';
 import { authenticate, UserAccount } from '../domain/user-accounts';
+import { KeepAliveRouteReuseStrategy } from './keep-alive-route-reuse.strategy';
 import { UserAccountsService } from './user-accounts.service';
 
 /**
@@ -11,6 +12,7 @@ import { UserAccountsService } from './user-accounts.service';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly accounts = inject(UserAccountsService);
+  private readonly keptPages = inject(KeepAliveRouteReuseStrategy);
   private readonly userId = signal<string | null>(null);
 
   readonly currentUser = computed<UserAccount | null>(() => {
@@ -21,12 +23,20 @@ export class AuthService {
 
   login(username: string, password: string): Result<UserAccount> {
     const result = authenticate(this.accounts.users(), username, password);
-    if (result.ok) this.userId.set(result.value.id);
+    if (result.ok) {
+      this.keptPages.clear();
+      this.userId.set(result.value.id);
+    }
     return result;
   }
 
   logout(): void {
     this.userId.set(null);
+  }
+
+  /** Discards pages kept alive for the signed-out session (call after leaving the shell). */
+  discardKeptPages(): void {
+    this.keptPages.clear();
   }
 
   can(permission: Permission): boolean {

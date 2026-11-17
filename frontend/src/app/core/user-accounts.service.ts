@@ -35,7 +35,7 @@ export class UserAccountsService {
     previousHolderRole: Exclude<Role, 'accounting-head'>,
   ): Result<UserAccount[]> {
     return this.apply(actor, () =>
-      transferAccountingHead(this.store(), newHolderId, previousHolderRole),
+      transferAccountingHead(this.store(), actor.id, newHolderId, previousHolderRole),
     );
   }
 

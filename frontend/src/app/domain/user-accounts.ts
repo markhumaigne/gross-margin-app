@@ -96,6 +96,7 @@ export function changeRole(
 
 export function transferAccountingHead(
   users: readonly UserAccount[],
+  actorId: string,
   newHolderId: string,
   previousHolderRole: Exclude<Role, 'accounting-head'>,
 ): Result<UserAccount[]> {
@@ -104,6 +105,7 @@ export function transferAccountingHead(
   if (!holder.active) return fail('Inactive accounts cannot become Accounting Head.');
   if (holder.role === 'accounting-head')
     return fail(`${holder.displayName} is already the Accounting Head.`);
+  if (newHolderId === actorId) return fail('You cannot remove your own Admin role.');
   const previous = accountingHead(users);
   let next = replace(users, newHolderId, { role: 'accounting-head' });
   if (previous) next = replace(next, previous.id, { role: previousHolderRole });

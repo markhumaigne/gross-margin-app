@@ -41,7 +41,7 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 6. Review all 17 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons.
 7. Click **Download Calculated Excel Report**.
 
-Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again. The calculator lives at `/calculator`; leaving that page clears its upload and results.
+Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again. The calculator lives at `/calculator`. Its upload, edited rates and results are kept while you visit other pages and are cleared when you sign out or refresh.
 
 ## Mock accounts, price books and product sales (frontend prototype)
 

@@ -278,7 +278,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (issue of result.issues; track $index) {
+            @for (issue of result.issues.slice(0, issueLimit); track $index) {
               <tr>
                 <td class="numeric">{{ issue.row }}</td>
                 <td>{{ issue.productId || '—' }}</td>
@@ -293,6 +293,13 @@
           </tbody>
         </table>
       </div>
+      @if (result.issues.length > issueLimit) {
+        <div class="pagination">
+          <span
+            >Showing the first {{ issueLimit }} of {{ result.issues.length | number }} issues.</span
+          >
+        </div>
+      }
     </section>
   }
 }

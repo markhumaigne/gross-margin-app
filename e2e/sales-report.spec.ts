@@ -91,3 +91,17 @@ test('manual column mapping recovers an unrecognised header; page fits a phone',
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
 });
+
+test('large issue lists are capped and oversized sheets are rejected', async ({ page }) => {
+  await signIn(page, ...ACCOUNTS.accounting);
+  const unknown = Array.from({ length: 250 }, (_, i) => `48009${String(i).padStart(8, '0')},1,100`);
+  await page
+    .getByLabel('Upload sales report file')
+    .setInputFiles(csv(['Product ID,Qty,Net Sales', ...unknown].join('\r\n')));
+  const review = page.getByRole('table', { name: 'Rows needing review' });
+  await expect(review.locator('tbody tr')).toHaveCount(200);
+  await expect(page.getByText('Showing the first 200 of 250 issues.')).toBeVisible();
+  const wide = Array.from({ length: 201 }, (_, i) => (i === 0 ? 'Product ID' : 'C' + i)).join(',');
+  await page.getByLabel('Upload sales report file').setInputFiles(csv(wide + '\r\nx'));
+  await expect(page.getByRole('alert')).toHaveText('Reports are limited to 200 columns.');
+});

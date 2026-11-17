@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from './harness';
 import {
   buildSalesReport,
+  columnCount,
+  MAX_DATA_ROWS,
+  sheetSizeError,
   detectMapping,
   findHeaderRow,
   missingRequiredFields,
@@ -238,4 +241,28 @@ test('readSpreadsheet keeps CSV leading zeros and full numeric Excel IDs', async
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
   const rows = await readSpreadsheet(new File([buf], 'a.xlsx'));
   assert.equal(normalizeProductId(rows[1][0]), '4800000100011');
+});
+
+test('oversized reports are rejected before processing', async () => {
+  const header = 'Product ID,Qty,Net Sales';
+  const line = 'B-2,1,100';
+  const big = [header, ...Array.from({ length: MAX_DATA_ROWS + 1 }, () => line)].join('\r\n');
+  const rows = await readSpreadsheet(new File([big], 'big.csv'));
+  assert.ok(rows.length <= MAX_DATA_ROWS + 11, 'reading stops at the row cap');
+  assert.equal(
+    sheetSizeError(rows, 0),
+    'Reports are limited to 50,000 rows. Split larger reports into batches.',
+  );
+  const small = [header, ...Array.from({ length: 10 }, () => line)].join('\r\n');
+  assert.equal(sheetSizeError(await readSpreadsheet(new File([small], 'ok.csv')), 0), null);
+  assert.equal(
+    sheetSizeError([Array.from({ length: 201 }, (_, i) => 'C' + i)], 0),
+    'Reports are limited to 200 columns.',
+  );
+});
+
+test('columnCount handles very tall sheets without spreading', () => {
+  const tall: unknown[][] = Array.from({ length: 130000 }, () => ['x']);
+  tall[5] = ['a', 'b', 'c'];
+  assert.equal(columnCount(tall), 3);
 });

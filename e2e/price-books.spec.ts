@@ -144,4 +144,21 @@ test.describe('Price book editor', () => {
       await expect(page).toHaveURL(/\/forbidden$/);
     }
   });
+
+  test('editor shows unit, cost and margin for the price being set', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'Edit PB-0001' }).click();
+    await page.getByRole('button', { name: 'Add products' }).click();
+    await page.getByRole('dialog').getByLabel('Select 4800000400010').check();
+    await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
+    const row = page
+      .getByRole('table', { name: 'Price book products' })
+      .getByRole('row')
+      .filter({ hasText: '4800000400010' });
+    await expect(row).toContainText('PCS');
+    await expect(row).toContainText('₱4,952.00');
+    await expect(row).toContainText('-0.04%');
+    await page.getByLabel('Promotional price for 4800000400010').fill('4000');
+    await expect(row).toContainText('-23.80%');
+  });
 });

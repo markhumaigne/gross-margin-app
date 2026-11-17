@@ -972,9 +972,10 @@ test('Admin can manage price books too', async ({ page }) => {
     `Price book name`, `Description / memo` (textarea), `Effective date` (type date),
     `Expiration date` (type date, optional), select `Status` (`Active`, `Inactive`).
   - Products card: title `Products (<n>)`, button `Add products` (opens picker). Table
-    `Price book products` columns: Product ID, Product Name, Master List Price (read-only, from
-    catalog), Updated Selling Price, Promotional Price, Discount %, Effective Start, Effective End,
-    Status, Memo, Remove. Inputs labelled `Updated selling price for <id>`,
+    `Price book products` columns: Product ID, Product Name, Unit, Master List Price (read-only, from
+    catalog), Cost (read-only), Updated Selling Price, Promotional Price, Discount %, Margin %
+    (`marginPercent(effective price, cost)`, per the spec), Effective Start, Effective End, Status,
+    Memo, Remove. *(Unit/Cost/Margin % added after final review; the first draft omitted them.)* Inputs labelled `Updated selling price for <id>`,
     `Promotional price for <id>`, `Effective start for <id>`, `Effective end for <id>`,
     `Memo for <id>`; button `Remove <id>`. Discount % = `discountPercent(master, effectivePrice)` of the
     currently parseable values, shown `5.18%` with caption `promo`/`updated`; `—` when no valid

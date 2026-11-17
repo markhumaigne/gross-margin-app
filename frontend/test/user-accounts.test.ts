@@ -43,7 +43,7 @@ test('authenticate checks username case-insensitively and password exactly', () 
 });
 
 test('transferring Accounting Head keeps exactly one holder and reassigns the previous one', () => {
-  const next = expectOk(transferAccountingHead(SEED_USERS, 'u-3', 'product-team'));
+  const next = expectOk(transferAccountingHead(SEED_USERS, 'u-1', 'u-3', 'product-team'));
   assert.equal(next.find((u) => u.id === 'u-3')!.role, 'accounting-head');
   assert.equal(next.find((u) => u.id === 'u-2')!.role, 'product-team');
   assert.equal(heads(next), 1);
@@ -72,7 +72,7 @@ test('Accounting Head cannot be duplicated or removed without a successor', () =
   );
   assert.match(expectFail(setUserActive(SEED_USERS, 'u-1', 'u-2', false)), /before deactivating/);
   assert.match(
-    expectFail(transferAccountingHead(SEED_USERS, 'u-2', 'admin')),
+    expectFail(transferAccountingHead(SEED_USERS, 'u-1', 'u-2', 'admin')),
     /already the Accounting Head/,
   );
 });
@@ -87,7 +87,7 @@ test('the last active Admin is protected', () => {
     'You cannot deactivate your own account.',
   );
   assert.equal(
-    expectFail(transferAccountingHead(SEED_USERS, 'u-1', 'product-team')),
+    expectFail(transferAccountingHead(SEED_USERS, 'u-4', 'u-1', 'product-team')),
     'At least one active Admin account is required.',
   );
   const two = expectOk(
@@ -125,5 +125,29 @@ test('addUser validates username, display name and password', () => {
   assert.equal(
     expectFail(addUser(SEED_USERS, { ...draft, displayName: ' ' })),
     'Display name is required.',
+  );
+});
+
+test('an Admin cannot transfer Accounting Head to themselves', () => {
+  const two = expectOk(
+    addUser(SEED_USERS, {
+      username: 'admin2',
+      displayName: 'Second Admin',
+      password: 'Password1',
+      role: 'admin',
+    }),
+  );
+  assert.equal(
+    expectFail(transferAccountingHead(two, 'u-1', 'u-1', 'product-team')),
+    'You cannot remove your own Admin role.',
+  );
+  assert.equal(
+    expectFail(transferAccountingHead(SEED_USERS, 'u-1', 'u-1', 'admin')),
+    'You cannot remove your own Admin role.',
+  );
+  assert.equal(
+    expectOk(transferAccountingHead(two, 'u-4', 'u-1', 'product-team')).find((u) => u.id === 'u-1')!
+      .role,
+    'accounting-head',
   );
 });
