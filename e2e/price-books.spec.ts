@@ -12,28 +12,28 @@ test.describe('Price book list', () => {
     await page.getByLabel('Search price books').fill('');
     await page.getByLabel('Status filter').selectOption({ label: 'Inactive' });
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText('PB-0003');
+    await expect(rows.first()).toContainText('PL000034');
   });
 
   test('duplicate and activate/deactivate', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
-    await page.getByRole('button', { name: 'Duplicate PB-0001' }).click();
+    await page.getByRole('button', { name: 'Duplicate PL000013' }).click();
     await expect(page.getByRole('status')).toHaveText(
-      'PB-0004 created as an inactive copy of PB-0001.',
+      'PL000035 created as an inactive copy of PL000013.',
     );
-    const copy = page.getByRole('row').filter({ hasText: 'PB-0004' });
+    const copy = page.getByRole('row').filter({ hasText: 'PL000035' });
     await expect(copy).toContainText('Standard Retail 2026 (copy)');
     await expect(copy).toContainText('Inactive');
-    await page.getByRole('button', { name: 'Deactivate PB-0002' }).click();
-    await expect(page.getByRole('row').filter({ hasText: 'PB-0002' })).toContainText('Inactive');
-    await page.getByRole('button', { name: 'Activate PB-0002' }).click();
-    await expect(page.getByRole('row').filter({ hasText: 'PB-0002' })).toContainText('Active');
+    await page.getByRole('button', { name: 'Deactivate PL000030' }).click();
+    await expect(page.getByRole('row').filter({ hasText: 'PL000030' })).toContainText('Inactive');
+    await page.getByRole('button', { name: 'Activate PL000030' }).click();
+    await expect(page.getByRole('row').filter({ hasText: 'PL000030' })).toContainText('Active');
   });
 
   test('Admin can manage price books too', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.admin);
     await navigateInApp(page, '/price-books');
-    await expect(page.getByRole('button', { name: 'Duplicate PB-0002' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Duplicate PL000030' })).toBeEnabled();
   });
 
   test('price book list fits a phone without page scroll', async ({ page }) => {
@@ -73,8 +73,8 @@ test.describe('Price book editor', () => {
       '33.18%',
     );
     await page.getByRole('button', { name: 'Save price book' }).click();
-    await expect(page).toHaveURL(/\/price-books\/PB-0004$/);
-    await expect(page.getByRole('status')).toHaveText('Price book PB-0004 saved.');
+    await expect(page).toHaveURL(/\/price-books\/PL000035$/);
+    await expect(page.getByRole('status')).toHaveText('Price book PL000035 saved.');
     await expect(
       page
         .getByRole('table', { name: 'Price book products' })
@@ -82,7 +82,7 @@ test.describe('Price book editor', () => {
         .filter({ hasText: '4800000100011' }),
     ).toContainText('₱5,795.00');
     await page.getByRole('link', { name: 'Back to price books' }).click();
-    await expect(page.getByRole('row').filter({ hasText: 'PB-0004' })).toContainText(
+    await expect(page.getByRole('row').filter({ hasText: 'PL000035' })).toContainText(
       'Weekend Flash Sale',
     );
   });
@@ -115,23 +115,23 @@ test.describe('Price book editor', () => {
 
   test('edit, remove a product, and cancel with confirmation', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
-    await page.getByRole('link', { name: 'Edit PB-0001' }).click();
+    await page.getByRole('link', { name: 'Edit PL000013' }).click();
     await page.getByLabel('Description / memo').fill('Revised shelf prices');
     await page.getByRole('button', { name: 'Remove 4800000200014' }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
     await expect(page.getByRole('dialog').getByLabel('Select 4800000100011')).toBeDisabled();
     await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
     await page.getByRole('button', { name: 'Save price book' }).click();
-    await expect(page.getByRole('status')).toHaveText('Price book PB-0001 saved.');
+    await expect(page.getByRole('status')).toHaveText('Price book PL000013 saved.');
     await page.getByRole('link', { name: 'Back to price books' }).click();
-    const row = page.getByRole('row').filter({ hasText: 'PB-0001' });
+    const row = page.getByRole('row').filter({ hasText: 'PL000013' });
     await expect(row).toContainText('Revised shelf prices');
     await expect(row.locator('td').nth(3)).toHaveText('1');
-    await page.getByRole('link', { name: 'Edit PB-0002' }).click();
+    await page.getByRole('link', { name: 'Edit PL000030' }).click();
     await page.getByLabel('Price book name').fill('Changed');
     page.once('dialog', (d) => d.accept());
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await expect(page).toHaveURL(/\/price-books\/PB-0002$/);
+    await expect(page).toHaveURL(/\/price-books\/PL000030$/);
     await expect(
       page.getByRole('heading', { level: 1, name: 'November Monitor Sale' }),
     ).toBeVisible();
@@ -139,7 +139,7 @@ test.describe('Price book editor', () => {
 
   test('Accounting Head cannot reach the editor', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.accounting);
-    for (const url of ['/price-books/new', '/price-books/PB-0001/edit']) {
+    for (const url of ['/price-books/new', '/price-books/PL000013/edit']) {
       await navigateInApp(page, url);
       await expect(page).toHaveURL(/\/forbidden$/);
     }
@@ -147,7 +147,7 @@ test.describe('Price book editor', () => {
 
   test('editor shows unit, cost and margin for the price being set', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
-    await page.getByRole('link', { name: 'Edit PB-0001' }).click();
+    await page.getByRole('link', { name: 'Edit PL000013' }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
     await page.getByRole('dialog').getByLabel('Select 4800000400010').check();
     await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();

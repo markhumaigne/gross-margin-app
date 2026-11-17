@@ -29,8 +29,8 @@ const base = (): PriceBookDraft => ({
 });
 
 test('ids increment from the highest existing id', () => {
-  assert.equal(nextPriceBookId([]), 'PB-0001');
-  assert.equal(nextPriceBookId(SEED_PRICE_BOOKS), 'PB-0004');
+  assert.equal(nextPriceBookId([]), 'PL000001');
+  assert.equal(nextPriceBookId(SEED_PRICE_BOOKS), 'PL000035');
 });
 
 test('creating a price book converts prices and never stores master list prices', () => {
@@ -38,7 +38,7 @@ test('creating a price book converts prices and never stores master list prices'
   const { books, book } = expectOk(
     savePriceBook(SEED_PRICE_BOOKS, base(), null, PRODUCTS, 'Demo Product Lead', now),
   );
-  assert.equal(book.id, 'PB-0004');
+  assert.equal(book.id, 'PL000035');
   assert.equal(book.entries[0].updatedPrice, 5495);
   assert.equal('masterListPrice' in book.entries[0], false);
   assert.equal(JSON.stringify(PRODUCTS), catalogBefore);
@@ -53,14 +53,14 @@ test('creating a price book converts prices and never stores master list prices'
 test('editing keeps the id and allows keeping its own name', () => {
   const d = { ...draftFromBook(SEED_PRICE_BOOKS[0]), description: 'Updated memo' };
   const { book } = expectOk(
-    savePriceBook(SEED_PRICE_BOOKS, d, 'PB-0001', PRODUCTS, 'Demo Admin', now),
+    savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', PRODUCTS, 'Demo Admin', now),
   );
   assert.deepEqual(
     [book.id, book.name, book.description],
-    ['PB-0001', 'Standard Retail 2026', 'Updated memo'],
+    ['PL000013', 'Standard Retail 2026', 'Updated memo'],
   );
   assert.equal(
-    expectFail(savePriceBook(SEED_PRICE_BOOKS, d, 'PB-9999', PRODUCTS, 'x', now)),
+    expectFail(savePriceBook(SEED_PRICE_BOOKS, d, 'PL999999', PRODUCTS, 'x', now)),
     'Price book not found.',
   );
 });
@@ -93,39 +93,39 @@ test('price book validation', () => {
 });
 
 test('duplicate creates an inactive independent copy with a unique name', () => {
-  const first = expectOk(duplicatePriceBook(SEED_PRICE_BOOKS, 'PB-0001', 'x', now));
+  const first = expectOk(duplicatePriceBook(SEED_PRICE_BOOKS, 'PL000013', 'x', now));
   assert.deepEqual(
     [first.book.id, first.book.name, first.book.active],
-    ['PB-0004', 'Standard Retail 2026 (copy)', false],
+    ['PL000035', 'Standard Retail 2026 (copy)', false],
   );
-  const second = expectOk(duplicatePriceBook(first.books, 'PB-0001', 'x', now));
+  const second = expectOk(duplicatePriceBook(first.books, 'PL000013', 'x', now));
   assert.equal(second.book.name, 'Standard Retail 2026 (copy 2)');
   first.book.entries[0].memo = 'changed';
   assert.equal(SEED_PRICE_BOOKS[0].entries[0].memo, '');
 });
 
 test('activate/deactivate and filtering', () => {
-  const off = expectOk(setPriceBookActive(SEED_PRICE_BOOKS, 'PB-0002', false, 'x', now));
-  assert.equal(off.find((b) => b.id === 'PB-0002')!.active, false);
+  const off = expectOk(setPriceBookActive(SEED_PRICE_BOOKS, 'PL000030', false, 'x', now));
+  assert.equal(off.find((b) => b.id === 'PL000030')!.active, false);
   assert.equal(
-    expectFail(setPriceBookActive(SEED_PRICE_BOOKS, 'PB-9', true, 'x', now)),
+    expectFail(setPriceBookActive(SEED_PRICE_BOOKS, 'PL999999', true, 'x', now)),
     'Price book not found.',
   );
   assert.deepEqual(
     filterPriceBooks(SEED_PRICE_BOOKS, 'HOLIDAY', 'all').map((b) => b.id),
-    ['PB-0003'],
+    ['PL000034'],
   );
   assert.deepEqual(
-    filterPriceBooks(SEED_PRICE_BOOKS, 'pb-0002', 'all').map((b) => b.id),
-    ['PB-0002'],
+    filterPriceBooks(SEED_PRICE_BOOKS, 'pl000030', 'all').map((b) => b.id),
+    ['PL000030'],
   );
   assert.deepEqual(
     filterPriceBooks(SEED_PRICE_BOOKS, '', 'inactive').map((b) => b.id),
-    ['PB-0003'],
+    ['PL000034'],
   );
   assert.deepEqual(
     filterPriceBooks(SEED_PRICE_BOOKS, 'branches', 'active').map((b) => b.id),
-    ['PB-0001'],
+    ['PL000013'],
   );
 });
 
@@ -136,4 +136,35 @@ test('seed price books are valid', () => {
       false,
       b.id,
     );
+});
+
+test('auto IDs follow the POS price list format', () => {
+  assert.equal(nextPriceBookId([]), 'PL000001');
+  assert.equal(nextPriceBookId(SEED_PRICE_BOOKS), 'PL000035');
+  assert.deepEqual(
+    SEED_PRICE_BOOKS.map((b) => b.id),
+    ['PL000013', 'PL000030', 'PL000034'],
+  );
+});
+
+test('manual Price IDs are normalised, validated and unique', () => {
+  const manual = (id: string) => ({ ...base(), autoId: false, id });
+  const e = (id: string) => validatePriceBook(manual(id), SEED_PRICE_BOOKS, PRODUCTS, null).id;
+  assert.equal(e(' ps000015 '), undefined);
+  assert.equal(e('PX123'), 'Price ID must be PL or PS followed by 6 digits (e.g. PL000123).');
+  assert.equal(e('pl000013'), 'Price ID PL000013 is already used.');
+  const { book } = expectOk(
+    savePriceBook(SEED_PRICE_BOOKS, manual(' ps000015 '), null, PRODUCTS, 'x', now),
+  );
+  assert.equal(book.id, 'PS000015');
+  const auto = expectOk(savePriceBook(SEED_PRICE_BOOKS, base(), null, PRODUCTS, 'x', now));
+  assert.equal(auto.book.id, 'PL000035');
+});
+
+test('editing never changes the Price ID', () => {
+  const d = { ...draftFromBook(SEED_PRICE_BOOKS[0]), id: 'PL999999' };
+  assert.equal(
+    expectOk(savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', PRODUCTS, 'x', now)).book.id,
+    'PL000013',
+  );
 });

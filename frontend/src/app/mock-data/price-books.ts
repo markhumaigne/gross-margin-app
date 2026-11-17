@@ -3,7 +3,7 @@ import { PriceBook } from '../domain/price-books';
 /** Demonstration price books. Prices are mock values for frontend testing only. */
 export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
   {
-    id: 'PB-0001',
+    id: 'PL000013',
     name: 'Standard Retail 2026',
     description: 'Everyday shelf prices for all branches.',
     effectiveDate: '2026-01-01',
@@ -31,7 +31,7 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
     updatedBy: 'Demo Product Lead',
   },
   {
-    id: 'PB-0002',
+    id: 'PL000030',
     name: 'November Monitor Sale',
     description: 'Monitor promotion for November.',
     effectiveDate: '2026-11-01',
@@ -59,7 +59,7 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
     updatedBy: 'Demo Product Lead',
   },
   {
-    id: 'PB-0003',
+    id: 'PL000034',
     name: 'December Holiday Promo',
     description: 'Holiday bundle pricing; awaiting approval.',
     effectiveDate: '2026-12-01',

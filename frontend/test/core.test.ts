@@ -58,7 +58,7 @@ test('role permissions match the access matrix', () => {
 
 test('pathPermission maps URLs to the permission that guards them', () => {
   assert.equal(pathPermission('/sales-report?x=1'), 'calculator');
-  assert.equal(pathPermission('/price-books/PB-0001/edit'), 'price-books');
+  assert.equal(pathPermission('/price-books/PL000013/edit'), 'price-books');
   assert.equal(pathPermission('/calculator#results'), 'calculator');
   assert.equal(pathPermission('/'), null);
   assert.equal(pathPermission('/forbidden'), null);

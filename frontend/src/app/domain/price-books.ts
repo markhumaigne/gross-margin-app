@@ -22,6 +22,9 @@ export interface PriceBook {
 }
 
 export interface PriceBookDraft {
+  /** Create mode: true assigns the next PL number; false uses `id`. Ignored when editing. */
+  autoId: boolean;
+  id: string;
   name: string;
   description: string;
   effectiveDate: string;
@@ -31,6 +34,7 @@ export interface PriceBookDraft {
 }
 
 export interface PriceBookErrors {
+  id?: string;
   name?: string;
   effectiveDate?: string;
   expirationDate?: string;
@@ -41,10 +45,20 @@ export interface PriceBookErrors {
 export type StatusFilter = 'all' | 'active' | 'inactive';
 
 const NOT_FOUND = 'Price book not found.';
+
+/** POS price list IDs: PL (price list) or PS (special/promo) followed by 6 digits. */
+export const PRICE_ID_PATTERN = /^(PL|PS)\d{6}$/;
+
+export function normalizePriceId(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim().toUpperCase();
+}
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export function emptyDraft(today: string): PriceBookDraft {
   return {
+    autoId: true,
+    id: '',
     name: '',
     description: '',
     effectiveDate: today,
@@ -56,6 +70,8 @@ export function emptyDraft(today: string): PriceBookDraft {
 
 export function draftFromBook(book: PriceBook): PriceBookDraft {
   return {
+    autoId: false,
+    id: book.id,
     name: book.name,
     description: book.description,
     effectiveDate: book.effectiveDate,
@@ -86,6 +102,13 @@ export function validatePriceBook(
   editingId: string | null,
 ): PriceBookErrors {
   const errors: PriceBookErrors = { entries: {}, form: [] };
+  if (editingId === null && !draft.autoId) {
+    const id = normalizePriceId(draft.id);
+    if (!PRICE_ID_PATTERN.test(id))
+      errors.id = 'Price ID must be PL or PS followed by 6 digits (e.g. PL000123).';
+    else if (books.some((b) => b.id.toUpperCase() === id))
+      errors.id = `Price ID ${id} is already used.`;
+  }
   const name = draft.name.trim();
   if (!name) errors.name = 'Price book name is required.';
   else if (name.length > 80) errors.name = 'Name must be 80 characters or fewer.';
@@ -118,6 +141,7 @@ export function validatePriceBook(
 
 export function hasErrors(errors: PriceBookErrors): boolean {
   return (
+    !!errors.id ||
     !!errors.name ||
     !!errors.effectiveDate ||
     !!errors.expirationDate ||
@@ -127,8 +151,12 @@ export function hasErrors(errors: PriceBookErrors): boolean {
 }
 
 export function nextPriceBookId(books: readonly PriceBook[]): string {
-  const max = Math.max(0, ...books.map((b) => Number(/^PB-(\d+)$/.exec(b.id)?.[1] ?? 0)));
-  return 'PB-' + String(max + 1).padStart(4, '0');
+  let max = 0;
+  for (const b of books) {
+    const match = /^PL(\d{6})$/.exec(b.id);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return 'PL' + String(max + 1).padStart(6, '0');
 }
 
 export function savePriceBook(
@@ -143,7 +171,7 @@ export function savePriceBook(
   if (hasErrors(validatePriceBook(draft, books, catalog, editingId)))
     return fail('Fix the highlighted fields before saving.');
   const book: PriceBook = {
-    id: editingId ?? nextPriceBookId(books),
+    id: editingId ?? (draft.autoId ? nextPriceBookId(books) : normalizePriceId(draft.id)),
     name: draft.name.trim(),
     description: draft.description.trim(),
     effectiveDate: draft.effectiveDate,
