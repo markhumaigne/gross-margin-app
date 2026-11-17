@@ -1435,3 +1435,50 @@ tbody tr:last-child td {
   height: 28px !important;
   padding: 0 10px !important;
 }
+.heading-action {
+  flex-shrink: 0;
+  font-size: 11px !important;
+}
+.status-filter {
+  font-size: 11px;
+  padding: 8px 10px;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.id-link {
+  color: #2b5f93;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.id-link:hover {
+  text-decoration: underline;
+}
+.name-cell {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 160px;
+}
+.memo-cell {
+  min-width: 180px;
+  max-width: 320px;
+  line-height: 1.6;
+}
+.updated-by {
+  display: block;
+  font-size: 9px;
+  color: #95a0ae;
+}
+.row-actions {
+  white-space: nowrap;
+}
+.row-actions .mat-mdc-button {
+  font-size: 10px;
+  min-width: 0;
+  padding: 0 8px;
+}
+@media (max-width: 800px) {
+  .page-heading {
+    flex-wrap: wrap;
+  }
+}

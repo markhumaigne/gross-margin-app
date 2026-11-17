@@ -4,4 +4,113 @@
     <h1>Price books</h1>
     <p>Create and manage selling and promotional price lists.</p>
   </div>
+  <a mat-flat-button class="heading-action" routerLink="/price-books/new"
+    ><span aria-hidden="true">+</span> New price book</a
+  >
 </div>
+@if (error()) {
+  <div class="page-alert error-message" role="alert">
+    {{ error()
+    }}<button class="delete-button" aria-label="Dismiss error" (click)="error.set('')">×</button>
+  </div>
+}
+@if (notice()) {
+  <div class="notice" role="status">{{ notice() }}</div>
+}
+<section class="section-card">
+  <div class="tab-toolbar">
+    <label class="search-label"
+      ><span aria-hidden="true">⌕</span
+      ><input
+        type="search"
+        aria-label="Search price books"
+        placeholder="Search by ID, name or memo"
+        [value]="query()"
+        (input)="setQuery($event)"
+    /></label>
+    <select aria-label="Status filter" class="status-filter" (change)="setStatus($event)">
+      <option value="all">All statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
+  <div class="table-scroll">
+    <table aria-label="Price books" class="price-book-table">
+      <thead>
+        <tr>
+          <th scope="col">Price Book ID</th>
+          <th scope="col">Name</th>
+          <th scope="col">Memo</th>
+          <th scope="col" class="numeric">Products</th>
+          <th scope="col">Validity</th>
+          <th scope="col">Status</th>
+          <th scope="col">Last updated</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (book of books(); track book.id) {
+          <tr>
+            <td>
+              <a class="id-link" [routerLink]="['/price-books', book.id]">{{ book.id }}</a>
+            </td>
+            <td class="name-cell">{{ book.name }}</td>
+            <td class="memo-cell">{{ book.description || '—' }}</td>
+            <td class="numeric">{{ book.entries.length }}</td>
+            <td class="nowrap">
+              @if (book.expirationDate) {
+                {{ book.effectiveDate | date: 'MMM d, y' }} –
+                {{ book.expirationDate | date: 'MMM d, y' }}
+              } @else {
+                From {{ book.effectiveDate | date: 'MMM d, y' }}
+              }
+            </td>
+            <td>
+              <span class="status-pill" [class.warning]="!book.active">{{
+                book.active ? 'Active' : 'Inactive'
+              }}</span>
+            </td>
+            <td class="nowrap">
+              {{ book.updatedAt | date: 'MMM d, y, h:mm a' : '+0800' }}
+              <small class="updated-by">by {{ book.updatedBy }}</small>
+            </td>
+            <td class="row-actions">
+              <a
+                mat-button
+                [routerLink]="['/price-books', book.id]"
+                [attr.aria-label]="'View ' + book.id"
+                >View</a
+              ><a
+                mat-button
+                [routerLink]="['/price-books', book.id, 'edit']"
+                [attr.aria-label]="'Edit ' + book.id"
+                >Edit</a
+              ><button
+                mat-button
+                type="button"
+                [attr.aria-label]="'Duplicate ' + book.id"
+                (click)="duplicate(book)"
+              >
+                Duplicate</button
+              ><button
+                mat-button
+                type="button"
+                [attr.aria-label]="(book.active ? 'Deactivate ' : 'Activate ') + book.id"
+                (click)="toggle(book)"
+              >
+                {{ book.active ? 'Deactivate' : 'Activate' }}
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="empty-table">No price books match your filters.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <span>{{ books().length }} record(s)</span>
+  </div>
+</section>
