@@ -49,18 +49,18 @@ These modules are a **frontend-only demonstration**. Accounts, price books, prod
 
 ### Development accounts and access
 
-| Username    | Password       | Role            |
-| ----------- | -------------- | --------------- |
-| admin       | Admin123!      | Admin           |
-| accounting  | Accounting123! | Accounting Head |
-| productteam | Product123!    | Product Team    |
+| Username | Password | Role |
+| --- | --- | --- |
+| admin | Admin123! | Admin |
+| accounting | Accounting123! | Accounting Head |
+| productteam | Product123! | Product Team |
 
-| Module                                    | Admin | Accounting Head | Product Team |
-| ----------------------------------------- | ----- | --------------- | ------------ |
-| Bank rate calculator (`/calculator`)      | ✓     | ✓               | –            |
-| Sales report by product (`/sales-report`) | ✓     | ✓               | –            |
-| Price books (`/price-books`)              | ✓     | –               | ✓            |
-| User accounts (`/users`)                  | ✓     | –               | –            |
+| Module | Admin | Accounting Head | Product Team |
+| --- | --- | --- | --- |
+| Bank rate calculator (`/calculator`) | ✓ | ✓ | – |
+| Sales report by product (`/sales-report`) | ✓ | ✓ | – |
+| Price books (`/price-books`) | ✓ | – | ✓ |
+| User accounts (`/users`) | ✓ | – | – |
 
 The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
 
@@ -94,25 +94,25 @@ The filename is Sales_Bank_Rate_Deductions_YYYYMMDD_HHMMSS.xlsx, with generation
 
 The main sheet has these exact columns:
 
-| Column | Name                    |
-| ------ | ----------------------- |
-| A      | Product ID              |
-| B      | Sales Date              |
-| C      | Branch                  |
-| D      | Invoice Number          |
-| E      | Product Name            |
-| F      | Quantity                |
-| G      | Price                   |
-| H      | Cost                    |
-| I      | Discount                |
-| J      | Line Total              |
-| K      | Payment                 |
-| L      | Applied Bank Rate       |
-| M      | Bank Charges / Subsidy  |
-| N      | GrossMargin             |
-| O      | Sales Source Row        |
-| P      | Tender                  |
-| Q      | Calculation Explanation |
+| Column | Name |
+| --- | --- |
+| A | Product ID |
+| B | Sales Date |
+| C | Branch |
+| D | Invoice Number |
+| E | Product Name |
+| F | Quantity |
+| G | Price |
+| H | Cost |
+| I | Discount |
+| J | Line Total |
+| K | Payment |
+| L | Applied Bank Rate |
+| M | Bank Charges / Subsidy |
+| N | GrossMargin |
+| O | Sales Source Row |
+| P | Tender |
+| Q | Calculation Explanation |
 
 Payment copies the original Sales Report Payment cell verbatim, including line breaks. Tender is the matched configured card name. Original BNPL/SNPL Tender descriptions also appear in Calculation Explanation, including when they came from separate Tender columns inside the Sales Report. Bank and Status are omitted from the main worksheet and its preview; review reasons remain in Calculation Explanation and Needs Review. There is no separate payment-report input or cross-report invoice matching.
 
@@ -183,14 +183,14 @@ Use **Export settings**, or edit Configuration Settings from a calculated report
 
 ## API
 
-| Endpoint                  | Request                                  | Response                                             |
-| ------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| GET /api/config/defaults  | None                                     | Default JSON                                         |
-| POST /api/excel/preview   | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
-| POST /api/excel/calculate | Multipart sales and JSON-string options  | result and exportToken                               |
-| POST /api/excel/export    | Unchanged result and exportToken         | Four-sheet Excel file                                |
-| POST /api/config/import   | Multipart file                           | Validated settings                                   |
-| POST /api/config/export   | Configuration JSON                       | Settings workbook                                    |
+| Endpoint | Request | Response |
+| --- | --- | --- |
+| GET /api/config/defaults | None | Default JSON |
+| POST /api/excel/preview | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
+| POST /api/excel/calculate | Multipart sales and JSON-string options | result and exportToken |
+| POST /api/excel/export | Unchanged result and exportToken | Four-sheet Excel file |
+| POST /api/config/import | Multipart file | Validated settings |
+| POST /api/config/export | Configuration JSON | Settings workbook |
 
 Calculation options contain sales: {sheet, headerRow, mapping, costBasis, paymentScope} and configuration. Mapping keys: productId, date, branch, invoice, product, quantity, price, cost, discount, lineTotal, payment, paymentAmount. Required mappings are invoice, product, quantity and lineTotal; missing optional data stays in the output with appropriate review/warnings. Cost basis is auto/unit/line; payment scope is invoice/line.
 
