@@ -6,6 +6,8 @@ import { RouterLink } from '@angular/router';
 import { ExcelUploadComponent } from '../excel-upload/excel-upload.component';
 import { ConfigurationComponent } from '../configuration/configuration.component';
 import { CalculationResultsComponent } from '../calculation-results/calculation-results.component';
+import { ProductInsightsComponent } from '../product-insights/product-insights.component';
+import { downloadSampleExport } from '../../core/sample-download';
 import { CalculationResponse, Configuration, ReportUpload } from '../../models';
 import { ExcelApiService, readableError, saveDownload } from '../../services/excel-api.service';
 @Component({
@@ -19,6 +21,7 @@ import { ExcelApiService, readableError, saveDownload } from '../../services/exc
     ExcelUploadComponent,
     ConfigurationComponent,
     CalculationResultsComponent,
+    ProductInsightsComponent,
   ],
   templateUrl: './dashboard.component.html',
 })
@@ -26,6 +29,8 @@ export class DashboardComponent {
   readonly api = inject(ExcelApiService);
   readonly configSeed = signal<Configuration | undefined>(undefined);
   readonly response = signal<CalculationResponse | undefined>(undefined);
+  /** The upload behind the current results; drives the product sections (05/06). */
+  readonly analysedUpload = signal<ReportUpload | undefined>(undefined);
   readonly busy = signal(false);
   readonly configBusy = signal(false);
   readonly downloading = signal(false);
@@ -64,6 +69,7 @@ export class DashboardComponent {
   }
   invalidate() {
     this.revision++;
+    this.analysedUpload.set(undefined);
     if (this.response()) {
       this.response.set(undefined);
       this.notice.set('Inputs changed. Calculate again to update the results.');
@@ -90,6 +96,7 @@ export class DashboardComponent {
       const response = await this.api.calculate(this.sales!, this.configuration!);
       if (revision === this.revision) {
         this.response.set(response);
+        this.analysedUpload.set(this.sales);
         this.notice.set('Calculation complete. Your Excel report is ready.');
         setTimeout(
           () =>
@@ -133,6 +140,9 @@ export class DashboardComponent {
     } finally {
       this.configBusy.set(false);
     }
+  }
+  downloadSample() {
+    void downloadSampleExport();
   }
   async download() {
     const response = this.response();

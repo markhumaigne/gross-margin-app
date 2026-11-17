@@ -1764,3 +1764,23 @@ textarea.invalid {
   margin: -12px 0 18px;
   font-size: 10px;
 }
+.info-action {
+  font-size: 10px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  vertical-align: baseline;
+}
+th.row-id {
+  position: static;
+  background: transparent;
+  color: #526882;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0;
+  padding: 10px 15px;
+  border-bottom: 1px solid #edf0f4;
+}
+.results-scroll th.row-id {
+  font-size: 10px;
+  white-space: nowrap;
+}

@@ -2,7 +2,10 @@
   <div>
     <div class="eyebrow">REPORT PROCESSING</div>
     <h1>Bank rate deduction calculator</h1>
-    <p>Calculate product bank charges, subsidies and gross margins from one Sales Report.</p>
+    <p>
+      Calculate product bank charges, subsidies and gross margins from one Sales Report, then review
+      gross margin by product and price book pricing.
+    </p>
   </div>
   <div class="excel-badge"><span>▤</span> Excel to Excel</div>
 </div>
@@ -35,7 +38,10 @@
   </div>
   <div class="info-line">
     <span aria-hidden="true">ⓘ</span> One result per original product row. Product IDs and invoice
-    references retain their source text and leading zeros.
+    references retain their source text and leading zeros. No file to hand?
+    <button mat-button type="button" class="info-action" (click)="downloadSample()">
+      Download sample Sales Report by Product
+    </button>
   </div>
 </section>
 <section class="section-card" id="configuration">
@@ -122,6 +128,9 @@
     </div>
   }
 </section>
+@if (analysedUpload(); as upload) {
+  <app-product-insights [upload]="upload"></app-product-insights>
+}
 <footer class="page-footer">
   <span>Ledger · Bank Rate Calculator</span
   ><span>PHP currency · Centavo reconciliation · Session-only processing</span>

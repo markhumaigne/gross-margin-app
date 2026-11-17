@@ -1,0 +1,284 @@
+<section class="section-card" id="products">
+  <div class="section-heading">
+    <div class="section-number">05</div>
+    <div>
+      <h2>Gross margin by product</h2>
+      <p>
+        From the same uploaded file. Gross profit = net sales revenue − cost of goods sold, before
+        bank charges.
+      </p>
+    </div>
+    <span class="session-tag">BEFORE BANK CHARGES</span>
+  </div>
+  @if (loading()) {
+    <p class="loading-label">Reading the uploaded file…</p>
+  } @else if (error()) {
+    <div class="panel-body">
+      <p class="error-message">{{ error() }}</p>
+    </div>
+  } @else if (report(); as result) {
+    <div class="metrics-grid sales-report-metrics">
+      <div class="metric">
+        <span>Net sales revenue</span
+        ><strong>{{ result.totals.netSales | currency: 'PHP' : 'symbol' : '1.2-2' }}</strong
+        ><small>{{ result.totals.quantity | number }} units sold</small>
+      </div>
+      <div class="metric">
+        <span>Cost of goods sold</span
+        ><strong>{{ result.totals.cogs | currency: 'PHP' : 'symbol' : '1.2-2' }}</strong
+        ><small>Products with known cost</small>
+      </div>
+      <div class="metric">
+        <span>Gross profit</span
+        ><strong>{{ result.totals.grossProfit | currency: 'PHP' : 'symbol' : '1.2-2' }}</strong
+        ><small
+          >On {{ result.totals.knownCostNetSales | currency: 'PHP' : 'symbol' : '1.2-2' }} net
+          sales</small
+        >
+      </div>
+      <div class="metric fee-metric">
+        <span>Gross margin</span
+        ><strong>{{
+          result.totals.grossMarginPercent === null
+            ? '—'
+            : (result.totals.grossMarginPercent | number: '1.2-2') + '%'
+        }}</strong
+        ><small
+          >{{ result.totals.productsWithCost }} products with known cost ·
+          {{ result.totals.productsMissingCost }} without</small
+        >
+      </div>
+      <div class="metric">
+        <span>Rows included</span
+        ><strong>{{ result.includedRows | number }} of {{ result.dataRows | number }}</strong
+        ><small>{{ result.excludedRows | number }} excluded</small>
+      </div>
+    </div>
+    <div class="table-scroll results-scroll">
+      <table aria-label="Gross margin by product">
+        <thead>
+          <tr>
+            <th scope="col">Product ID</th>
+            <th scope="col">Product name</th>
+            <th scope="col" class="numeric">Qty sold</th>
+            <th scope="col" class="numeric">Net sales revenue</th>
+            <th scope="col" class="numeric">COGS</th>
+            <th scope="col" class="numeric">Gross profit</th>
+            <th scope="col" class="numeric">Gross margin %</th>
+            <th scope="col">Price ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of result.lines; track line.productId) {
+            <tr [class.review-row]="line.costSource === 'missing'">
+              <th scope="row" class="row-id">{{ line.productId }}</th>
+              <td>{{ line.productName }}</td>
+              <td class="numeric">{{ line.quantity | number }}</td>
+              <td class="numeric">{{ line.netSales | currency: 'PHP' : 'symbol' : '1.2-2' }}</td>
+              <td class="numeric">
+                {{ line.cogs === null ? '—' : (line.cogs | currency: 'PHP' : 'symbol' : '1.2-2') }}
+              </td>
+              <td class="numeric" [class.negative]="(line.grossProfit ?? 0) < 0">
+                {{
+                  line.grossProfit === null
+                    ? '—'
+                    : (line.grossProfit | currency: 'PHP' : 'symbol' : '1.2-2')
+                }}
+              </td>
+              <td class="numeric" [class.negative]="(line.grossMarginPercent ?? 0) < 0">
+                {{
+                  line.grossMarginPercent === null
+                    ? '—'
+                    : (line.grossMarginPercent | number: '1.2-2') + '%'
+                }}
+              </td>
+              <td>{{ priceIdsLabel(line) }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="empty-table">No valid product rows in this report.</td>
+            </tr>
+          }
+        </tbody>
+        @if (result.lines.length) {
+          <tfoot>
+            <tr class="totals-row">
+              <th scope="row" colspan="2">Total</th>
+              <td class="numeric">{{ result.totals.quantity | number }}</td>
+              <td class="numeric">
+                {{ result.totals.netSales | currency: 'PHP' : 'symbol' : '1.2-2' }}
+              </td>
+              <td class="numeric">
+                {{ result.totals.cogs | currency: 'PHP' : 'symbol' : '1.2-2' }}
+              </td>
+              <td class="numeric">
+                {{ result.totals.grossProfit | currency: 'PHP' : 'symbol' : '1.2-2' }}
+              </td>
+              <td class="numeric">
+                {{
+                  result.totals.grossMarginPercent === null
+                    ? '—'
+                    : (result.totals.grossMarginPercent | number: '1.2-2') + '%'
+                }}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+    <p class="table-footnote">
+      Totals for cost, profit and margin include only products with known cost; a product with any
+      row missing cost shows blanks rather than a partial COGS. The 17-column table above keeps the
+      gross margin after bank charges. Product sections are calculated in this browser from the
+      uploaded file; price books are demo data.
+    </p>
+    @if (result.issues.length) {
+      <div class="table-scroll results-scroll">
+        <table aria-label="Product rows needing review">
+          <thead>
+            <tr>
+              <th scope="col" class="numeric">Row</th>
+              <th scope="col">Product ID</th>
+              <th scope="col">Issue</th>
+              <th scope="col">Treatment</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (issue of result.issues.slice(0, issueLimit); track $index) {
+              <tr>
+                <td class="numeric">{{ issue.row }}</td>
+                <td>{{ issue.productId || '—' }}</td>
+                <td class="reason-cell">{{ issue.message }}</td>
+                <td>
+                  <span class="status-pill" [class.warning]="issue.excluded">{{
+                    issue.excluded ? 'Excluded' : 'Included'
+                  }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (result.issues.length > issueLimit) {
+        <div class="pagination">
+          <span
+            >Showing the first {{ issueLimit }} of {{ result.issues.length | number }} issues.</span
+          >
+        </div>
+      }
+    }
+  }
+</section>
+
+@if (report(); as result) {
+  <section class="section-card" id="price-books">
+    <div class="section-heading">
+      <div class="section-number">06</div>
+      <div>
+        <h2>Price book comparison</h2>
+        <p>Sales recorded under a Price ID compared with that price book's current price.</p>
+      </div>
+    </div>
+    @if (result.priceComparison.lines.length) {
+      <div class="metrics-grid">
+        <div class="metric">
+          <span>Price-book sales (actual)</span
+          ><strong>{{
+            result.priceComparison.actualNetSales | currency: 'PHP' : 'symbol' : '1.2-2'
+          }}</strong
+          ><small>{{ result.priceComparison.matchedLines }} matched lines</small>
+        </div>
+        <div class="metric">
+          <span>Expected at price-book prices</span
+          ><strong>{{
+            result.priceComparison.expectedRevenue | currency: 'PHP' : 'symbol' : '1.2-2'
+          }}</strong
+          ><small>Quantity × price-book price</small>
+        </div>
+        <div class="metric fee-metric">
+          <span>Variance</span
+          ><strong [class.negative]="result.priceComparison.variance < 0">{{
+            result.priceComparison.variance | currency: 'PHP' : 'symbol' : '1.2-2'
+          }}</strong
+          ><small>Actual − expected</small>
+        </div>
+      </div>
+      <div class="table-scroll results-scroll">
+        <table aria-label="Price book comparison">
+          <thead>
+            <tr>
+              <th scope="col">Price ID</th>
+              <th scope="col">Product ID</th>
+              <th scope="col">Product name</th>
+              <th scope="col" class="numeric">Qty</th>
+              <th scope="col" class="numeric">Actual net sales</th>
+              <th scope="col" class="numeric">POS selling price</th>
+              <th scope="col" class="numeric">Price-book price</th>
+              <th scope="col" class="numeric">Expected revenue</th>
+              <th scope="col" class="numeric">Variance</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of result.priceComparison.lines; track line.priceId + line.productId) {
+              <tr [class.review-row]="line.status !== 'matched'">
+                <td class="nowrap">{{ line.priceId }}</td>
+                <th scope="row" class="row-id">{{ line.productId }}</th>
+                <td>{{ line.productName }}</td>
+                <td class="numeric">{{ line.quantity | number }}</td>
+                <td class="numeric">
+                  {{ line.actualNetSales | currency: 'PHP' : 'symbol' : '1.2-2' }}
+                </td>
+                <td class="numeric">
+                  {{
+                    line.posSellingPrice === null
+                      ? '—'
+                      : (line.posSellingPrice | currency: 'PHP' : 'symbol' : '1.2-2')
+                  }}
+                </td>
+                <td class="numeric discount-cell">
+                  @if (line.price === null) {
+                    —
+                  } @else {
+                    {{ line.price | currency: 'PHP' : 'symbol' : '1.2-2' }}
+                    <small>{{ line.priceSource }}</small>
+                  }
+                </td>
+                <td class="numeric">
+                  {{
+                    line.expectedRevenue === null
+                      ? '—'
+                      : (line.expectedRevenue | currency: 'PHP' : 'symbol' : '1.2-2')
+                  }}
+                </td>
+                <td class="numeric" [class.negative]="(line.variance ?? 0) < 0">
+                  {{
+                    line.variance === null
+                      ? '—'
+                      : (line.variance | currency: 'PHP' : 'symbol' : '1.2-2')
+                  }}
+                </td>
+                <td>
+                  <span class="status-pill" [class.warning]="line.status !== 'matched'">{{
+                    matchLabels[line.status]
+                  }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="table-footnote">
+        Rows with a Price ID use that price book's promotional price, else its updated price.
+        Variance = actual net sales − expected revenue. Rows without a Price ID sold at regular
+        price and are not compared. Changes made in Price books show here immediately.
+      </p>
+    } @else {
+      <div class="info-line">
+        <span aria-hidden="true">ⓘ</span> No sales in this report carry a Price ID; all were treated
+        as regular price.
+      </div>
+    }
+  </section>
+}
