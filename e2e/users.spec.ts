@@ -19,7 +19,7 @@ test('Admin transfers the Accounting Head role; exactly one holder remains', asy
   await expect(page.getByLabel('Role for accounting')).toHaveValue('product-team');
   await signOut(page);
   await signIn(page, ...ACCOUNTS.product);
-  await expect(page).toHaveURL(/\/sales-report$/);
+  await expect(page).toHaveURL(/\/calculator$/);
   await signOut(page);
   await signIn(page, ...ACCOUNTS.accounting);
   await expect(page).toHaveURL(/\/price-books$/);

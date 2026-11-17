@@ -44,13 +44,8 @@ test('isIsoDate accepts only real YYYY-MM-DD dates', () => {
 });
 
 test('role permissions match the access matrix', () => {
-  assert.deepEqual([...ROLE_PERMISSIONS.admin].sort(), [
-    'calculator',
-    'price-books',
-    'sales-report',
-    'users',
-  ]);
-  assert.deepEqual([...ROLE_PERMISSIONS['accounting-head']].sort(), ['calculator', 'sales-report']);
+  assert.deepEqual([...ROLE_PERMISSIONS.admin].sort(), ['calculator', 'price-books', 'users']);
+  assert.deepEqual([...ROLE_PERMISSIONS['accounting-head']], ['calculator']);
   assert.deepEqual([...ROLE_PERMISSIONS['product-team']], ['price-books']);
   assert.equal(hasPermission(null, 'calculator'), false);
   assert.deepEqual(ROLE_LABELS, {
@@ -58,11 +53,11 @@ test('role permissions match the access matrix', () => {
     'accounting-head': 'Accounting Head',
     'product-team': 'Product Team',
   });
-  assert.equal(homePath('accounting-head'), '/sales-report');
+  assert.equal(homePath('accounting-head'), '/calculator');
 });
 
 test('pathPermission maps URLs to the permission that guards them', () => {
-  assert.equal(pathPermission('/sales-report?x=1'), 'sales-report');
+  assert.equal(pathPermission('/sales-report?x=1'), 'calculator');
   assert.equal(pathPermission('/price-books/PB-0001/edit'), 'price-books');
   assert.equal(pathPermission('/calculator#results'), 'calculator');
   assert.equal(pathPermission('/'), null);

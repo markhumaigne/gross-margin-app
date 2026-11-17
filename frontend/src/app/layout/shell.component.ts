@@ -22,12 +22,6 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { path: '/calculator', label: 'Bank rate calculator', icon: '▦', permission: 'calculator' },
-  {
-    path: '/sales-report',
-    label: 'Sales report by product',
-    icon: '▤',
-    permission: 'sales-report',
-  },
   { path: '/price-books', label: 'Price books', icon: '◫', permission: 'price-books' },
   { path: '/users', label: 'User accounts', icon: '◉', permission: 'users' },
 ];

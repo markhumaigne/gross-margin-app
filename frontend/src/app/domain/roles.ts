@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'accounting-head' | 'product-team';
-export type Permission = 'calculator' | 'sales-report' | 'price-books' | 'users';
+export type Permission = 'calculator' | 'price-books' | 'users';
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin',
@@ -8,20 +8,21 @@ export const ROLE_LABELS: Record<Role, string> = {
 };
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  admin: ['calculator', 'sales-report', 'price-books', 'users'],
-  'accounting-head': ['calculator', 'sales-report'],
+  admin: ['calculator', 'price-books', 'users'],
+  'accounting-head': ['calculator'],
   'product-team': ['price-books'],
 };
 
 const HOME_PATHS: Record<Role, string> = {
   admin: '/calculator',
-  'accounting-head': '/sales-report',
+  'accounting-head': '/calculator',
   'product-team': '/price-books',
 };
 
 const PERMISSION_SEGMENTS: Record<string, Permission> = {
   calculator: 'calculator',
-  'sales-report': 'sales-report',
+  // The former Sales Report page is part of the calculator now; old links redirect there.
+  'sales-report': 'calculator',
   'price-books': 'price-books',
   users: 'users',
 };

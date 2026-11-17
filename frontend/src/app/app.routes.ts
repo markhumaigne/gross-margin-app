@@ -28,13 +28,7 @@ export const routes: Routes = [
         data: { permission: 'calculator', label: 'Bank rate calculator', keepAlive: true },
         title: 'Ledger | Bank Rate Calculator',
       },
-      {
-        path: 'sales-report',
-        loadComponent: () =>
-          import('./pages/sales-report/sales-report.component').then((m) => m.SalesReportComponent),
-        data: { permission: 'sales-report', label: 'Sales report by product', keepAlive: true },
-        title: 'Ledger | Sales Report by Product',
-      },
+      { path: 'sales-report', redirectTo: 'calculator', pathMatch: 'full' },
       {
         path: 'price-books',
         component: PriceBookListComponent,
