@@ -7,7 +7,6 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { UsersComponent } from './pages/users/users.component';
 import { PriceBookListComponent } from './pages/price-books/price-book-list.component';
 import { PriceBookEditorComponent } from './pages/price-books/price-book-editor.component';
-import { SalesReportComponent } from './pages/sales-report/sales-report.component';
 
 export const routes: Routes = [
   {
@@ -31,7 +30,8 @@ export const routes: Routes = [
       },
       {
         path: 'sales-report',
-        component: SalesReportComponent,
+        loadComponent: () =>
+          import('./pages/sales-report/sales-report.component').then((m) => m.SalesReportComponent),
         data: { permission: 'sales-report', label: 'Sales report by product' },
         title: 'Ledger | Sales Report by Product',
       },

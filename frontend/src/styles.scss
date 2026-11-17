@@ -1650,3 +1650,81 @@ textarea.invalid {
   color: #8a9aaf;
   flex-wrap: wrap;
 }
+.demo-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #8a6a2c;
+  background: #fff8e9;
+  border: 1px solid #f1e2bd;
+  padding: 8px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.demo-banner {
+  background: #fff8e9;
+  border: 1px solid #f1e2bd;
+  color: #8a6a2c;
+  border-radius: 6px;
+  padding: 11px 14px;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.upload-actions {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.upload-actions .mat-mdc-button-base {
+  font-size: 10px;
+}
+.upload-error {
+  padding-top: 0;
+}
+.mapping-panel {
+  border-top: 1px solid #edf0f4;
+}
+.mapping-panel h3 {
+  font-size: 12px;
+  font-weight: 650;
+  margin-bottom: 12px;
+}
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-weight: 500;
+}
+.checkbox-label input {
+  width: 15px;
+  height: 15px;
+}
+.mapping-notice {
+  margin: 12px 0 0;
+}
+.sales-report-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.totals-row th,
+.totals-row td {
+  position: static;
+  font-weight: 650;
+  color: var(--ink);
+  background: #f7f9fc;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  padding: 10px 15px;
+  letter-spacing: 0;
+}
+@media (max-width: 1100px) {
+  .sales-report-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .sales-report-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
