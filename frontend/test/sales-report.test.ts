@@ -3,49 +3,35 @@ import { test } from './harness';
 import {
   buildSalesReport,
   columnCount,
-  MAX_DATA_ROWS,
-  sheetSizeError,
   detectMapping,
   findHeaderRow,
+  mappingFromSelection,
+  MAX_DATA_ROWS,
   missingRequiredFields,
   normalizeProductId,
+  resolveCostBasis,
   SalesReportOptions,
+  sheetSizeError,
   validateUploadFile,
 } from '../src/app/domain/sales-report';
 import { readSpreadsheet } from '../src/app/domain/read-spreadsheet';
-import { Product } from '../src/app/domain/pricing';
-import { PRODUCTS } from '../src/app/mock-data/products';
-import { SAMPLE_SALES_ROWS, sampleSalesCsv } from '../src/app/mock-data/sample-sales';
 
-const catalog: Product[] = [
-  {
-    id: 'A-1',
-    name: 'Alpha',
-    unit: 'PCS',
-    onHand: 1,
-    masterListPrice: 6500,
-    sellingPrice: 6190,
-    cost: 4900,
-  },
-  {
-    id: 'B-2',
-    name: 'Bravo',
-    unit: 'PCS',
-    onHand: 1,
-    masterListPrice: 1500,
-    sellingPrice: 1295,
-    cost: 820,
-  },
-];
 const opts = (rows: unknown[][], o: Partial<SalesReportOptions> = {}): SalesReportOptions => ({
   headerRow: 0,
   ...detectMapping(rows[0]),
-  useEstimatedCost: false,
   ...o,
 });
 const run = (rows: unknown[][], o: Partial<SalesReportOptions> = {}) =>
-  buildSalesReport(rows, opts(rows, o), catalog);
-const H = ['SKU', 'Item', 'Qty', 'Net Total', 'Unit Cost'];
+  buildSalesReport(rows, opts(rows, o));
+const H = ['Product ID', 'Product Name', 'Qty', 'Net Total', 'Cost'];
+const NONE = {
+  priceId: null,
+  sellingPrice: null,
+  masterPrice: null,
+  unit: null,
+  date: null,
+  invoice: null,
+};
 
 test('upload file validation', () => {
   assert.equal(validateUploadFile('r.CSV', 10), null);
@@ -70,12 +56,12 @@ test('header row and column detection', () => {
       'Net Total',
     ]),
     {
-      mapping: { productId: 0, productName: 1, quantity: 2, netSales: 6, cost: 4 },
+      mapping: { productId: 0, productName: 1, quantity: 2, netSales: 6, cost: 4, ...NONE },
       costBasis: 'unit',
     },
   );
   assert.deepEqual(detectMapping(['SKU', 'Quantity', 'Amount', 'Total Cost']), {
-    mapping: { productId: 0, productName: null, quantity: 1, netSales: 2, cost: 3 },
+    mapping: { productId: 0, productName: null, quantity: 1, netSales: 2, cost: 3, ...NONE },
     costBasis: 'line',
   });
   assert.deepEqual(missingRequiredFields(detectMapping(['Item', 'Amount']).mapping), [
@@ -91,31 +77,27 @@ test('product IDs keep their digits', () => {
   assert.equal(normalizeProductId(null), '');
 });
 
-test('aggregates quantity, revenue, COGS, gross profit and margin per product', () => {
+test('products come from the file, not a catalog', () => {
   const r = run([
     H,
-    ['A-1', 'x', 1, '6,190.00', 4861],
-    [' a-1 ', 'x', 2, 12000, '4861'],
-    ['B-2', 'x', 2, 2590, 800],
+    ['X-1', 'Real Item', 1, '6,190.00', 4861],
+    [' x-1 ', '', 2, 12000, '4861'],
+    ['Y-2', '', 2, 2590, 800],
   ]);
-  const a = r.lines.find((l) => l.productId === 'A-1')!;
+  const x = r.lines.find((l) => l.productId === 'X-1')!;
   assert.deepEqual(
     [
-      a.productName,
-      a.quantity,
-      a.netSales,
-      a.cogs,
-      a.grossProfit,
-      a.grossMarginPercent,
-      a.costSource,
-      a.rowCount,
+      x.productName,
+      x.quantity,
+      x.netSales,
+      x.cogs,
+      x.grossProfit,
+      x.grossMarginPercent,
+      x.rowCount,
     ],
-    ['Alpha', 3, 18190, 14583, 3607, 19.83, 'report', 2],
+    ['Real Item', 3, 18190, 14583, 3607, 19.83, 2],
   );
-  assert.deepEqual(
-    r.lines.map((l) => l.productId),
-    ['A-1', 'B-2'],
-  );
+  assert.equal(r.lines.find((l) => l.productId === 'Y-2')!.productName, 'Y-2');
   assert.deepEqual(
     [r.totals.netSales, r.totals.cogs, r.totals.grossProfit, r.totals.grossMarginPercent],
     [20780, 16183, 4597, 22.12],
@@ -152,27 +134,6 @@ test('partly costed products show no partial COGS', () => {
   );
 });
 
-test('estimated cost is opt-in and labelled', () => {
-  const rows = [
-    ['SKU', 'Qty', 'Net Total'],
-    ['B-2', 2, 2590],
-  ];
-  assert.equal(run(rows).lines[0].cogs, null);
-  const e = run(rows, { useEstimatedCost: true });
-  assert.deepEqual(
-    [e.lines[0].cogs, e.lines[0].costSource, e.lines[0].grossMarginPercent],
-    [1640, 'estimate', 36.68],
-  );
-  assert.equal(
-    e.issues[0].message,
-    'Cost estimated from current mock product cost (not historical).',
-  );
-  const m = run([H, ['B-2', 'x', 1, 1295, 800], ['B-2', 'x', 1, 1295, '']], {
-    useEstimatedCost: true,
-  });
-  assert.deepEqual([m.lines[0].cogs, m.lines[0].costSource], [1620, 'mixed']);
-});
-
 test('invalid rows are excluded with reasons and blank rows are skipped', () => {
   const r = run([
     H,
@@ -189,7 +150,6 @@ test('invalid rows are excluded with reasons and blank rows are skipped', () => 
     r.issues.map((i) => [i.row, i.message, i.excluded]),
     [
       [2, 'Missing Product ID.', true],
-      [3, 'Product ID not found in the mock product catalog.', true],
       [4, 'Negative quantity or sales (refund/return) excluded from totals.', true],
       [5, 'Quantity must be a number greater than zero.', true],
       [6, 'Net sales must be a valid amount.', true],
@@ -197,34 +157,89 @@ test('invalid rows are excluded with reasons and blank rows are skipped', () => 
       [9, 'No historical cost in the report; COGS left blank.', false],
     ],
   );
-  assert.deepEqual([r.dataRows, r.includedRows, r.excludedRows], [7, 2, 5]);
+  assert.deepEqual([r.dataRows, r.includedRows, r.excludedRows], [7, 3, 4]);
   assert.equal(r.lines.find((l) => l.productId === 'A-1')!.grossMarginPercent, null);
 });
 
-test('sample data and CSV round trip', async () => {
-  const csv = sampleSalesCsv();
-  assert.equal(csv.split('\r\n')[0], 'Product ID,Product Name,Date,Qty,Net Sales,Unit Cost');
-  const rows = await readSpreadsheet(new File([csv], 'sample.csv'));
-  assert.equal(rows.length - 1, SAMPLE_SALES_ROWS.length - 1);
-  const r = buildSalesReport(
-    rows,
-    { headerRow: 0, ...detectMapping(rows[0]), useEstimatedCost: false },
-    PRODUCTS,
-  );
-  assert.deepEqual(
-    r.issues
-      .filter((i) => i.excluded)
-      .map((i) => i.message)
-      .sort(),
-    [
-      'Negative quantity or sales (refund/return) excluded from totals.',
-      'Product ID not found in the mock product catalog.',
-    ],
-  );
-  assert.equal(r.issues.filter((i) => !i.excluded).length, 1);
+test('footer rows of the POS export are skipped', () => {
+  const rows = [
+    ['Product ID', 'TM-INV#', 'Qty', 'Net Total', 'Cost'],
+    ['X-1', 'A1', 1, 100, 50],
+    [null, 'TOTAL:', 1, 100, null],
+    ['1 items  ******** NOTHING FOLLOWS ********', null, null, null, null],
+  ];
+  const r = run(rows);
+  assert.deepEqual([r.dataRows, r.issues.length, r.lines.length], [1, 0, 1]);
 });
 
-test('readSpreadsheet keeps CSV leading zeros and full numeric Excel IDs', async () => {
+test('free items and refunds', () => {
+  const r = run([H, ['F-1', 'Bag', 1, 0, 8], ['X-1', 'Item', -1, -100, 50]]);
+  assert.equal(r.lines[0].grossMarginPercent, null);
+  assert.equal(r.lines[0].grossProfit, -8);
+  assert.equal(
+    r.issues[0].message,
+    'Negative quantity or sales (refund/return) excluded from totals.',
+  );
+});
+
+test('the calculator mapping and cost basis are honoured', () => {
+  const header = [
+    'Custom SKU',
+    'Product Name',
+    'Qty',
+    'Price\nID',
+    'Final Sales Value',
+    'Net\nTotal',
+    'Line Cost',
+  ];
+  const m = mappingFromSelection(header, {
+    productId: 'Custom SKU',
+    lineTotal: 'Final Sales Value',
+    cost: 'Line Cost',
+  });
+  assert.deepEqual([m.productId, m.netSales, m.cost, m.priceId], [0, 4, 6, 3]);
+  assert.equal(
+    mappingFromSelection(['A', 'Tender', 'Tender'], { productId: 'Tender [C]' }).productId,
+    2,
+  );
+  assert.equal(resolveCostBasis('auto', 'line'), 'line');
+  assert.equal(resolveCostBasis('auto', 'unknown'), 'unit');
+  assert.equal(resolveCostBasis(undefined, 'unit'), 'unit');
+  assert.equal(resolveCostBasis('line', 'unit'), 'line');
+});
+
+test('real-layout headers with title rows and line breaks', () => {
+  const rows = [
+    ['DEMO TRADING'],
+    ['Sales Report by Product'],
+    ['Sale Date=10/01/2026'],
+    [],
+    [
+      'Product ID',
+      'Product Name',
+      'Date',
+      'TM-INV#',
+      'Qty',
+      'Net\nTotal',
+      'Master Price',
+      'Selling Price',
+      'Price\nID',
+    ],
+    [4800000100011, 'Mon', '10/01/2026', 'A1', 1, 5795, 5795, 5795, 'PL000013'],
+  ];
+  const h = findHeaderRow(rows);
+  const m = detectMapping(rows[h]).mapping;
+  assert.deepEqual(
+    [h, m.netSales, m.masterPrice, m.sellingPrice, m.priceId, m.invoice, m.date],
+    [4, 5, 6, 7, 8, 3, 2],
+  );
+  assert.equal(
+    buildSalesReport(rows, { headerRow: h, mapping: m, costBasis: 'unit' }).lines[0].productId,
+    '4800000100011',
+  );
+});
+
+test('readSpreadsheet keeps CSV leading zeros, numeric Excel IDs and reads a named sheet', async () => {
   const csvRows = await readSpreadsheet(new File(['Product ID,Qty\r\n0012,1'], 'a.csv'));
   assert.equal(csvRows[1][0], '0012');
   const XLSX = await import('xlsx');
@@ -238,9 +253,19 @@ test('readSpreadsheet keeps CSV leading zeros and full numeric Excel IDs', async
     ]),
     'Sales',
   );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([
+      ['Product ID', 'Qty'],
+      ['OTHER', 1],
+    ]),
+    'Second',
+  );
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
   const rows = await readSpreadsheet(new File([buf], 'a.xlsx'));
   assert.equal(normalizeProductId(rows[1][0]), '4800000100011');
+  const named = await readSpreadsheet(new File([buf], 'a.xlsx'), 'Second');
+  assert.equal(named[1][0], 'OTHER');
 });
 
 test('oversized reports are rejected before processing', async () => {

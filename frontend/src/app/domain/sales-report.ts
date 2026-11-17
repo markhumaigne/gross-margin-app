@@ -1,20 +1,23 @@
 import { fromCents, isBlank, parseMoney, percentOf, toCents } from './money';
-import { Product } from './pricing';
 
-export type SalesField = 'productId' | 'productName' | 'quantity' | 'netSales' | 'cost';
+export type SalesField =
+  | 'productId'
+  | 'productName'
+  | 'quantity'
+  | 'netSales'
+  | 'cost'
+  | 'priceId'
+  | 'sellingPrice'
+  | 'masterPrice'
+  | 'unit'
+  | 'date'
+  | 'invoice';
 /** Column index in the header row for each field, or null when not mapped. */
 export type ColumnMapping = Record<SalesField, number | null>;
 export type CostBasis = 'unit' | 'line';
-export type CostSource = 'report' | 'estimate' | 'mixed' | 'missing';
+export type CostSource = 'report' | 'missing';
 
 export const REQUIRED_FIELDS: readonly SalesField[] = ['productId', 'quantity', 'netSales'];
-export const FIELD_LABELS: Record<SalesField, string> = {
-  productId: 'Product ID',
-  productName: 'Product name',
-  quantity: 'Quantity',
-  netSales: 'Net sales',
-  cost: 'Cost',
-};
 
 export interface SalesIssue {
   /** 1-based spreadsheet row number. */
@@ -48,10 +51,10 @@ export interface SalesReportTotals {
 }
 
 export interface SalesReportOptions {
+  /** 0-based index of the header row in `rows`. */
   headerRow: number;
   mapping: ColumnMapping;
   costBasis: CostBasis;
-  useEstimatedCost: boolean;
 }
 
 export interface SalesReportResult {
@@ -75,18 +78,22 @@ const ALIASES: Record<Exclude<SalesField, 'cost'>, string[]> = {
   productName: ['productname', 'itemname', 'product', 'item', 'description', 'name'],
   quantity: ['qty', 'quantity', 'qtysold', 'unitssold'],
   netSales: ['nettotal', 'netsales', 'netamount', 'linetotal', 'salesamount', 'amount', 'total'],
+  priceId: ['priceid', 'pricebookid', 'pricelistid', 'pricelist', 'pricebook'],
+  sellingPrice: ['sellingprice'],
+  masterPrice: ['masterprice'],
+  unit: ['unit', 'uom'],
+  date: ['date', 'saledate', 'salesdate'],
+  invoice: ['tminv', 'invoice', 'invoiceno', 'invoicenumber', 'receipt', 'or'],
 };
 const LINE_COST_ALIASES = ['totalcost', 'linecost', 'extendedcost', 'cogs'];
 const UNIT_COST_ALIASES = ['unitcost', 'costperunit', 'cost'];
 
 const MESSAGES = {
   missingId: 'Missing Product ID.',
-  unknownId: 'Product ID not found in the mock product catalog.',
   negative: 'Negative quantity or sales (refund/return) excluded from totals.',
   quantity: 'Quantity must be a number greater than zero.',
   netSales: 'Net sales must be a valid amount.',
   invalidCost: 'Cost is invalid; treated as missing.',
-  estimated: 'Cost estimated from current mock product cost (not historical).',
   noCost: 'No historical cost in the report; COGS left blank.',
 };
 
@@ -94,6 +101,10 @@ const normalizeHeader = (value: unknown) =>
   String(value ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+const collapse = (value: unknown) =>
+  String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 export function validateUploadFile(name: string, size: number): string | null {
   if (!/\.(csv|xlsx|xls)$/i.test(name)) return 'Upload a .csv, .xlsx or .xls file.';
@@ -135,17 +146,89 @@ export function detectMapping(headers: readonly unknown[]): {
   const netSales = find(ALIASES.netSales);
   const lineCost = find(LINE_COST_ALIASES);
   const cost = lineCost ?? find(UNIT_COST_ALIASES);
+  const priceId = find(ALIASES.priceId);
+  const sellingPrice = find(ALIASES.sellingPrice);
+  const masterPrice = find(ALIASES.masterPrice);
+  const unit = find(ALIASES.unit);
+  const date = find(ALIASES.date);
+  const invoice = find(ALIASES.invoice);
   const productName = find(ALIASES.productName);
   return {
-    mapping: { productId, productName, quantity, netSales, cost },
+    mapping: {
+      productId,
+      productName,
+      quantity,
+      netSales,
+      cost,
+      priceId,
+      sellingPrice,
+      masterPrice,
+      unit,
+      date,
+      invoice,
+    },
     costBasis: lineCost !== null ? 'line' : 'unit',
   };
+}
+
+/** Column index for an Excel column name such as `C` or `AA`. */
+function columnIndex(letters: string): number {
+  let index = 0;
+  for (const ch of letters) index = index * 26 + (ch.charCodeAt(0) - 64);
+  return index - 1;
+}
+
+/** Calculator mapping keys and the product-sales fields they feed. */
+const SELECTION_FIELDS: Record<string, SalesField> = {
+  productId: 'productId',
+  product: 'productName',
+  quantity: 'quantity',
+  lineTotal: 'netSales',
+  cost: 'cost',
+  invoice: 'invoice',
+  date: 'date',
+};
+
+/**
+ * Column mapping for the product sections, following the header names chosen in the calculator so
+ * both use the same columns. Columns the calculator does not know (Price ID, Selling/Master Price)
+ * are detected by name. A backend duplicate name such as `Tender [C]` points at that column letter.
+ */
+export function mappingFromSelection(
+  header: readonly unknown[],
+  selection: Record<string, string>,
+): ColumnMapping {
+  const mapping = { ...detectMapping(header).mapping };
+  const names = header.map(collapse);
+  for (const [key, field] of Object.entries(SELECTION_FIELDS)) {
+    const name = selection[key];
+    if (!name) continue;
+    const suffix = /^(.*) \[([A-Z]+)\]$/.exec(name);
+    const index = suffix ? columnIndex(suffix[2]) : names.indexOf(collapse(name));
+    if (index >= 0 && index < header.length) mapping[field] = index;
+  }
+  return mapping;
+}
+
+export function resolveCostBasis(
+  selected: 'auto' | 'unit' | 'line' | undefined,
+  suggested: 'unit' | 'line' | 'unknown',
+): CostBasis {
+  if (selected === 'unit' || selected === 'line') return selected;
+  return suggested === 'line' ? 'line' : 'unit';
 }
 
 export function normalizeProductId(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number' && Number.isInteger(value)) return BigInt(value).toString();
   return String(value).trim();
+}
+
+/** POS export footers: a `TOTAL:` row without a Product ID, or the `NOTHING FOLLOWS` marker. */
+export function isFooterRow(row: readonly unknown[], mapping: ColumnMapping): boolean {
+  if (row.some((c) => typeof c === 'string' && /NOTHING FOLLOWS/i.test(c))) return true;
+  const productId = mapping.productId === null ? '' : normalizeProductId(row[mapping.productId]);
+  return !productId && row.some((c) => /^total:?$/i.test(String(c ?? '').trim()));
 }
 
 /** Widest row length, computed with a loop so very tall sheets cannot overflow the stack. */
@@ -169,7 +252,7 @@ export function missingRequiredFields(mapping: ColumnMapping): SalesField[] {
   return REQUIRED_FIELDS.filter((field) => mapping[field] === null);
 }
 
-function parseQuantity(value: unknown): number | null {
+export function parseQuantity(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value !== 'string') return null;
   const text = value.trim().replace(/,/g, '');
@@ -177,22 +260,20 @@ function parseQuantity(value: unknown): number | null {
 }
 
 interface Accumulator {
-  product: Product;
+  productId: string;
+  productName: string;
   quantity: number;
   netCents: number;
   cogsCents: number;
   missingCost: boolean;
-  sources: Set<'report' | 'estimate'>;
   rowCount: number;
 }
 
 export function buildSalesReport(
   rows: readonly unknown[][],
   options: SalesReportOptions,
-  catalog: readonly Product[],
 ): SalesReportResult {
   const { mapping } = options;
-  const byId = new Map(catalog.map((p) => [p.id.toUpperCase(), p]));
   const groups = new Map<string, Accumulator>();
   const issues: SalesIssue[] = [];
   let dataRows = 0;
@@ -202,7 +283,7 @@ export function buildSalesReport(
 
   for (let i = options.headerRow + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (isBlankRow(row)) continue;
+    if (isBlankRow(row) || isFooterRow(row, mapping)) continue;
     dataRows++;
     const rowNumber = i + 1;
     const productId = normalizeProductId(cell(row, 'productId'));
@@ -212,11 +293,6 @@ export function buildSalesReport(
     };
     if (!productId) {
       exclude(MESSAGES.missingId);
-      continue;
-    }
-    const product = byId.get(productId.toUpperCase());
-    if (!product) {
-      exclude(MESSAGES.unknownId);
       continue;
     }
     const quantity = parseQuantity(cell(row, 'quantity'));
@@ -235,76 +311,68 @@ export function buildSalesReport(
     }
 
     const warn = (message: string) =>
-      issues.push({ row: rowNumber, productId: product.id, message, excluded: false });
+      issues.push({ row: rowNumber, productId, message, excluded: false });
     let cogsCents: number | null = null;
-    let source: 'report' | 'estimate' | null = null;
     const rawCost = cell(row, 'cost');
     if (!isBlank(rawCost)) {
       const cost = parseMoney(rawCost);
       if (cost === null || cost < 0) warn(MESSAGES.invalidCost);
-      else {
+      else
         cogsCents =
           options.costBasis === 'unit' ? Math.round(toCents(cost) * quantity) : toCents(cost);
-        source = 'report';
-      }
     }
-    if (cogsCents === null) {
-      if (options.useEstimatedCost) {
-        cogsCents = Math.round(toCents(product.cost) * quantity);
-        source = 'estimate';
-        warn(MESSAGES.estimated);
-      } else warn(MESSAGES.noCost);
-    }
+    if (cogsCents === null) warn(MESSAGES.noCost);
 
-    const group = groups.get(product.id) ?? {
-      product,
+    const key = productId.toUpperCase();
+    const name = String(cell(row, 'productName') ?? '').trim();
+    const group = groups.get(key) ?? {
+      productId,
+      productName: '',
       quantity: 0,
       netCents: 0,
       cogsCents: 0,
       missingCost: false,
-      sources: new Set(),
       rowCount: 0,
     };
+    if (!group.productName && name) group.productName = name;
     group.quantity = Math.round((group.quantity + quantity) * 1e6) / 1e6;
     group.netCents += toCents(net);
     group.rowCount++;
-    if (cogsCents === null || source === null) group.missingCost = true;
-    else {
-      group.cogsCents += cogsCents;
-      group.sources.add(source);
-    }
-    groups.set(product.id, group);
+    if (cogsCents === null) group.missingCost = true;
+    else group.cogsCents += cogsCents;
+    groups.set(key, group);
   }
 
   const lines: ProductSalesLine[] = [...groups.values()].map((g) => {
     const known = !g.missingCost;
     const profitCents = g.netCents - g.cogsCents;
     return {
-      productId: g.product.id,
-      productName: g.product.name,
+      productId: g.productId,
+      productName: g.productName || g.productId,
       quantity: g.quantity,
       netSales: fromCents(g.netCents),
       cogs: known ? fromCents(g.cogsCents) : null,
       grossProfit: known ? fromCents(profitCents) : null,
       grossMarginPercent: known ? percentOf(profitCents, g.netCents) : null,
-      costSource: !known ? 'missing' : g.sources.size > 1 ? 'mixed' : [...g.sources][0],
+      costSource: known ? 'report' : 'missing',
       rowCount: g.rowCount,
     };
   });
   lines.sort((a, b) => b.netSales - a.netSales || a.productId.localeCompare(b.productId));
 
-  const costed = [...groups.values()].filter((g) => !g.missingCost);
+  const all = [...groups.values()];
+  const costed = all.filter((g) => !g.missingCost);
   const knownNet = costed.reduce((sum, g) => sum + g.netCents, 0);
   const cogs = costed.reduce((sum, g) => sum + g.cogsCents, 0);
   const totals: SalesReportTotals = {
-    quantity: Math.round([...groups.values()].reduce((sum, g) => sum + g.quantity, 0) * 1e6) / 1e6,
-    netSales: fromCents([...groups.values()].reduce((sum, g) => sum + g.netCents, 0)),
+    quantity: Math.round(all.reduce((sum, g) => sum + g.quantity, 0) * 1e6) / 1e6,
+    netSales: fromCents(all.reduce((sum, g) => sum + g.netCents, 0)),
     knownCostNetSales: fromCents(knownNet),
     cogs: fromCents(cogs),
     grossProfit: fromCents(knownNet - cogs),
     grossMarginPercent: percentOf(knownNet - cogs, knownNet),
     productsWithCost: costed.length,
-    productsMissingCost: groups.size - costed.length,
+    productsMissingCost: all.length - costed.length,
   };
 
   return {
