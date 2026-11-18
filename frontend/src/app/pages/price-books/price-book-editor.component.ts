@@ -24,7 +24,6 @@ import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../domain/
 import {
   marginAfterSupport,
   marginOnCost,
-  NO_SUPPORT_DRAFT,
   SupportDraft,
   supportFromDraft,
   validateSupportDraft,
@@ -117,7 +116,7 @@ export class PriceBookEditorComponent {
         : product && product.cost !== null
           ? { price: price ?? product.masterListPrice, cost: product.cost }
           : null;
-      const supportDraft = entry.support ?? NO_SUPPORT_DRAFT;
+      const supportDraft = entry.support ?? '';
       const support = validateSupportDraft(supportDraft)
         ? undefined
         : supportFromDraft(supportDraft);
@@ -197,15 +196,11 @@ export class PriceBookEditorComponent {
     }));
   }
 
-  updateSupport(productId: string, part: keyof SupportDraft, event: Event) {
-    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
+  updateSupport(productId: string, event: Event) {
+    const support = (event.target as HTMLInputElement).value;
     this.draft.update((d) => ({
       ...d,
-      entries: d.entries.map((e) =>
-        e.productId === productId
-          ? { ...e, support: { ...(e.support ?? NO_SUPPORT_DRAFT), [part]: value } }
-          : e,
-      ),
+      entries: d.entries.map((e) => (e.productId === productId ? { ...e, support } : e)),
     }));
   }
 

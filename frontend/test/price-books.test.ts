@@ -340,12 +340,12 @@ const supportDraft = (id: string, value = '1500'): PriceBookDraft => ({
   ...base(),
   autoId: false,
   id,
-  entries: [{ ...base().entries[0], support: { kind: 'amount', value } }],
+  entries: [{ ...base().entries[0], support: value }],
 });
 
 test('PS entries keep Support and PL entries drop it on save', () => {
   const ps = expectOk(savePriceBook([], supportDraft('PS000077'), null, PRODUCTS, 'x', now)).book;
-  assert.deepEqual(ps.entries[0].support, { kind: 'amount', value: 1500 });
+  assert.equal(ps.entries[0].support, 1500);
   const pl = expectOk(savePriceBook([], supportDraft('PL000077'), null, PRODUCTS, 'x', now)).book;
   assert.equal('support' in pl.entries[0], false);
 });
@@ -365,8 +365,7 @@ test('duplicate copies Support to the next PS number', () => {
   );
   const { book: copy } = expectOk(duplicatePriceBook(books, ps.id, 'x', now));
   assert.equal(copy.id, 'PS000078');
-  assert.deepEqual(copy.entries[0].support, ps.entries[0].support);
-  assert.notEqual(copy.entries[0].support, ps.entries[0].support);
+  assert.equal(copy.entries[0].support, 1500);
 });
 
 test('manual products accept Qty 0 and store no typed margin', () => {

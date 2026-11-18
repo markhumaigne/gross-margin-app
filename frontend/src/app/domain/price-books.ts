@@ -247,7 +247,6 @@ export function duplicatePriceBook(
     entries: source.entries.map((e) => ({
       ...e,
       ...(e.manual ? { manual: { ...e.manual } } : {}),
-      ...(e.support ? { support: { ...e.support } } : {}),
     })),
     updatedAt: now.toISOString(),
     updatedBy: actor,

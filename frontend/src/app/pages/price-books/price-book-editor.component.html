@@ -306,37 +306,22 @@
               @if (supportBook()) {
                 @if (editable()) {
                   <td>
-                    <div class="support-input">
-                      <input
-                        class="price-input"
-                        inputmode="decimal"
-                        placeholder="—"
-                        [attr.aria-label]="entryLabel('Support', row.entry)"
-                        [value]="row.supportDraft.value"
-                        (input)="updateSupport(row.entry.productId, 'value', $event)"
-                      />
-                      <select
-                        [attr.aria-label]="entryLabel('Support type', row.entry)"
-                        (change)="updateSupport(row.entry.productId, 'kind', $event)"
-                      >
-                        <option value="amount" [selected]="row.supportDraft.kind === 'amount'">
-                          ₱
-                        </option>
-                        <option value="percent" [selected]="row.supportDraft.kind === 'percent'">
-                          %
-                        </option>
-                      </select>
-                    </div>
+                    <input
+                      class="price-input"
+                      inputmode="decimal"
+                      placeholder="—"
+                      [attr.aria-label]="entryLabel('Support', row.entry)"
+                      [value]="row.supportDraft"
+                      (input)="updateSupport(row.entry.productId, $event)"
+                    />
                   </td>
                 } @else {
                   <td class="numeric">
-                    @if (!row.support) {
-                      —
-                    } @else if (row.support.kind === 'amount') {
-                      {{ row.support.value | currency: 'PHP' : 'symbol' : '1.2-2' }}
-                    } @else {
-                      {{ row.support.value.toFixed(2) }}%
-                    }
+                    {{
+                      row.support === undefined
+                        ? '—'
+                        : (row.support | currency: 'PHP' : 'symbol' : '1.2-2')
+                    }}
                   </td>
                 }
                 <td class="numeric" [class.negative]="(row.afterSupport ?? 0) < 0">

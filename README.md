@@ -90,10 +90,10 @@ With **Auto ID** on, a new book gets the next `PL` number; turn it off to type a
 
 **Download sample price book** provides a demo ZenPOS export (`PS000015` Demo Headset Promo) whose headset matches the demo sales export, so Support can be tried end to end.
 
-**Support** (PS books only) is entered by the Product Team on each product, in Add products or directly in the price book table, as **₱ per unit** or **% of the net price**. PL and PI books never store Support. Margins in price books use the ZenPOS formula so imported numbers match ZenPOS:
+**Support** (PS books only) is entered by the Product Team on each product, in Add products or directly in the price book table, as **₱ per unit** (pesos only). PL and PI books never store Support. Margins in price books use the ZenPOS formula so imported numbers match ZenPOS:
 
 - Margin on cost = (net price − cost) ÷ cost × 100
-- Margin after support = (net price − net cost) ÷ net cost × 100, where net cost = cost − support per unit (a % support is net price × % ÷ 100). A net cost of zero or less shows —.
+- Margin after support = (net price − net cost) ÷ net cost × 100, where net cost = cost − support per unit. A net cost of zero or less shows —.
 
 Margin is always calculated; it is no longer typed in Add products. Manual and imported rows accept Qty 0 (ZenPOS uses 0 to mean any quantity).
 
@@ -113,7 +113,7 @@ After **Calculate**, the calculator reads the same uploaded file in the browser 
 
 - Gross Profit = Net Sales Revenue − Cost of Goods Sold
 - Gross Margin on sales % = Gross Profit ÷ Net Sales Revenue × 100 (the calculator keeps margin on sales; price books show ZenPOS margin on cost)
-- Support per sales row with a `PS` Price ID = ₱ support × quantity, or % support × the row's net sales; rows sold at ₱0 earn none. Support counts even when the PS book has since been deactivated.
+- Support per sales row with a `PS` Price ID = ₱ support per unit × quantity sold; rows sold at ₱0 earn none. Support counts even when the PS book has since been deactivated.
 - Gross profit after support = Gross Profit + Support; Gross margin after support % = that ÷ Net Sales Revenue × 100. After-support totals cover products with known cost; the Support total covers every row.
 
 COGS uses the report's cost (unit cost × quantity, or line total cost). A product with any row missing cost shows blank COGS, profit and margin (never a partial COGS) and is excluded from cost totals; cost is never estimated. Missing IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Product rows needing review** (first 200 shown).

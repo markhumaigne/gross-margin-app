@@ -119,7 +119,7 @@ export function validateEntryDraft(
       }
     }
   }
-  if (draft.support) {
+  if (draft.support !== undefined) {
     const supportError = validateSupportDraft(draft.support);
     if (supportError) errors.push(supportError);
   }
@@ -161,7 +161,7 @@ export function entryFromDraft(draft: PriceBookEntryDraft): PriceBookEntry {
     effectiveStart: draft.effectiveStart,
     effectiveEnd: draft.effectiveEnd.trim() ? draft.effectiveEnd : null,
     memo: draft.memo.trim(),
-    ...(support ? { support } : {}),
+    ...(support !== undefined ? { support } : {}),
   };
 }
 
@@ -174,7 +174,7 @@ export function entryToDraft(entry: PriceBookEntry): PriceBookEntryDraft {
     effectiveStart: entry.effectiveStart,
     effectiveEnd: entry.effectiveEnd ?? '',
     memo: entry.memo,
-    ...(entry.support ? { support: supportToDraft(entry.support) } : {}),
+    ...(entry.support !== undefined ? { support: supportToDraft(entry.support) } : {}),
   };
 }
 

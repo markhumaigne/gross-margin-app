@@ -46,14 +46,24 @@ function validManual(value: unknown): boolean {
   );
 }
 
-function validSupport(value: unknown): boolean {
-  if (value === undefined) return true;
-  return (
-    record(value) &&
-    (value.kind === 'amount' || value.kind === 'percent') &&
-    amount(value.value) &&
-    (value.kind === 'amount' || (value.value as number) <= 100)
-  );
+/** Support is pesos per unit. */
+const validSupport = (value: unknown) => value === undefined || amount(value);
+
+/**
+ * Support was briefly saved as { kind: 'amount' | 'percent', value } before it became pesos per
+ * unit only. Peso amounts are kept; percent Support has no peso value and is dropped.
+ */
+function upgradeLegacySupport(value: unknown): unknown {
+  if (!record(value) || !Array.isArray(value.books)) return value;
+  for (const book of value.books) {
+    if (!record(book) || !Array.isArray(book.entries)) continue;
+    for (const entry of book.entries) {
+      if (!record(entry) || !record(entry.support)) continue;
+      if (entry.support.kind === 'amount') entry.support = entry.support.value;
+      else delete entry.support;
+    }
+  }
+  return value;
 }
 
 function validEntry(value: unknown): boolean {
@@ -117,7 +127,7 @@ export function readPricingStorage(
   }
   if (text === null) return ok(null);
   try {
-    const value: unknown = JSON.parse(text);
+    const value = upgradeLegacySupport(JSON.parse(text));
     if (!validSnapshot(value)) return fail(unreadable);
     return ok(value);
   } catch {

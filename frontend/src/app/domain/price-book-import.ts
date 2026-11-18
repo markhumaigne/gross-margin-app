@@ -55,8 +55,8 @@ export function applyZenposPriceBook(
     const old = previous.get(productIdKey(p.productId));
     if (!old) added++;
     else if ((old.promoPrice ?? old.updatedPrice) !== p.netPrice) pricesChanged++;
-    const support = keepSupport && old?.support ? { ...old.support } : undefined;
-    if (support) supportKept++;
+    const support = keepSupport ? old?.support : undefined;
+    if (support !== undefined) supportKept++;
     return {
       productId: p.productId,
       updatedPrice: p.netPrice,
@@ -76,7 +76,7 @@ export function applyZenposPriceBook(
         netPrice: p.netPrice,
         cost: p.cost,
       },
-      ...(support ? { support } : {}),
+      ...(support !== undefined ? { support } : {}),
     };
   });
 

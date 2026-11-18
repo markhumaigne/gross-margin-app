@@ -15,7 +15,7 @@ The product team maintains prices in ZenPOS. The boss wants the app's price book
 ## Goals
 
 1. Import one or more ZenPOS Price Book exports from the Price books page. Each file creates or updates the price book with its Price ID.
-2. PS books get a **Support** value per product, entered by hand by the PM as either pesos per unit or a percent of the net price (chosen per product).
+2. PS books get a **Support** value per product, entered by hand by the PM in **pesos per unit**. *(Changed on 2026-11-18 after review: Support was first designed as ₱ or %, chosen per product; the user confirmed Support is pesos only.)*
 3. Price book margins use ZenPOS's formula (margin on cost), so imported numbers match ZenPOS. PS books also show margin after support.
 4. The calculator adds support to sales made under a PS Price ID: support per product and in total, plus gross profit and gross margin after support.
 5. PI IDs are accepted everywhere PL and PS are.
@@ -92,11 +92,11 @@ The product team maintains prices in ZenPOS. The boss wants the app's price book
 
 - Entry effective start and end equal the book's dates.
 - **Qty validation** allows 0, because ZenPOS uses 0 as "from any quantity". It currently requires more than 0.
-- **Support** is a new optional entry field: `{ kind: 'amount' | 'percent'; value: number }`, or absent for no support.
+- **Support** is a new optional entry field: a peso amount per unit (`number`), or absent for no support.
   - Only kept on PS books. Saving a PL or PI book drops it.
   - Any row in a PS book can carry Support, whether it is a ZenPOS/manual row or a catalog-linked row. A catalog-linked row's margin after support uses the catalog product's cost and its effective price. *(My call.)*
-  - The value is 0 or more with up to 2 decimals. A percent cannot exceed 100. A blank value means no support.
-  - **Support per unit:** for `amount` it is the value itself. For `percent` it is net price × value ÷ 100, rounded to the centavo.
+  - The value is 0 or more with up to 2 decimals. A blank value means no support.
+  - Support saved during testing in the earlier `{ kind, value }` shape still loads: peso amounts are kept, percent Support is dropped.
 - **Margin is calculated, no longer typed.** This changes the earlier manual-products design, which saved Margin as typed, because Support has to move it.
   - **Margin on cost** = (net price − cost) ÷ cost × 100. A cost of 0 shows "—".
   - **Margin after support** (PS only) = (net price − net cost) ÷ net cost × 100, where net cost = cost − support per unit. A net cost of 0 or less shows "—".
@@ -134,13 +134,13 @@ The product team maintains prices in ZenPOS. The boss wants the app's price book
 ### Editing in the app
 
 - **Price book table**, PS books only, adds two columns after the margin column:
-  - **Support:** an amount input plus a ₱/% switch when editing, and text such as `₱1,500.00` or `5.00%` when viewing.
+  - **Support:** a peso amount input when editing, and text such as `₱1,500.00` when viewing.
   - **Margin after support:** calculated.
   - PL and PI books do not show these columns.
 - The margin column header becomes **Margin on cost**.
 - **Add products, Manual entry** (and the existing per-row **Edit**, which reuses the same form):
-  - On PS books it adds a Support field with the ₱/% switch.
-  - Margin becomes a read-only calculated value, with margin after support next to it on PS books.
+  - On PS books it adds a Support field (₱ per unit).
+  - Margin is no longer typed. The calculated margins show in the price book table, not in the form. *(Changed on 2026-11-18 at the user's request.)*
   - This is where the PM edits price, cost or anything else on an imported row.
 - **Duplicate** copies Support along with the rest of the row.
 
@@ -149,9 +149,7 @@ The product team maintains prices in ZenPOS. The boss wants the app's price book
 - The price-book lookup (`domain/price-match.ts`) also returns the entry's Support when the book is PS.
 - **Support counts even if the PS book is inactive.** A PM may deactivate a promo after it ends, and sales made during it still earn support. The price comparison still shows "Price book inactive" for that line. *(My call.)*
 - **Support per sales row** with a PS Price ID and a matching entry that has Support:
-  - Amount: value × quantity.
-  - Percent: the row's net sales × value ÷ 100.
-  - Rounded to the centavo per row.
+  - Support per unit × quantity, rounded to the centavo per row.
   - Rows with net sales of ₱0 earn no support. These look like free items (7 of the 334 PS rows in the November export), and counting them would raise the amount claimed from the supplier. *(My call.)*
 - After-support totals cover the same products as the existing gross profit totals (products with a known cost). The Support total covers every row that earns support.
 - **Product sales table:**
@@ -173,7 +171,6 @@ The product team maintains prices in ZenPOS. The boss wants the app's price book
 ## Left to the builder
 
 - Component structure, signal wiring and styling, reusing the existing editor, picker and list components and their styles.
-- How the ₱/% switch looks (segmented toggle or select), within the existing design.
 - How the fictional sample price book file is generated (follow `domain/sample-export-file.ts`).
 - Exact wording of summaries and errors, matching the existing tone.
 - Unit tests in `frontend/test` for the parser (labels, period parsing, barcode conversion, skipped rows), the re-import merge (Support kept, rows added and removed), margin and support math, PI IDs, and storage compatibility. E2E coverage follows `e2e/price-books.spec.ts` and `e2e/manual-products.spec.ts` for import, entering Support, and seeing it in the calculator.

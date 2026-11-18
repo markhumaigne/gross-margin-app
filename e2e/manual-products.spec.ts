@@ -161,7 +161,7 @@ test('PM enters Support on a PS book and sees margin after support', async ({ pa
     Support: '1500',
   }))
     await dialog.getByLabel(label, { exact: true }).fill(value);
-  await expect(dialog.getByLabel('Support type', { exact: true })).toHaveValue('amount');
+  await expect(dialog.getByLabel('Support type', { exact: true })).toHaveCount(0);
   await expect(dialog.getByText('Margin on cost')).toHaveCount(0);
   await expect(dialog.getByText('Margin after support')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
@@ -176,12 +176,12 @@ test('PM enters Support on a PS book and sees margin after support', async ({ pa
   await expect(row).toContainText('₱1,500.00');
   await expect(row).toContainText('6.66%');
   await page.getByRole('link', { name: 'Edit', exact: true }).click();
-  await page.getByLabel('Support type for SUP-1').selectOption('percent');
-  await page.getByLabel('Support for SUP-1').fill('5');
-  await expect(row).toContainText('-1.24%');
+  await expect(page.getByLabel('Support type for SUP-1')).toHaveCount(0);
+  await page.getByLabel('Support for SUP-1').fill('1000');
+  await expect(row).toContainText('2.13%');
   await page.getByRole('button', { name: 'Save price book' }).click();
   await expect(page.getByRole('status')).toContainText('saved');
-  await expect(row).toContainText('5.00%');
+  await expect(row).toContainText('₱1,000.00');
   await navigateInApp(page, '/price-books/PL000013');
   await expect(page.getByRole('table', { name: 'Price book products' })).toBeVisible();
   await expect(

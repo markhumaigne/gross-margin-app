@@ -8,12 +8,11 @@ import {
   PriceBook,
   validatePriceBook,
 } from '../src/app/domain/price-books';
-import { Support } from '../src/app/domain/support';
 import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
 
 const now = new Date('2026-11-18T02:00:00Z');
-const AMOUNT_1500: Support = { kind: 'amount', value: 1500 };
-const PERCENT_5: Support = { kind: 'percent', value: 5 };
+const SUPPORT_1500 = 1500;
+const SUPPORT_250 = 250;
 
 const row = (productId: string, netPrice: number, cost = 1000): ZenposProductRow => ({
   productId,
@@ -125,11 +124,11 @@ test('re-importing keeps Support, memo and master list price and reports changes
       ? {
           ...e,
           memo: 'claim',
-          support: AMOUNT_1500,
+          support: SUPPORT_1500,
           manual: { ...e.manual!, masterListPrice: 3000 },
         }
       : e.productId === 'B'
-        ? { ...e, support: PERCENT_5 }
+        ? { ...e, support: SUPPORT_250 }
         : e,
   );
   const { book, summary } = run(
@@ -147,19 +146,19 @@ test('re-importing keeps Support, memo and master list price and reports changes
   const a = book.entries[0];
   assert.deepEqual(
     [a.support, a.memo, a.manual!.masterListPrice, a.updatedPrice, a.manual!.netPrice],
-    [AMOUNT_1500, 'claim', 3000, 2299, 2299],
+    [SUPPORT_1500, 'claim', 3000, 2299, 2299],
   );
-  assert.deepEqual(book.entries[1].support, PERCENT_5);
+  assert.deepEqual(book.entries[1].support, SUPPORT_250);
   assert.equal('support' in book.entries[2], false);
 });
 
 test('a product ID differing only by case or spaces keeps its Support', () => {
   const first = run([], parsed({ products: [row('ab-1', 100)] }));
-  const edited = editEntries(first.books, (e) => ({ ...e, support: AMOUNT_1500 }));
+  const edited = editEntries(first.books, (e) => ({ ...e, support: SUPPORT_1500 }));
   const { book, summary } = run(edited, parsed({ products: [row('AB-1', 100)] }));
   assert.deepEqual(
     [book.entries[0].productId, book.entries[0].support, summary.added, summary.removed],
-    ['AB-1', AMOUNT_1500, 0, 0],
+    ['AB-1', SUPPORT_1500, 0, 0],
   );
 });
 
@@ -198,7 +197,7 @@ test('catalog rows of an existing book are replaced by the file', () => {
 
 test('PL and PI imports never store Support', () => {
   const first = run([], parsed({ priceId: 'PI000004' }));
-  const stray = editEntries(first.books, (e) => ({ ...e, support: AMOUNT_1500 }));
+  const stray = editEntries(first.books, (e) => ({ ...e, support: SUPPORT_1500 }));
   const { book, summary } = run(stray, parsed({ priceId: 'PI000004' }));
   assert.ok(book.entries.every((e) => !('support' in e)));
   assert.equal(summary.supportKept, 0);

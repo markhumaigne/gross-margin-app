@@ -96,24 +96,18 @@
         @if (supportEnabled) {
           <div class="form-field">
             <label for="manual-support">Support</label>
-            <div class="support-input">
-              <input
-                id="manual-support"
-                type="text"
-                autocomplete="off"
-                inputmode="decimal"
-                placeholder="No support"
-                [value]="support().value"
-                (input)="updateSupport('value', $event)"
-                [class.invalid]="shownSupportError()"
-                [attr.aria-invalid]="!!shownSupportError()"
-                [attr.aria-describedby]="shownSupportError() ? 'manual-support-error' : null"
-              />
-              <select aria-label="Support type" (change)="updateSupport('kind', $event)">
-                <option value="amount" [selected]="support().kind === 'amount'">₱</option>
-                <option value="percent" [selected]="support().kind === 'percent'">%</option>
-              </select>
-            </div>
+            <input
+              id="manual-support"
+              type="text"
+              autocomplete="off"
+              inputmode="decimal"
+              placeholder="₱ per unit"
+              [value]="support()"
+              (input)="updateSupport($event)"
+              [class.invalid]="shownSupportError()"
+              [attr.aria-invalid]="!!shownSupportError()"
+              [attr.aria-describedby]="shownSupportError() ? 'manual-support-error' : null"
+            />
             @if (shownSupportError()) {
               <small id="manual-support-error" class="field-error">{{ shownSupportError() }}</small>
             }

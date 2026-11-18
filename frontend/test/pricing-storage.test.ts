@@ -148,12 +148,21 @@ test('pricing saved before Support still loads', () => {
   expectOk(roundTrip(data));
 });
 
-test('Support round trips and invalid Support is rejected', () => {
+test('Support round trips as pesos and invalid Support is rejected', () => {
   const data = state();
-  data.books[0].entries[0].support = { kind: 'percent', value: 5 };
+  data.books[0].entries[0].support = 1500;
   assert.deepEqual(expectOk(roundTrip(data)), data);
-  data.books[0].entries[0].support = { kind: 'percent', value: 101 };
+  data.books[0].entries[0].support = -1;
   assert.match(expectFail(roundTrip(data)), /saved price books/i);
-  data.books[0].entries[0].support = { kind: 'rebate', value: 5 } as never;
+  data.books[0].entries[0].support = '1500' as never;
   assert.match(expectFail(roundTrip(data)), /saved price books/i);
+});
+
+test('₱/% Support saved before Support became pesos-only still loads', () => {
+  const data = state();
+  Object.assign(data.books[0].entries[0], { support: { kind: 'amount', value: 1500 } });
+  Object.assign(data.books[0].entries[1], { support: { kind: 'percent', value: 5 } });
+  const loaded = expectOk(roundTrip(data))!;
+  assert.equal(loaded.books[0].entries[0].support, 1500);
+  assert.equal('support' in loaded.books[0].entries[1], false);
 });

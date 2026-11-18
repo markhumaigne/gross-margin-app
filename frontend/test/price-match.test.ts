@@ -4,7 +4,6 @@ import { buildSalesReport, detectMapping } from '../src/app/domain/sales-report'
 import { PriceBook } from '../src/app/domain/price-books';
 import { PriceBookEntry } from '../src/app/domain/pricing';
 import { matchPriceBook } from '../src/app/domain/price-match';
-import { Support } from '../src/app/domain/support';
 
 const book = (o: Partial<PriceBook>): PriceBook => ({
   id: 'PL000013',
@@ -125,18 +124,18 @@ test('comparison shows the POS selling price', () => {
   );
 });
 
-const AMOUNT_100: Support = { kind: 'amount', value: 100 };
-const psBook = (support: Support | undefined, o: Partial<PriceBook> = {}) =>
+const SUPPORT_100 = 100;
+const psBook = (support: number | undefined, o: Partial<PriceBook> = {}) =>
   book({
     id: 'PS000015',
     name: 'PS',
-    entries: [{ ...entry('H-1', 2795, null), ...(support ? { support } : {}) }],
+    entries: [{ ...entry('H-1', 2795, null), ...(support !== undefined ? { support } : {}) }],
     ...o,
   });
 const PS_ROWS = [P, ['H-1', 'PS000015', 2, 5590, 1960]];
 
 test('PS sales earn Support per unit', () => {
-  const r = report(PS_ROWS, [psBook(AMOUNT_100)]);
+  const r = report(PS_ROWS, [psBook(SUPPORT_100)]);
   assert.equal(r.priceComparison.lines[0].support, 200);
   assert.equal(r.priceComparison.support, 200);
   assert.deepEqual(
@@ -153,20 +152,14 @@ test('PS sales earn Support per unit', () => {
   );
 });
 
-test('percent Support is taken from actual net sales', () => {
-  const r = report(PS_ROWS, [psBook({ kind: 'percent', value: 5 })]);
-  assert.equal(r.priceComparison.support, 279.5);
-  assert.equal(r.lines[0].support, 279.5);
-});
-
 test('₱0 sales lines earn no support', () => {
-  const r = report([P, ['H-1', 'PS000015', 1, 0, 1960]], [psBook(AMOUNT_100)]);
+  const r = report([P, ['H-1', 'PS000015', 1, 0, 1960]], [psBook(SUPPORT_100)]);
   assert.equal(r.lines[0].support, 0);
   assert.equal(r.priceComparison.support, 0);
 });
 
 test('support still counts when the PS book is inactive', () => {
-  const r = report(PS_ROWS, [psBook(AMOUNT_100, { active: false })]);
+  const r = report(PS_ROWS, [psBook(SUPPORT_100, { active: false })]);
   assert.deepEqual(
     [
       r.priceComparison.lines[0].status,
@@ -178,7 +171,7 @@ test('support still counts when the PS book is inactive', () => {
 });
 
 test('PL books never add support', () => {
-  const stray = book({ entries: [{ ...entry('H-1', 2795, null), support: AMOUNT_100 }] });
+  const stray = book({ entries: [{ ...entry('H-1', 2795, null), support: SUPPORT_100 }] });
   assert.equal(matchPriceBook([stray], 'PL000013', 'H-1', null).support, null);
   const r = report([P, ['H-1', 'PL000013', 2, 5590, 1960]], [stray]);
   assert.equal(r.totals.support, 0);
@@ -188,8 +181,8 @@ test('after-support totals cover products with known cost', () => {
   const ps = book({
     id: 'PS000015',
     entries: [
-      { ...entry('H-1', 2795, null), support: AMOUNT_100 },
-      { ...entry('N-1', 1000, null), support: { kind: 'amount', value: 50 } },
+      { ...entry('H-1', 2795, null), support: SUPPORT_100 },
+      { ...entry('N-1', 1000, null), support: 50 },
     ],
   });
   const r = report([P, ['H-1', 'PS000015', 2, 5590, 1960], ['N-1', 'PS000015', 1, 1000, '']], [ps]);

@@ -37,7 +37,7 @@ export function matchPriceBook(
   if (!book) return { status: 'not-found', price: null, source: null, support: null };
   const key = productId.trim().toUpperCase();
   const entry = book.entries.find((e) => e.productId.trim().toUpperCase() === key);
-  const support = entry?.support && isSupportBook(book.id) ? entry.support : null;
+  const support = entry?.support !== undefined && isSupportBook(book.id) ? entry.support : null;
   if (!book.active) return { status: 'inactive', price: null, source: null, support };
   if (!entry) return { status: 'not-in-book', price: null, source: null, support: null };
   const source = priceSource(entry);

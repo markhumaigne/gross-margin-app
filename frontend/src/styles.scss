@@ -1823,19 +1823,6 @@ textarea.invalid {
   margin: -12px 0 18px;
   font-size: 10px;
 }
-.support-input {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.support-input input {
-  min-width: 0;
-  flex: 1;
-}
-.support-input select {
-  flex: none;
-  width: auto;
-}
 .import-lines {
   margin: 0;
   padding-left: 16px;

@@ -17,12 +17,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { ProductCatalogService } from '../../core/product-catalog.service';
 import { PriceBookEntryDraft, Product } from '../../domain/pricing';
-import {
-  marginOnCost,
-  NO_SUPPORT_DRAFT,
-  SupportDraft,
-  validateSupportDraft,
-} from '../../domain/support';
+import { marginOnCost, SupportDraft, validateSupportDraft } from '../../domain/support';
 import {
   emptyManualProduct,
   MANUAL_PRODUCT_FIELDS,
@@ -62,7 +57,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     validateManualProduct(this.productId(), this.manual(), this.excludedIds),
   );
   readonly shownErrors = computed(() => (this.attempted() ? this.errors() : {}));
-  readonly support = signal<SupportDraft>({ ...NO_SUPPORT_DRAFT });
+  readonly support = signal<SupportDraft>('');
   readonly supportError = computed(() => validateSupportDraft(this.support()));
   readonly shownSupportError = computed(() => (this.attempted() ? this.supportError() : null));
   private readonly catalog = inject(ProductCatalogService);
@@ -79,7 +74,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
       this.productId.set(this.initialEntry.productId);
       this.manual.set({ ...this.initialEntry.manual });
     }
-    if (this.initialEntry?.support) this.support.set({ ...this.initialEntry.support });
+    if (this.initialEntry?.support !== undefined) this.support.set(this.initialEntry.support);
   }
 
   ngAfterViewInit() {
@@ -91,9 +86,8 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     this.manual.update((draft) => ({ ...draft, [field]: value }));
   }
 
-  updateSupport(part: keyof SupportDraft, event: Event) {
-    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
-    this.support.update((s) => ({ ...s, [part]: value }));
+  updateSupport(event: Event) {
+    this.support.set((event.target as HTMLInputElement).value);
   }
 
   confirmManual() {
@@ -103,7 +97,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     this.manualAdd.emit({
       productId: this.productId().trim(),
       manual: { ...this.manual() },
-      ...(this.supportEnabled ? { support: { ...this.support() } } : {}),
+      ...(this.supportEnabled ? { support: this.support() } : {}),
     });
   }
 
