@@ -13,6 +13,7 @@ import {
   PriceBookDraft,
   savePriceBook,
   setPriceBookActive,
+  supportList,
   validatePriceBook,
 } from '../src/app/domain/price-books';
 import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
@@ -376,4 +377,21 @@ test('manual products accept Qty 0 and store no typed margin', () => {
   const { book } = expectOk(savePriceBook([], draft, null, PRODUCTS, 'x', now));
   assert.equal(book.entries[0].manual!.qty, 0);
   assert.equal('margin' in book.entries[0].manual!, false);
+});
+
+test('support list holds PS entries with Support only, active or not', () => {
+  const entry = (productId: string, support?: number) => ({
+    productId,
+    updatedPrice: 100,
+    promoPrice: null,
+    effectiveStart: '2026-11-01',
+    effectiveEnd: null,
+    memo: '',
+    ...(support !== undefined ? { support } : {}),
+  });
+  const ps = { ...book('PS000015'), active: false, entries: [entry('A', 500), entry('B')] };
+  const pl = { ...book('PL000001'), entries: [entry('C', 100)] };
+  assert.deepEqual(supportList([ps, pl]), [
+    { priceId: 'PS000015', productId: 'A', support: '500.00' },
+  ]);
 });

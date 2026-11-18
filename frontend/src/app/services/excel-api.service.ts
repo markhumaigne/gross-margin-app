@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { CalculationResponse, Configuration, ReportUpload, WorkbookPreview } from '../models';
+import {
+  CalculationResponse,
+  Configuration,
+  PriceSupport,
+  ReportUpload,
+  WorkbookPreview,
+} from '../models';
 @Injectable({ providedIn: 'root' })
 export class ExcelApiService {
   private readonly http = inject(HttpClient);
@@ -18,10 +24,14 @@ export class ExcelApiService {
       ),
     );
   }
-  calculate(sales: ReportUpload, configuration: Configuration) {
+  calculate(
+    sales: ReportUpload,
+    configuration: Configuration,
+    priceSupport: readonly PriceSupport[] = [],
+  ) {
     const data = new FormData();
     data.append('sales', sales.file);
-    data.append('options', JSON.stringify({ sales: sales.selection, configuration }));
+    data.append('options', JSON.stringify({ sales: sales.selection, configuration, priceSupport }));
     return firstValueFrom(this.http.post<CalculationResponse>('/api/excel/calculate', data));
   }
   import(file: File) {

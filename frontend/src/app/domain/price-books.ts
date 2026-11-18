@@ -9,6 +9,7 @@ import {
   validateEntryDraft,
 } from './pricing';
 import { fail, ok, Result } from './result';
+import type { PriceSupport } from '../../../../shared/models';
 
 export interface PriceBook {
   id: string;
@@ -285,4 +286,20 @@ export function filterPriceBooks(
         b.description.toLowerCase().includes(q),
     )
     .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Supplier Support sent with Calculate: every PS book (active or not, because sales made under an
+ * ended promotion still earn support) and each of its products that has Support, in ₱ per unit.
+ */
+export function supportList(books: readonly PriceBook[]): PriceSupport[] {
+  return books
+    .filter((b) => isSupportBook(b.id))
+    .flatMap((b) =>
+      b.entries.flatMap((e) =>
+        e.support === undefined
+          ? []
+          : [{ priceId: b.id, productId: e.productId, support: e.support.toFixed(2) }],
+      ),
+    );
 }

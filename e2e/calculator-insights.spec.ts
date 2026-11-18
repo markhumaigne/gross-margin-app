@@ -255,3 +255,54 @@ test('Support entered on a PS book shows in the calculator', async ({ page }) =>
   ).toContainText('₱200.00');
   await expect(comparisonRow(page, 'PS000015', '4800000600016')).toContainText('₱200.00');
 });
+
+test('Supplier Support from a PS book shows in the calculated report and GrossMargin', async ({
+  page,
+}) => {
+  await signIn(page, ...ACCOUNTS.product);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(SAMPLE_PRICE_BOOK_ROWS.map((r) => [...r])),
+    'Price Book',
+  );
+  await page.getByLabel('Import ZenPOS price book files').setInputFiles({
+    name: 'Sample ZenPOS Price Book PS000015.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+  });
+  await expect(page.getByRole('status')).toContainText('PS000015 created');
+  await page.getByRole('link', { name: 'Edit PS000015' }).click();
+  await page.getByLabel('Support for 4800000600016').fill('100');
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  await signOut(page);
+  await signIn(page, ...ACCOUNTS.accounting);
+  // The demo headset sale is paid in cash; pay it by card so it appears in the calculated report.
+  const rows = SAMPLE_EXPORT_ROWS.map((r) =>
+    r[0] === '4800000600016' ? r.map((c, i) => (i === 13 ? 'BDO STRAIGHT' : c)) : [...r],
+  );
+  const sales = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(sales, XLSX.utils.aoa_to_sheet(rows), 'Sales Report by Product');
+  await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles({
+    name: 'Sales Report by Product.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: XLSX.write(sales, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+  });
+  const calculate = page.getByRole('button', { name: 'Calculate Bank Rate Deductions' });
+  await expect(calculate).toBeEnabled();
+  await page.getByLabel('Cost basis', { exact: true }).selectOption('unit');
+  await calculate.click();
+  const table = page.getByRole('table', { name: 'Calculated Sales Report' });
+  await expect(table).toBeVisible();
+  await expect(table.locator('thead th')).toHaveCount(19);
+  await page.getByLabel('Search results').fill('4800000600016');
+  const row = table.locator('tbody tr').first();
+  await expect(row.locator('td').nth(5)).toHaveText('PS000015');
+  await expect(row.locator('td').nth(9)).toHaveText('₱200.00');
+  // GrossMargin = ₱5,590.00 − ₱3,920.00 cost − ₱159.32 BDO STRAIGHT charge + ₱200.00 support.
+  await expect(row.locator('td').nth(15)).toHaveText('₱1,710.68');
+  await expect(row.locator('td').nth(18)).toContainText(
+    '+ ₱200.00 supplier support (PS000015: ₱100.00 × 2)',
+  );
+});

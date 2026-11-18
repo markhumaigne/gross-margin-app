@@ -8,6 +8,8 @@ import { ConfigurationComponent } from '../configuration/configuration.component
 import { CalculationResultsComponent } from '../calculation-results/calculation-results.component';
 import { ProductInsightsComponent } from '../product-insights/product-insights.component';
 import { downloadSampleExport } from '../../core/sample-download';
+import { PriceBookService } from '../../core/price-book.service';
+import { supportList } from '../../domain/price-books';
 import { CalculationResponse, Configuration, ReportUpload } from '../../models';
 import { ExcelApiService, readableError, saveDownload } from '../../services/excel-api.service';
 @Component({
@@ -27,6 +29,7 @@ import { ExcelApiService, readableError, saveDownload } from '../../services/exc
 })
 export class DashboardComponent {
   readonly api = inject(ExcelApiService);
+  private readonly priceBooks = inject(PriceBookService);
   readonly configSeed = signal<Configuration | undefined>(undefined);
   readonly response = signal<CalculationResponse | undefined>(undefined);
   /** The upload behind the current results; drives the product sections (05/06). */
@@ -93,7 +96,12 @@ export class DashboardComponent {
     this.notice.set('');
     this.response.set(undefined);
     try {
-      const response = await this.api.calculate(this.sales!, this.configuration!);
+      // PS Support from the price books saved in this browser becomes Supplier Support.
+      const response = await this.api.calculate(
+        this.sales!,
+        this.configuration!,
+        supportList(this.priceBooks.books()),
+      );
       if (revision === this.revision) {
         this.response.set(response);
         this.analysedUpload.set(this.sales);

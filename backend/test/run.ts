@@ -6,7 +6,7 @@ import Decimal from 'decimal.js';
 import request from 'supertest';
 import { createApplication } from '../src/create-app';
 import { ConfigService } from '../src/config/config.service';
-import { ExcelService } from '../src/excel/excel.service';
+import { ExcelService, FIELDS } from '../src/excel/excel.service';
 import { ExcelExportService } from '../src/excel/excel-export.service';
 import { CalculationService } from '../src/calculation/calculation.service';
 import { summarizeByBranchAndDate } from '../src/calculation/branch-date-summary';
@@ -2389,6 +2389,40 @@ test('Previously exported ten-column configuration remains importable', () => {
   assert.equal(imported.paymentMethods[0].bank, 'CUSTOM');
   assert.equal(imported.paymentMethods[0].rate, '3.50');
   assert.equal(imported.aliases[0].alias, 'Alias');
+});
+test('Calculate accepts a mapping for every field, including Price ID, plus PS Support', async () => {
+  const app = await createApplication(true);
+  await app.init();
+  try {
+    const server = app.getHttpServer(),
+      buf = reportFixture();
+    const s = (await request(server).post('/api/excel/preview').attach('file', buf, 'sales.xlsx'))
+      .body.sheets[0];
+    // The browser sends every mapping field, blank when a column is not mapped.
+    const mapping = Object.fromEntries(
+      Object.keys(FIELDS).map((k) => [k, s.suggestedMapping[k] ?? '']),
+    );
+    const calculate = (priceSupport: unknown) =>
+      request(server)
+        .post('/api/excel/calculate')
+        .field(
+          'options',
+          JSON.stringify({
+            sales: { sheet: s.name, headerRow: s.headerRow, mapping },
+            configuration: c(),
+            priceSupport,
+          }),
+        )
+        .attach('sales', buf, 'sales.xlsx');
+    const ok = await calculate([{ priceId: 'PS000015', productId: '000123', support: '500.00' }]);
+    assert.equal(ok.status, 201, JSON.stringify(ok.body));
+    assert.equal(ok.body.result.items[0].priceId, '');
+    assert.equal(ok.body.result.items[0].supplierSupport, null);
+    const bad = await calculate([{ priceId: 'PS000015', productId: '000123', support: '-1' }]);
+    assert.equal(bad.status, 400);
+  } finally {
+    await app.close();
+  }
 });
 test('One-file HTTP workflow previews, calculates, downloads and imports its configuration', async () => {
   const app = await createApplication(true);

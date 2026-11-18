@@ -1,6 +1,6 @@
 # Sales Bank Rate Deduction Calculator
 
-A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 17 columns, beginning with Product ID. Configuration stays in local JSON and the current browser session. No database or external storage is required.
+A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 19 columns, beginning with Product ID. Configuration stays in local JSON and the current browser session. No database or external storage is required.
 
 ## Install and run
 
@@ -38,7 +38,7 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 3. Check **Cost basis** and **Explicit payment amounts apply to**. The supplied report is recognized as unit cost with invoice payment amounts repeated across products.
 4. Review rates, banks, branches, aliases, patterns and non-card methods.
 5. Click **Calculate Bank Rate Deductions**.
-6. Review all 17 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons.
+6. Review all 19 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons. **Price ID** shows the POS Price ID of each sale; **Supplier Support** shows the PS price book Support for that product × quantity (Support saved in Price books in this browser is sent with Calculate, so recalculate after changing it).
 7. Click **Download Calculated Excel Report**.
 8. Below the results, review **05 Gross margin by product** and **06 Price book comparison** (see below).
 
@@ -109,7 +109,7 @@ Discount % = (Master List Price − Promotional Price, or Updated Selling Price)
 
 After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change, and they update immediately when a price book changes.
 
-**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 17-column table keeps the after-charges GrossMargin.
+**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 19-column table keeps the after-charges GrossMargin.
 
 - Gross Profit = Net Sales Revenue − Cost of Goods Sold
 - Gross Margin on sales % = Gross Profit ÷ Net Sales Revenue × 100 (the calculator keeps margin on sales; price books show ZenPOS margin on cost)
@@ -177,7 +177,8 @@ The real-file test independently compares every source Product ID, product, invo
 
 - Decimal.js uses 40-digit precision and PHP amounts rounded to two decimals, ROUND_HALF_UP. JSON amounts are decimal strings.
 - Rates are percentages: a configured 3.50 means 3.50%. Positive rates produce bank charges; negative rates produce subsidies. Defaults use the 49-method rate table supplied on October 20, 2026.
-- Bank charge = eligible paid amount × configured rate. GrossMargin = net line total − total product cost − signed charge/subsidy. A negative subsidy increases margin.
+- Bank charge = eligible paid amount × configured rate. GrossMargin = net line total − total product cost − signed charge/subsidy + Supplier Support. A negative subsidy increases margin.
+- Supplier Support = PS Support (₱ per unit) × quantity when the sale's Price ID is a PS price book (active or not) that lists the product; ₱0 and negative sales earn none. It is included in GrossMargin, the bank summary and the Gross Margin by Branch & Date totals, and named in the Calculation Explanation. Only bank-payment rows appear on this sheet; Support on cash and other non-card sales shows in section 05.
 - Exact configured names take priority, followed by explicit aliases, then unambiguous recognized spacing or configured wildcard patterns. Recognized installment spacing includes BDO 3MOS → BDO 3 MOS.
 - BDO PAY is a default alias of BDO PAY/CASA and uses its current configured rate (3.00% in the supplied defaults). Calculation fills in a missing alias when BDO PAY/CASA exists and saves the effective mapping in the report's Configuration Settings. Explicit methods, aliases, patterns and no-charge settings take priority; missing targets and ambiguous rules remain unresolved. In a BDO STRAIGHT / BDO PAY split, each portion uses its own configured rate (2.85% and 3.00% by default), while the original Payment text is preserved. Reset defaults to replace an older explicit BDO PAY → BDO STRAIGHT mapping.
 - The reference's payment descriptions can have a configured method followed by cardholder/reference text. Only recognized description fields allow this prefix interpretation. Original payment text is always retained.
@@ -260,7 +261,7 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 19 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
 `npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
 

@@ -49,6 +49,7 @@ export class ExcelUploadComponent {
       'lineTotal',
       'payment',
       'paymentAmount',
+      'priceId',
     ];
   }
   get required() {
@@ -67,6 +68,7 @@ export class ExcelUploadComponent {
     product: 'Product name',
     quantity: 'Quantity',
     payment: 'Payment details',
+    priceId: 'Price ID (optional)',
   };
   get missing() {
     return this.required.some((k) => !this.controls[k]?.value);

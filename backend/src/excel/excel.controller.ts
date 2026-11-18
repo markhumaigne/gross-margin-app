@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { Calculation, PriceSupport, Selection } from '../../../shared/models';
 import { CalculationService } from '../calculation/calculation.service';
 import { ConfigService } from '../config/config.service';
-import { ExcelService } from './excel.service';
+import { ExcelService, FIELDS } from './excel.service';
 import { ExcelExportService } from './excel-export.service';
 import { uploadOptions } from './upload';
 
@@ -40,7 +40,9 @@ const selectionSchema = z
   .object({
     sheet: z.string().min(1).max(200),
     headerRow: z.number().int().min(1).max(50),
-    mapping: z.record(z.string().max(200)).refine((v) => Object.keys(v).length <= 12),
+    mapping: z
+      .record(z.string().max(200))
+      .refine((v) => Object.keys(v).length <= Object.keys(FIELDS).length),
     costBasis: z.enum(['auto', 'unit', 'line']).optional(),
     paymentScope: z.enum(['invoice', 'line']).optional(),
   })
