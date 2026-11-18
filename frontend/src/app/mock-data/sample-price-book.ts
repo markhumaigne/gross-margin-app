@@ -1,0 +1,53 @@
+/**
+ * Synthetic ZenPOS "Price Book" export in the real layout (company and title rows, label/value
+ * pairs in columns A/B, product header on row 19). Products and prices are demo values only.
+ * PS000015 and 4800000600016 match the demo sales export so Support shows in the calculator.
+ */
+export const SAMPLE_PRICE_BOOK_ROWS: readonly (readonly unknown[])[] = [
+  ['DEMO TRADING'],
+  ['Price Book'],
+  [],
+  [],
+  [],
+  [],
+  ['Price ID:', 'PS000015'],
+  ['Name:', 'Demo Headset Promo'],
+  ['Active:', 'Yes'],
+  ['Memo:', 'REF#: DEMO-0001\nNOV. 01 - NOV. 30, 2026'],
+  ['Limited Period:', 'Yes (11/01/2026~11/30/2026)'],
+  ['Limited Days:', 'No'],
+  ['Limited Time:', 'No'],
+  ['Limited Regions:', 'No'],
+  ['Limited Branches:', 'No'],
+  ['Limited Price Levels:', 'No'],
+  [],
+  [],
+  [
+    'Product ID',
+    'Name',
+    'Qty',
+    'to Qty',
+    'Unit',
+    'Unit Price',
+    'Discount',
+    'Disc %',
+    'Price After \n Discount',
+    'Stnd Cost',
+    'Margin',
+  ],
+  [
+    4800000600016,
+    'Wireless Headset with Microphone',
+    0,
+    99999,
+    'PCS',
+    2795,
+    null,
+    null,
+    2795,
+    1960,
+    '42.6%',
+  ],
+  [4800000600023, 'Demo Earbuds Pro', 0, 99999, 'PCS', 1995, null, null, 1995, 1500, '33%'],
+  ['0480000060003', 'Demo Speaker Mini', 0, 99999, 'PCS', 1495, null, null, 1495, 1100, '35.9%'],
+];
