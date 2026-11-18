@@ -295,14 +295,14 @@ test('Supplier Support from a PS book shows in the calculated report and GrossMa
   await calculate.click();
   const table = page.getByRole('table', { name: 'Calculated Sales Report' });
   await expect(table).toBeVisible();
-  await expect(table.locator('thead th')).toHaveCount(19);
+  await expect(table.locator('thead th')).toHaveCount(21);
   await page.getByLabel('Search results').fill('4800000600016');
   const row = table.locator('tbody tr').first();
   await expect(row.locator('td').nth(5)).toHaveText('PS000015');
   await expect(row.locator('td').nth(9)).toHaveText('₱200.00');
   // GrossMargin = ₱5,590.00 − ₱3,920.00 cost − ₱159.32 BDO STRAIGHT charge + ₱200.00 support.
-  await expect(row.locator('td').nth(15)).toHaveText('₱1,710.68');
-  await expect(row.locator('td').nth(18)).toContainText(
+  await expect(row.locator('td').nth(17)).toHaveText('₱1,710.68');
+  await expect(row.locator('td').nth(20)).toContainText(
     '+ ₱200.00 supplier support (PS000015: ₱100.00 × 2)',
   );
 });

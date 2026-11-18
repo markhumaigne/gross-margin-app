@@ -50,7 +50,7 @@ async function downloadBuffer(d: Download) {
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks);
 }
-test('Sales-only upload, exact 19 columns, search/sort, download and configuration round trip', async ({
+test('Sales-only upload, exact 21 columns, search/sort, download and configuration round trip', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -84,7 +84,7 @@ test('Sales-only upload, exact 19 columns, search/sort, download and configurati
   ).toBeVisible();
   await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table.getByRole('cell', { name: '000124', exact: true })).toHaveCount(0);
-  await expect(table.locator('thead th')).toHaveCount(19);
+  await expect(table.locator('thead th')).toHaveCount(21);
   expect(
     (await table.locator('thead th').allTextContents()).map((s) => s.replace(/[↑↓]/g, '').trim()),
   ).toEqual(ITEM_COLUMNS.map((c) => c.header));
@@ -93,7 +93,7 @@ test('Sales-only upload, exact 19 columns, search/sort, download and configurati
   await table.getByRole('button', { name: /^Product ID/ }).click();
   await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText('000125');
   await expect(table.locator('tbody tr').first().locator('td').nth(4)).toHaveText('Keyboard');
-  await expect(table.locator('tbody tr').first().locator('td').nth(14)).toHaveText('₱60.00');
+  await expect(table.locator('tbody tr').first().locator('td').nth(16)).toHaveText('₱60.00');
   await page.getByLabel('Search results').fill('000123');
   await expect(table.locator('tbody tr')).toHaveCount(1);
   await expect(table.getByRole('cell', { name: 'Laptop', exact: true })).toBeVisible();
@@ -128,16 +128,16 @@ test('Sales-only upload, exact 19 columns, search/sort, download and configurati
     'Needs Review',
   ]);
   const ws = report.worksheets[0];
-  expect(ws.columnCount).toBe(19);
+  expect(ws.columnCount).toBe(21);
   expect(ws.rowCount).toBe(3);
   expect(ws.getCell('A2').value).toBe('000123');
-  expect(ws.getCell('O2').value).toBe(975);
-  expect(ws.getCell('P2').value).toBe(4025);
+  expect(ws.getCell('Q2').value).toBe(975);
+  expect(ws.getCell('R2').value).toBe(4025);
   expect(ws.getCell('A3').value).toBe('000125');
-  expect(ws.getCell('O3').value).toBe(60);
-  expect(ws.getCell('P3').value).toBe(740);
-  expect(ws.getCell('Q3').value).toBe(4);
-  expect(ws.getCell('R3').value).toBe('BPI 3 MOS');
+  expect(ws.getCell('Q3').value).toBe(60);
+  expect(ws.getCell('R3').value).toBe(740);
+  expect(ws.getCell('S3').value).toBe(4);
+  expect(ws.getCell('T3').value).toBe('BPI 3 MOS');
   expect(ws.getCell('A2').numFmt).toBe('@');
   const summary = report.worksheets[1];
   expect(summary.columnCount).toBe(6);
@@ -250,7 +250,7 @@ test('Only configured bank-payment items appear in the preview and exported work
   await expect(table.locator('tbody tr').first().locator('td').nth(12)).toHaveText(
     'BDO Straight BNPL',
   );
-  await expect(table.locator('tbody tr').first().locator('td').nth(17)).toHaveText('BDO STRAIGHT');
+  await expect(table.locator('tbody tr').first().locator('td').nth(19)).toHaveText('BDO STRAIGHT');
   for (const omitted of ['ITEM-3', 'ITEM-4', 'ITEM-5', 'ITEM-6', 'ITEM-7'])
     await expect(table.getByRole('cell', { name: omitted, exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Needs Review (2)', exact: true }).click();
@@ -274,10 +274,10 @@ test('Only configured bank-payment items appear in the preview and exported work
   const main = report.worksheets[0],
     summary = report.worksheets[1];
   expect(main.rowCount).toBe(4);
-  expect(main.columnCount).toBe(19);
+  expect(main.columnCount).toBe(21);
   for (const [i, [payment]] of payments.slice(0, 3).entries()) {
     expect(main.getCell(i + 2, 13).value).toBe(payment);
-    expect(main.getCell(i + 2, 15).value).toBe(Number(result.items[i].adjustment));
+    expect(main.getCell(i + 2, 17).value).toBe(Number(result.items[i].adjustment));
   }
   expect(report.getWorksheet('Needs Review')!.rowCount).toBe(3);
   expect(summary.columnCount).toBe(6);
@@ -304,10 +304,10 @@ test('Sheet 1 Cost and Sheet 2 COGS use the same quantity-adjusted cost in previ
   await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table.locator('tbody tr').first().locator('td').nth(8)).toHaveText('₱50,000.00');
   await expect(table.locator('tbody tr').last().locator('td').nth(8)).toHaveText('₱3,600.00');
-  await expect(table.locator('tbody tr').first().locator('td').nth(18)).toContainText(
+  await expect(table.locator('tbody tr').first().locator('td').nth(20)).toContainText(
     'Source Cost "25000" × quantity "2"',
   );
-  await expect(table.locator('tbody tr').first().locator('td').nth(18)).toContainText(
+  await expect(table.locator('tbody tr').first().locator('td').nth(20)).toContainText(
     'Included in Sheet 2:',
   );
   await page.getByRole('tab', { name: BRANCH_DATE_SUMMARY_SHEET, exact: true }).click();
@@ -451,9 +451,9 @@ test('Requested warnings stay hidden and negative quantities remain available in
     await expect(table.getByRole('cell', { name: id, exact: true })).toBeVisible();
   const partial = table.locator('tbody tr').nth(0);
   await expect(partial.locator('td').nth(12)).toHaveText('BDO 3 MOS 9,500.00 Charge 500.00');
-  await expect(partial.locator('td').nth(14)).toHaveText('₱308.75');
-  await expect(partial.locator('td').nth(18)).toContainText('Partial calculation');
-  await expect(table.locator('tbody tr').nth(1).locator('td').nth(14)).toHaveText('—');
+  await expect(partial.locator('td').nth(16)).toHaveText('₱308.75');
+  await expect(partial.locator('td').nth(20)).toContainText('Partial calculation');
+  await expect(table.locator('tbody tr').nth(1).locator('td').nth(16)).toHaveText('—');
   await expect(table.getByRole('cell', { name: 'NEGATIVE', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Needs Review (3)', exact: true }).click();
   await expect(table.locator('tbody tr')).toHaveCount(3);
@@ -516,13 +516,13 @@ test('PAYMAYA with cash change calculates the configured card fee in the preview
   await expect(row.locator('td').nth(11)).toHaveText('₱8,995.00');
   await expect(row.locator('td').nth(12)).toHaveText(payment.replace('\n', ' '));
   await expect(row.locator('td').nth(13)).toHaveText('2.89%');
-  await expect(row.locator('td').nth(14)).toHaveText('₱173.40');
-  await expect(row.locator('td').nth(15)).toHaveText('₱1,821.60');
-  await expect(row.locator('td').nth(17)).toHaveText('PAYMAYA DEBIT');
-  await expect(row.locator('td').nth(18)).toContainText(
+  await expect(row.locator('td').nth(16)).toHaveText('₱173.40');
+  await expect(row.locator('td').nth(17)).toHaveText('₱1,821.60');
+  await expect(row.locator('td').nth(19)).toHaveText('PAYMAYA DEBIT');
+  await expect(row.locator('td').nth(20)).toContainText(
     'Cash tender ₱3000.00 includes ₱5.00 change; net cash payment ₱2995.00',
   );
-  await expect(row.locator('td').nth(18)).not.toContainText('pending source review');
+  await expect(row.locator('td').nth(20)).not.toContainText('pending source review');
   await expect(page.getByRole('tab', { name: 'Needs Review (0)', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: BRANCH_DATE_SUMMARY_SHEET, exact: true }).click();
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText([
@@ -539,8 +539,8 @@ test('PAYMAYA with cash change calculates the configured card fee in the preview
   await report.xlsx.load((await downloadBuffer(await downloaded)) as any);
   expect(report.worksheets[0].getCell('M2').value).toBe(payment);
   expect(report.worksheets[0].getCell('N2').value).toBe(0.0289);
-  expect(report.worksheets[0].getCell('O2').value).toBe(173.4);
-  expect(report.worksheets[0].getCell('P2').value).toBe(1821.6);
+  expect(report.worksheets[0].getCell('Q2').value).toBe(173.4);
+  expect(report.worksheets[0].getCell('R2').value).toBe(1821.6);
   expect((report.worksheets[1].getRow(3).values as unknown[]).slice(3)).toEqual([
     8995, 7000, 173.4, 1821.6,
   ]);
@@ -619,12 +619,14 @@ test('Older settings automatically calculate BDO PAY with the configured BDO PAY
   await expect(table.locator('tbody tr')).toHaveCount(2);
   const row = table.locator('tbody tr').first();
   await expect(row.locator('td').nth(12)).toHaveText(payment.replace('\n', ' '));
-  await expect(row.locator('td').nth(13)).toHaveText('BDO STRAIGHT: 2.85%; BDO PAY/CASA: 3.00%');
-  await expect(row.locator('td').nth(14)).toHaveText('₱36.08');
-  await expect(row.locator('td').nth(15)).toHaveText('₱95.92');
-  await expect(row.locator('td').nth(17)).toHaveText('BDO STRAIGHT / BDO PAY/CASA');
-  await expect(row.locator('td').nth(18)).not.toContainText('Unconfigured');
-  await expect(row.locator('td').nth(18)).not.toContainText('Provisional');
+  await expect(row.locator('td').nth(13)).toHaveText('2.85%');
+  await expect(row.locator('td').nth(14)).toHaveText('3.00%');
+  await expect(row.locator('td').nth(15)).toHaveText('—');
+  await expect(row.locator('td').nth(16)).toHaveText('₱36.08');
+  await expect(row.locator('td').nth(17)).toHaveText('₱95.92');
+  await expect(row.locator('td').nth(19)).toHaveText('BDO STRAIGHT / BDO PAY/CASA');
+  await expect(row.locator('td').nth(20)).not.toContainText('Unconfigured');
+  await expect(row.locator('td').nth(20)).not.toContainText('Provisional');
   await page.getByRole('tab', { name: BRANCH_DATE_SUMMARY_SHEET, exact: true }).click();
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText([
     '01 Oct 2026',
@@ -638,8 +640,8 @@ test('Older settings automatically calculate BDO PAY with the configured BDO PAY
   await page.getByRole('button', { name: /Download Calculated Excel Report/ }).click();
   const report = new ExcelJS.Workbook();
   await report.xlsx.load((await downloadBuffer(await downloaded)) as any);
-  expect(report.worksheets[0].getCell('O2').value).toBe(36.08);
-  expect(report.worksheets[0].getCell('P2').value).toBe(95.92);
+  expect(report.worksheets[0].getCell('Q2').value).toBe(36.08);
+  expect(report.worksheets[0].getCell('R2').value).toBe(95.92);
   expect((report.worksheets[1].getRow(3).values as unknown[]).slice(3)).toEqual([
     41282, 33118, 1191.54, 6972.46,
   ]);
@@ -647,8 +649,8 @@ test('Older settings automatically calculate BDO PAY with the configured BDO PAY
   await page.getByLabel('Rate percentage', { exact: true }).fill('4.00');
   await page.getByRole('button', { name: 'Calculate Bank Rate Deductions' }).click();
   await page.getByRole('tab', { name: 'Item Bank Deductions (2)', exact: true }).click();
-  await expect(row.locator('td').nth(14)).toHaveText('₱39.11');
-  await expect(row.locator('td').nth(15)).toHaveText('₱92.89');
+  await expect(row.locator('td').nth(16)).toHaveText('₱39.11');
+  await expect(row.locator('td').nth(17)).toHaveText('₱92.89');
 });
 
 test('Mobile layout, worksheet selection and manual Product ID mapping', async ({ page }) => {
@@ -738,10 +740,10 @@ test('Actual Sales Report: matched items retain source references in the four-sh
     .getByRole('table', { name: 'Calculated Sales Report' })
     .locator('tbody tr')
     .nth(matchedItems.findIndex((item: { sourceRow: number }) => item.sourceRow === 3));
-  await expect(sourceRowThree.locator('td').nth(16)).toHaveText('3');
-  await expect(sourceRowThree.locator('td').nth(17)).toHaveText('BDO STRAIGHT');
+  await expect(sourceRowThree.locator('td').nth(18)).toHaveText('3');
+  await expect(sourceRowThree.locator('td').nth(19)).toHaveText('BDO STRAIGHT');
   await expect(sourceRowThree.locator('td').nth(13)).toHaveText('2.85%');
-  await expect(sourceRowThree.locator('td').nth(14)).toHaveText('₱0.00');
+  await expect(sourceRowThree.locator('td').nth(16)).toHaveText('₱0.00');
   expect(matchedItems.some((item: { sourceRow: number }) => item.sourceRow === 40)).toBe(false);
   await expect(
     page
@@ -767,19 +769,19 @@ test('Actual Sales Report: matched items retain source references in the four-sh
   await book.xlsx.load((await downloadBuffer(await downloaded)) as any);
   expect(book.worksheets.length).toBe(4);
   const ws = book.worksheets[0];
-  expect(ws.columnCount).toBe(19);
+  expect(ws.columnCount).toBe(21);
   expect(ws.rowCount).toBe(matchedItems.length + 1);
   const rowThreeIndex =
     matchedItems.findIndex((item: { sourceRow: number }) => item.sourceRow === 3) + 2;
-  expect(ws.getCell(rowThreeIndex, 18).value).toBe('BDO STRAIGHT');
+  expect(ws.getCell(rowThreeIndex, 20).value).toBe('BDO STRAIGHT');
   expect(ws.getCell(rowThreeIndex, 13).value).toBe(rowThree.originalPaymentMethod);
   expect(ws.getCell(rowThreeIndex, 14).value).toBe(0.0285);
-  expect(ws.getCell(rowThreeIndex, 15).value).toBe(0);
-  expect(ws.getCell(rowThreeIndex, 16).value).toBe(-238);
+  expect(ws.getCell(rowThreeIndex, 17).value).toBe(0);
+  expect(ws.getCell(rowThreeIndex, 18).value).toBe(-238);
   for (const [index, item] of matchedItems.entries()) {
     expect(ws.getCell(index + 2, 1).value).toBe(item.productId);
-    expect(ws.getCell(index + 2, 17).value).toBe(item.sourceRow);
-    expect(ws.getCell(index + 2, 15).value).toBe(
+    expect(ws.getCell(index + 2, 19).value).toBe(item.sourceRow);
+    expect(ws.getCell(index + 2, 17).value).toBe(
       item.adjustment === null ? null : Number(item.adjustment),
     );
   }

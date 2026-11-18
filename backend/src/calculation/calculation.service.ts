@@ -226,6 +226,9 @@ export class CalculationService {
         bank: [...new Set(recognized[index].map((m) => m.bank))].join(' / '),
         originalPaymentMethod: s.original.payment ?? s.payment,
         appliedRate: null,
+        appliedRate1: null,
+        appliedRate2: null,
+        appliedRate3: null,
         adjustment: null,
         grossMargin: null,
         partialCalculation: false,
@@ -324,6 +327,37 @@ export class CalculationService {
             '. Configured bank payment amounts are unchanged; cash receives no bank charge.';
         }
       }
+      // Card charges use these exact amounts, even when a rounding centavo is absorbed below.
+      const feeBases = [...amounts] as Decimal[];
+      // ZenPOS rounds each item's net total, so a receipt's items can differ from its payments by
+      // up to ₱0.005 per item. Absorb such a difference for allocation only: into a cash or
+      // no-charge payment when there is one, otherwise into the largest payment.
+      let roundingExplanation = '';
+      const difference = net.minus(sum(amounts as Decimal[]));
+      if (!difference.isZero() && difference.abs().lte(new Decimal('0.01').times(indices.length))) {
+        const order = amounts
+          .map((amount, p) => ({
+            amount: amount!,
+            p,
+            free: !!matches[p].cash || (!matches[p].method && !!matches[p].nonCard),
+          }))
+          .sort((x, y) => Number(y.free) - Number(x.free) || y.amount.comparedTo(x.amount));
+        const absorber = order.find((o) => !o.amount.plus(difference).isNegative());
+        if (absorber) {
+          amounts[absorber.p] = absorber.amount.plus(difference);
+          roundingExplanation =
+            'Payments ₱' +
+            fixed(paid) +
+            ' differ from item net totals ₱' +
+            fixed(net) +
+            ' by ₱' +
+            fixed(difference.abs()) +
+            ' (ZenPOS rounds each item); the rounding is ' +
+            (difference.isPositive() ? 'added to ' : 'taken from ') +
+            JSON.stringify(parts[absorber.p].method.trim()) +
+            ' for allocation only. Bank charges use the exact payment amounts.';
+        }
+      }
       if (!net.eq(sum(amounts as Decimal[]))) {
         fail(
           indices,
@@ -337,8 +371,8 @@ export class CalculationService {
         );
         return;
       }
-      if (cashChangeExplanation)
-        indices.forEach((i) => (items[i].explanation = cashChangeExplanation));
+      const receiptNote = [cashChangeExplanation, roundingExplanation].filter(Boolean).join(' ');
+      if (receiptNote) indices.forEach((i) => (items[i].explanation = receiptNote));
       const unresolved = matches
         .map((m, p) => (!m.method && !m.nonCard ? p : -1))
         .filter((p) => p >= 0);
@@ -395,7 +429,7 @@ export class CalculationService {
           ? weights.map(() => new Decimal(0))
           : allocate(amount, weights);
         const fee = match.method
-          ? amount.times(match.method.rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+          ? feeBases[p].times(match.method.rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
           : new Decimal(0);
         const fees = amount.isZero()
           ? weights.map(() => new Decimal(0))
@@ -462,6 +496,10 @@ export class CalculationService {
             : ratePairs.length
               ? ratePairs.map((p) => p.cardName + ': ' + p.rate + '%').join('; ')
               : null;
+        // One column per card, in Tender order; a 4th+ card's rate stays in the explanation.
+        [item.appliedRate1, item.appliedRate2, item.appliedRate3] = [0, 1, 2].map(
+          (k) => ratePairs[k]?.rate ?? null,
+        );
         if (item.totalCost !== null) {
           item.grossMargin = fixed(
             line

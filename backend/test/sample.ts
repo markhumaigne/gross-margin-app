@@ -318,7 +318,7 @@ async function main() {
     ]);
   }
   const main = book.worksheets[0];
-  assert.equal(main.columnCount, 19);
+  assert.equal(main.columnCount, 21);
   assert.deepEqual(
     (main.getRow(1).values as string[]).slice(1),
     ITEM_COLUMNS.map((c) => c.header),
@@ -343,16 +343,22 @@ async function main() {
       'Sheet 1 displays the same line cost used by gross margin and Sheet 2',
     );
     assert.equal(main.getCell(index + 2, 13).value, item.originalPaymentMethod);
+    for (const [k, rate] of [item.appliedRate1, item.appliedRate2, item.appliedRate3].entries())
+      assert.equal(
+        main.getCell(index + 2, 14 + k).value,
+        rate === null ? null : new Decimal(rate).div(100).toNumber(),
+        'Applied Bank Rate ' + (k + 1),
+      );
     assert.equal(
-      main.getCell(index + 2, 15).value,
+      main.getCell(index + 2, 17).value,
       item.adjustment === null ? null : Number(item.adjustment),
     );
     assert.equal(
-      main.getCell(index + 2, 16).value,
+      main.getCell(index + 2, 18).value,
       item.grossMargin === null ? null : Number(item.grossMargin),
     );
-    assert.equal(main.getCell(index + 2, 17).value, item.sourceRow);
-    assert.equal(main.getCell(index + 2, 18).value, item.cardName);
+    assert.equal(main.getCell(index + 2, 19).value, item.sourceRow);
+    assert.equal(main.getCell(index + 2, 20).value, item.cardName);
   }
   assert.deepEqual(exporter.import(upload(buffer)), result.configuration);
   const app = await createApplication(true);

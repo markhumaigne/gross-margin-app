@@ -1,6 +1,6 @@
 # Sales Bank Rate Deduction Calculator
 
-A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 19 columns, beginning with Product ID. Configuration stays in local JSON and the current browser session. No database or external storage is required.
+A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 21 columns, beginning with Product ID. Configuration stays in local JSON and the current browser session. No database or external storage is required.
 
 ## Install and run
 
@@ -38,7 +38,7 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 3. Check **Cost basis** and **Explicit payment amounts apply to**. The supplied report is recognized as unit cost with invoice payment amounts repeated across products.
 4. Review rates, banks, branches, aliases, patterns and non-card methods.
 5. Click **Calculate Bank Rate Deductions**.
-6. Review all 19 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons. **Price ID** shows the POS Price ID of each sale; **Supplier Support** shows the PS price book Support for that product × quantity (Support saved in Price books in this browser is sent with Calculate, so recalculate after changing it).
+6. Review all 21 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons. **Price ID** shows the POS Price ID of each sale; **Supplier Support** shows the PS price book Support for that product × quantity (Support saved in Price books in this browser is sent with Calculate, so recalculate after changing it).
 7. Click **Download Calculated Excel Report**.
 8. Below the results, review **05 Gross margin by product** and **06 Price book comparison** (see below).
 
@@ -109,7 +109,7 @@ Discount % = (Master List Price − Promotional Price, or Updated Selling Price)
 
 After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change, and they update immediately when a price book changes.
 
-**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 19-column table keeps the after-charges GrossMargin.
+**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 21-column table keeps the after-charges GrossMargin.
 
 - Gross Profit = Net Sales Revenue − Cost of Goods Sold
 - Gross Margin on sales % = Gross Profit ÷ Net Sales Revenue × 100 (the calculator keeps margin on sales; price books show ZenPOS margin on cost)
@@ -140,20 +140,24 @@ The main sheet has these exact columns:
 | C      | Branch                  |
 | D      | Invoice Number          |
 | E      | Product Name            |
-| F      | Quantity                |
-| G      | Price                   |
-| H      | Cost                    |
-| I      | Discount                |
-| J      | Line Total              |
-| K      | Payment                 |
-| L      | Applied Bank Rate       |
-| M      | Bank Charges / Subsidy  |
-| N      | GrossMargin             |
-| O      | Sales Source Row        |
-| P      | Tender                  |
-| Q      | Calculation Explanation |
+| F      | Price ID                |
+| G      | Quantity                |
+| H      | Price                   |
+| I      | Cost                    |
+| J      | Supplier Support        |
+| K      | Discount                |
+| L      | Line Total              |
+| M      | Payment                 |
+| N      | Applied Bank Rate 1     |
+| O      | Applied Bank Rate 2     |
+| P      | Applied Bank Rate 3     |
+| Q      | Bank Charges / Subsidy  |
+| R      | GrossMargin             |
+| S      | Sales Source Row        |
+| T      | Tender                  |
+| U      | Calculation Explanation |
 
-Payment copies the original Sales Report Payment cell verbatim, including line breaks. Tender is the matched configured card name. Original BNPL/SNPL Tender descriptions also appear in Calculation Explanation, including when they came from separate Tender columns inside the Sales Report. Bank and Status are omitted from the main worksheet and its preview; review reasons remain in Calculation Explanation and Needs Review. There is no separate payment-report input or cross-report invoice matching.
+Payment copies the original Sales Report Payment cell verbatim, including line breaks. Tender is the matched configured card name; with several cards they are listed in payment order, and Applied Bank Rate 1, 2 and 3 hold each card's configured rate in that same order (a 4th card's rate appears in Calculation Explanation). Bank Charges / Subsidy is the total for all cards. Original BNPL/SNPL Tender descriptions also appear in Calculation Explanation, including when they came from separate Tender columns inside the Sales Report. Bank and Status are omitted from the main worksheet and its preview; review reasons remain in Calculation Explanation and Needs Review. There is no separate payment-report input or cross-report invoice matching.
 
 Product IDs are literal text in Column A. Headers are bold, frozen and filtered. Currency is PHP, rates are percentages and dates display as 01 Oct 2026. Review rows are highlighted. Unresolved amounts remain blank. Item Bank Deductions uses the match already produced by the configured payment matcher, including aliases, patterns and BNPL/SNPL handling. A zero rate or subsidy still qualifies; a positive charge is not required. All source items remain in the calculation audit and processed-item count, while the Item Bank Deductions tab counts only displayed matches. Missing and unmatched payments remain accessible in Needs Review.
 
@@ -177,6 +181,7 @@ The real-file test independently compares every source Product ID, product, invo
 
 - Decimal.js uses 40-digit precision and PHP amounts rounded to two decimals, ROUND_HALF_UP. JSON amounts are decimal strings.
 - Rates are percentages: a configured 3.50 means 3.50%. Positive rates produce bank charges; negative rates produce subsidies. Defaults use the 49-method rate table supplied on October 20, 2026.
+- Receipts whose explicit payments differ from the sum of their item net totals by no more than ₱0.01 per item row (ZenPOS rounds each item) are calculated: the centavo is absorbed for allocation only, by a cash or no-charge payment when present, otherwise by the largest payment, and bank charges use the exact payment amounts. Larger differences still go to Needs Review.
 - Bank charge = eligible paid amount × configured rate. GrossMargin = net line total − total product cost − signed charge/subsidy + Supplier Support. A negative subsidy increases margin.
 - Supplier Support = PS Support (₱ per unit) × quantity when the sale's Price ID is a PS price book (active or not) that lists the product; ₱0 and negative sales earn none. It is included in GrossMargin, the bank summary and the Gross Margin by Branch & Date totals, and named in the Calculation Explanation. Only bank-payment rows appear on this sheet; Support on cash and other non-card sales shows in section 05.
 - Exact configured names take priority, followed by explicit aliases, then unambiguous recognized spacing or configured wildcard patterns. Recognized installment spacing includes BDO 3MOS → BDO 3 MOS.
@@ -261,7 +266,7 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 19 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 21 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
 `npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
 

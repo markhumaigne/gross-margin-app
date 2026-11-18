@@ -330,6 +330,9 @@ export class ExcelExportService {
         : value === null
           ? null
           : value;
+    /** A configured rate such as "2.85" becomes 0.0285 for Excel's percent format. */
+    const fraction = (rate: string | null) =>
+      rate !== null && /^-?\d+(\.\d+)?$/.test(rate) ? new Decimal(rate).div(100).toNumber() : rate;
     const columns: Column[] = ITEM_COLUMNS.map((c) => ({
       header: c.header,
       key: c.key,
@@ -372,10 +375,9 @@ export class ExcelExportService {
         supplierSupport: numeric(i.supplierSupport),
         discount: numeric(i.discount),
         lineTotal: numeric(i.lineTotal),
-        appliedRate:
-          i.appliedRate !== null && /^-?\d+(\.\d+)?$/.test(i.appliedRate)
-            ? new Decimal(i.appliedRate).div(100).toNumber()
-            : i.appliedRate,
+        appliedRate1: fraction(i.appliedRate1),
+        appliedRate2: fraction(i.appliedRate2),
+        appliedRate3: fraction(i.appliedRate3),
         adjustment: numeric(i.adjustment),
         grossMargin: numeric(i.grossMargin),
       })),

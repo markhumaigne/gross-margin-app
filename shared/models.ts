@@ -99,6 +99,10 @@ export interface ItemResult {
   bank: string;
   originalPaymentMethod: string;
   appliedRate: string | null;
+  /** Configured rate of each matched card, in Tender order (cards 4+ appear in the explanation). */
+  appliedRate1: string | null;
+  appliedRate2: string | null;
+  appliedRate3: string | null;
   adjustment: string | null;
   grossMargin: string | null;
   partialCalculation: boolean;
@@ -217,7 +221,9 @@ export const ITEM_COLUMNS = [
   { header: 'Discount', key: 'discount', format: 'money' },
   { header: 'Line Total', key: 'lineTotal', format: 'money' },
   { header: 'Payment', key: 'originalPaymentMethod', format: 'text' },
-  { header: 'Applied Bank Rate', key: 'appliedRate', format: 'percent' },
+  { header: 'Applied Bank Rate 1', key: 'appliedRate1', format: 'percent' },
+  { header: 'Applied Bank Rate 2', key: 'appliedRate2', format: 'percent' },
+  { header: 'Applied Bank Rate 3', key: 'appliedRate3', format: 'percent' },
   { header: 'Bank Charges / Subsidy', key: 'adjustment', format: 'money' },
   { header: 'GrossMargin', key: 'grossMargin', format: 'money' },
   { header: 'Sales Source Row', key: 'sourceRow', format: 'number' },
