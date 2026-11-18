@@ -202,3 +202,24 @@ test('the sample price book file parses', async () => {
     ],
   );
 });
+
+test('IDs a spreadsheet program turned into scientific notation fail the whole file', () => {
+  const mangled = [
+    '4.54874E+12',
+    'SONY SRX-XB100 BLUE',
+    0,
+    99999,
+    'PCS',
+    2499,
+    '',
+    '',
+    2499,
+    2399.2,
+    '',
+  ];
+  assert.equal(
+    expectFail(parseZenposPriceBook(zenpos({ products: [SONY_BLACK, mangled] }))),
+    'Product IDs were changed to scientific notation (4.54874E+12) by a spreadsheet program. ' +
+      'Import the original ZenPOS .xlsx export instead.',
+  );
+});

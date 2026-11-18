@@ -50,6 +50,8 @@ const COLUMNS = [
 ] as const;
 type Column = (typeof COLUMNS)[number];
 
+const SCIENTIFIC_ID = /^\d+(\.\d+)?e[+-]?\d+$/i;
+
 const normalize = (value: unknown) =>
   String(value ?? '')
     .toLowerCase()
@@ -127,6 +129,13 @@ export function parseZenposPriceBook(rows: readonly unknown[][]): Result<ZenposP
   for (const row of rows.slice(headerRow + 1)) {
     if (!row || row.every((c) => isBlank(c))) continue;
     const productId = zenposProductId(cell(row, 'productid'));
+    // A CSV saved from Excel turns long barcodes into text like 4.54874E+12; distinct products
+    // would collapse into one ID and a re-import would drop the real rows and their Support.
+    if (SCIENTIFIC_ID.test(productId))
+      return fail(
+        `Product IDs were changed to scientific notation (${productId}) by a spreadsheet ` +
+          'program. Import the original ZenPOS .xlsx export instead.',
+      );
     const netPrice = amount(cell(row, 'priceafterdiscount'));
     const cost = amount(cell(row, 'stndcost'));
     if (!productId || netPrice === null || cost === null || seen.has(productIdKey(productId))) {
