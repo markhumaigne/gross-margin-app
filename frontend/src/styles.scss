@@ -1823,6 +1823,11 @@ textarea.invalid {
   margin: -12px 0 18px;
   font-size: 10px;
 }
+.import-lines {
+  margin: 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
 .info-action {
   font-size: 10px !important;
   height: 26px !important;

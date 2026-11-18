@@ -10,12 +10,13 @@
       type="file"
       class="sr-only"
       accept=".xlsx,.xls,.csv"
-      aria-label="Import products and price lists from a sales export"
-      (change)="importFile($event)"
+      multiple
+      aria-label="Import ZenPOS price book files"
+      (change)="importFiles($event)"
     />
-    <button mat-button type="button" (click)="downloadSample()">Download sample export</button>
+    <button mat-button type="button" (click)="downloadSample()">Download sample price book</button>
     <button mat-stroked-button type="button" [disabled]="importing()" (click)="importInput.click()">
-      {{ importing() ? 'Importing…' : 'Import from sales export' }}
+      {{ importing() ? 'Importing…' : 'Import ZenPOS price book' }}
     </button>
     <a mat-flat-button class="heading-action" routerLink="/price-books/new"
       ><span aria-hidden="true">+</span> New price book</a
@@ -23,18 +24,44 @@
   </div>
 </div>
 <p class="subtle import-hint">
-  Import reads a POS “Sales Report by Product” export: new products join the catalog and each Price
-  ID becomes a price book with the POS selling prices. Existing entries are never changed. Saved
-  prices are shared with Accounting in this browser and kept after refresh.
+  Import reads ZenPOS “Price Book” exports, one price book per file. A new Price ID creates a price
+  book; an existing one is updated from the file and keeps the Support you entered. Saved prices are
+  shared with Accounting in this browser and kept after refresh.
 </p>
-@if (error()) {
+@if (error() || failedLines().length) {
   <div class="page-alert error-message" role="alert">
-    {{ error()
-    }}<button class="delete-button" aria-label="Dismiss error" (click)="error.set('')">×</button>
+    @if (error()) {
+      {{ error() }}
+    }
+    @if (failedLines().length) {
+      <ul class="import-lines">
+        @for (line of failedLines(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
+    <button
+      class="delete-button"
+      aria-label="Dismiss error"
+      (click)="error.set(''); failedLines.set([])"
+    >
+      ×
+    </button>
   </div>
 }
-@if (notice()) {
-  <div class="notice" role="status">{{ notice() }}</div>
+@if (notice() || importedLines().length) {
+  <div class="notice" role="status">
+    @if (notice()) {
+      {{ notice() }}
+    }
+    @if (importedLines().length) {
+      <ul class="import-lines">
+        @for (line of importedLines(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
+  </div>
 }
 <section class="section-card">
   <div class="tab-toolbar">

@@ -7,16 +7,21 @@ import {
   setPriceBookActive,
 } from '../domain/price-books';
 import { todayInManila } from '../domain/dates';
+import { applyZenposPriceBook, BookImportSummary } from '../domain/price-book-import';
 import { readSpreadsheet } from '../domain/read-spreadsheet';
 import { fail, ok, Result } from '../domain/result';
 import { hasPermission } from '../domain/roles';
-import { importFromExport, ImportSummary } from '../domain/sales-import';
-import { findHeaderRow, sheetSizeError, validateUploadFile } from '../domain/sales-report';
+import { validateUploadFile } from '../domain/sales-report';
 import { UserAccount } from '../domain/user-accounts';
+import { parseZenposPriceBook } from '../domain/zenpos-price-book';
 import { ProductCatalogService } from './product-catalog.service';
 import { PricingWorkspaceService } from './pricing-workspace.service';
 
 const NO_PERMISSION = 'You do not have permission to manage price books.';
+
+export type FileImportResult =
+  | { fileName: string; ok: true; summary: BookImportSummary }
+  | { fileName: string; ok: false; error: string };
 
 /** Price books shared by demo accounts, persisted in this browser with the product catalog. */
 @Injectable({ providedIn: 'root' })
@@ -27,11 +32,28 @@ export class PriceBookService {
   readonly storageError = this.workspace.error;
 
   /**
-   * Imports products and price lists from a POS sales export into shared browser storage.
-   * Existing products and price book entries are never changed.
+   * Imports ZenPOS "Price Book" exports, one price book per file. Each file is saved on its own,
+   * so a file that fails (unreadable, not a price book, or browser storage full) never stops the
+   * others; its reason is reported instead.
    */
-  async importFromExport(actor: UserAccount, file: File): Promise<Result<ImportSummary>> {
+  async importPriceBooks(
+    actor: UserAccount,
+    files: readonly File[],
+  ): Promise<Result<FileImportResult[]>> {
     if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
+    const results: FileImportResult[] = [];
+    for (const file of files) {
+      const result = await this.importOne(actor, file);
+      results.push(
+        result.ok
+          ? { fileName: file.name, ok: true, summary: result.value }
+          : { fileName: file.name, ok: false, error: result.error },
+      );
+    }
+    return ok(results);
+  }
+
+  private async importOne(actor: UserAccount, file: File): Promise<Result<BookImportSummary>> {
     const problem = validateUploadFile(file.name, file.size);
     if (problem) return fail(problem);
     let rows: unknown[][];
@@ -40,23 +62,21 @@ export class PriceBookService {
     } catch {
       return fail('The file could not be read.');
     }
-    const sizeError = sheetSizeError(rows, Math.max(findHeaderRow(rows), 0));
-    if (sizeError) return fail(sizeError);
+    const parsed = parseZenposPriceBook(rows);
+    if (!parsed.ok) return parsed;
     const loaded = this.workspace.reload();
     if (!loaded.ok) return loaded;
-    const result = importFromExport(
-      rows,
+    const { books, summary } = applyZenposPriceBook(
+      this.books(),
+      parsed.value,
       file.name,
       todayInManila(),
-      this.catalog.products(),
-      this.books(),
       new Date(),
       actor.displayName,
     );
-    if (!result.ok) return result;
-    const saved = this.workspace.commit(result.value.books, result.value.products);
+    const saved = this.workspace.commit(books);
     if (!saved.ok) return saved;
-    return ok(result.value.summary);
+    return ok(summary);
   }
 
   byId(id: string): PriceBook | undefined {

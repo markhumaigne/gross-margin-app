@@ -1,6 +1,23 @@
 import { test, expect } from '@playwright/test';
 import { ACCOUNTS, navigateInApp, signIn } from './helpers';
 
+/** A ZenPOS price book export built from the demo sample, with label values overridden. */
+async function zenposFile(name: string, labels: Record<string, string> = {}) {
+  const XLSX = await import('xlsx');
+  const { SAMPLE_PRICE_BOOK_ROWS } =
+    await import('../frontend/src/app/mock-data/sample-price-book');
+  const rows = SAMPLE_PRICE_BOOK_ROWS.map((r) =>
+    typeof r[0] === 'string' && r[0] in labels ? [r[0], labels[r[0]]] : [...r],
+  );
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Price Book');
+  return {
+    name,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+  };
+}
+
 test.describe('Price book list', () => {
   test('search, filter and record count', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
@@ -179,7 +196,7 @@ test.describe('Price book editor', () => {
   });
 });
 
-test.describe('Price IDs and sales export import', () => {
+test.describe('Price IDs and ZenPOS import', () => {
   test('manual Price ID mirrors a POS price list and is validated', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
     await page.getByRole('link', { name: 'New price book' }).click();
@@ -198,71 +215,49 @@ test.describe('Price IDs and sales export import', () => {
     await expect(page).toHaveURL(/\/price-books\/PS000015$/);
   });
 
-  test('Product Team imports products and price lists from a sales export', async ({ page }) => {
+  test('Product Team imports ZenPOS price book exports', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
-    const XLSX = await import('xlsx');
-    const { SAMPLE_EXPORT_ROWS } = await import('../frontend/src/app/mock-data/sample-export');
-    const rows = SAMPLE_EXPORT_ROWS.map((r) => [...r]);
-    rows.splice(rows.length - 2, 0, [
-      '9900000000001',
-      'Real Import Item',
-      '10/01/2026',
-      'X1',
-      1,
-      'PCS',
-      999,
-      500,
-      0,
-      999,
-      1099,
-      999,
-      '',
-      'Cash',
-      'B',
+    const input = page.getByLabel('Import ZenPOS price book files');
+    await input.setInputFiles([
+      await zenposFile('sample.xlsx'),
+      await zenposFile('internal.xlsx', {
+        'Price ID:': 'PI000004',
+        'Name:': 'Demo Internal Promo',
+      }),
     ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Sales Report by Product');
-    await page.getByLabel('Import products and price lists from a sales export').setInputFiles({
-      name: 'export.xlsx',
-      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
-    });
-    await expect(page.getByRole('status')).toHaveText(
-      'Imported 1 products and 2 price lists from export.xlsx (1 new, 1 extended).',
-    );
+    await expect(page.getByRole('status')).toContainText('PS000015 created: 3 products');
+    await expect(page.getByRole('status')).toContainText('PI000004 created: 3 products');
     await page.reload();
     await signIn(page, ...ACCOUNTS.product);
     await expect(page.getByRole('row').filter({ hasText: 'PS000015' })).toContainText(
-      'Imported PS000015',
+      'Demo Headset Promo',
     );
-    await page.getByRole('link', { name: 'View PL000013' }).click();
-    await expect(
-      page
-        .getByRole('table', { name: 'Price book products' })
-        .getByRole('row')
-        .filter({ hasText: '4800000100035' }),
-    ).toContainText('₱3,795.00');
-    await page.getByRole('link', { name: 'Edit', exact: true }).click();
-    await page.getByRole('button', { name: 'Add products' }).click();
+    await page.getByRole('link', { name: 'View PS000015' }).click();
+    await expect(page.getByRole('table', { name: 'Price book products' })).toContainText(
+      '0480000060003',
+    );
+    await navigateInApp(page, '/price-books');
     await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Search catalog', exact: true })
-      .click();
-    await page.getByRole('dialog').getByLabel('Search products').fill('Real Import');
-    await expect(
-      page.getByRole('dialog').getByRole('row').filter({ hasText: '9900000000001' }),
-    ).toContainText('Imported');
+      .getByLabel('Import ZenPOS price book files')
+      .setInputFiles(await zenposFile('sample.xlsx'));
+    await expect(page.getByRole('status')).toContainText(
+      'PS000015 updated: 0 added, 0 removed, 0 prices changed, Support kept on 0',
+    );
   });
 
-  test('a file without Product ID and price columns is rejected', async ({ page }) => {
+  test('a file that is not a ZenPOS price book is reported and others still import', async ({
+    page,
+  }) => {
     await signIn(page, ...ACCOUNTS.product);
-    await page.getByLabel('Import products and price lists from a sales export').setInputFiles({
-      name: 'notes.csv',
-      mimeType: 'text/csv',
-      buffer: Buffer.from('Name,Qty\r\nx,1'),
-    });
+    await page
+      .getByLabel('Import ZenPOS price book files')
+      .setInputFiles([
+        { name: 'notes.csv', mimeType: 'text/csv', buffer: Buffer.from('Name,Qty\r\nx,1') },
+        await zenposFile('sample.xlsx'),
+      ]);
     await expect(page.getByRole('alert')).toContainText(
-      'This file has no Product ID and price columns.',
+      'notes.csv: This file is not a ZenPOS price book export',
     );
+    await expect(page.getByRole('status')).toContainText('PS000015 created');
   });
 });

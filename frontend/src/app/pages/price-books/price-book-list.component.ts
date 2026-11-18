@@ -4,7 +4,8 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
-import { downloadSampleExport } from '../../core/sample-download';
+import { downloadSamplePriceBook } from '../../core/sample-download';
+import { formatImportSummary } from '../../domain/price-book-import';
 import { filterPriceBooks, PriceBook, StatusFilter } from '../../domain/price-books';
 
 @Component({
@@ -23,24 +24,29 @@ export class PriceBookListComponent implements OnInit {
   );
   readonly notice = signal('');
   readonly error = signal('');
+  /** One line per imported file; shown together with any files that failed. */
+  readonly importedLines = signal<string[]>([]);
+  readonly failedLines = signal<string[]>([]);
   readonly importing = signal(false);
 
-  async importFile(event: Event) {
+  async importFiles(event: Event) {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const files = Array.from(input.files ?? []);
     input.value = '';
     const actor = this.auth.currentUser();
-    if (!file || !actor) return;
+    if (!files.length || !actor) return;
     this.importing.set(true);
     try {
-      const result = await this.service.importFromExport(actor, file);
+      const result = await this.service.importPriceBooks(actor, files);
       if (!result.ok) return this.show(result.error, true);
-      const s = result.value;
-      const created = s.booksCreated.length;
-      const extended = s.booksExtended.length;
-      this.show(
-        `Imported ${s.productsAdded} products and ${created + extended} price lists from ` +
-          `${s.fileName} (${created} new, ${extended} extended).`,
+      this.show('');
+      this.importedLines.set(
+        result.value.flatMap((r) =>
+          r.ok ? [`${r.fileName}: ${formatImportSummary(r.summary)}`] : [],
+        ),
+      );
+      this.failedLines.set(
+        result.value.flatMap((r) => (r.ok ? [] : [`${r.fileName}: ${r.error}`])),
       );
     } finally {
       this.importing.set(false);
@@ -48,7 +54,7 @@ export class PriceBookListComponent implements OnInit {
   }
 
   downloadSample() {
-    void downloadSampleExport();
+    void downloadSamplePriceBook();
   }
 
   ngOnInit() {
@@ -83,5 +89,7 @@ export class PriceBookListComponent implements OnInit {
   private show(message: string, isError = false) {
     this.notice.set(isError ? '' : message);
     this.error.set(isError ? message : '');
+    this.importedLines.set([]);
+    this.failedLines.set([]);
   }
 }
