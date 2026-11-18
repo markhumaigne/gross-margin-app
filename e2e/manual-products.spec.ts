@@ -1,5 +1,5 @@
 import { test, expect, Locator } from '@playwright/test';
-import { ACCOUNTS, signIn } from './helpers';
+import { ACCOUNTS, navigateInApp, signIn } from './helpers';
 
 async function fillProduct(dialog: Locator, id = '001-CUSTOM') {
   for (const [label, value] of Object.entries({
@@ -136,4 +136,57 @@ test('manual product IDs are treated as literal identifiers', async ({ page }) =
   await page.getByRole('button', { name: 'Save price book' }).click();
   await expect(page.getByRole('status')).toContainText('saved');
   expect(errors).toEqual([]);
+});
+
+test('PM enters Support on a PS book and sees margin after support', async ({ page }) => {
+  await signIn(page, ...ACCOUNTS.product);
+  await page.getByRole('link', { name: 'New price book' }).click();
+  await page.getByLabel('Auto ID').uncheck();
+  await page.getByLabel('Price ID', { exact: true }).fill('PS000077');
+  await page.getByLabel('Price book name').fill('Support test');
+  await page.getByRole('button', { name: 'Add products', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  for (const [label, value] of Object.entries({
+    'Product ID': 'SUP-1',
+    Name: 'Promo headset',
+    Qty: '0',
+    'to Qty': '99999',
+    Unit: 'PCS',
+    'Master List Price': '12999',
+    'Unit Price': '11999',
+    'Disc %': '0',
+    Discount: '0',
+    'Net Price': '11999',
+    Cost: '12749.25',
+    Support: '1500',
+  }))
+    await dialog.getByLabel(label, { exact: true }).fill(value);
+  await expect(dialog.getByLabel('Support type', { exact: true })).toHaveValue('amount');
+  await expect(dialog).toContainText('-5.88%');
+  await expect(dialog).toContainText('6.66%');
+  await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
+  const row = page
+    .getByRole('table', { name: 'Price book products' })
+    .getByRole('row')
+    .filter({ hasText: 'SUP-1' });
+  await expect(row).toContainText('-5.88%');
+  await expect(row).toContainText('6.66%');
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  await expect(row).toContainText('₱1,500.00');
+  await expect(row).toContainText('6.66%');
+  await page.getByRole('link', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Support type for SUP-1').selectOption('percent');
+  await page.getByLabel('Support for SUP-1').fill('5');
+  await expect(row).toContainText('-1.24%');
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  await expect(row).toContainText('5.00%');
+  await navigateInApp(page, '/price-books/PL000013');
+  await expect(page.getByRole('table', { name: 'Price book products' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('table', { name: 'Price book products' })
+      .getByRole('columnheader', { name: 'Support', exact: true }),
+  ).toHaveCount(0);
 });

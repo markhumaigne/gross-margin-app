@@ -16,8 +16,16 @@ import { CurrencyPipe } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { ProductCatalogService } from '../../core/product-catalog.service';
+import { parseMoney } from '../../domain/money';
 import { PriceBookEntryDraft, Product } from '../../domain/pricing';
-import { marginOnCost } from '../../domain/support';
+import {
+  marginAfterSupport,
+  marginOnCost,
+  NO_SUPPORT_DRAFT,
+  SupportDraft,
+  supportFromDraft,
+  validateSupportDraft,
+} from '../../domain/support';
 import {
   emptyManualProduct,
   MANUAL_PRODUCT_FIELDS,
@@ -37,8 +45,14 @@ import {
 export class ProductPickerComponent implements OnInit, AfterViewInit {
   @Input() excludedIds: readonly string[] = [];
   @Input() initialEntry: PriceBookEntryDraft | null = null;
+  /** PS (external promotion) books show the Support field. */
+  @Input() supportEnabled = false;
   @Output() add = new EventEmitter<string[]>();
-  @Output() manualAdd = new EventEmitter<{ productId: string; manual: ManualProductDraft }>();
+  @Output() manualAdd = new EventEmitter<{
+    productId: string;
+    manual: ManualProductDraft;
+    support?: SupportDraft;
+  }>();
   @Output() closed = new EventEmitter<void>();
   @ViewChild('searchInput') private searchInput?: ElementRef<HTMLInputElement>;
   @ViewChild('productIdInput') private productIdInput?: ElementRef<HTMLInputElement>;
@@ -51,6 +65,23 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     validateManualProduct(this.productId(), this.manual(), this.excludedIds),
   );
   readonly shownErrors = computed(() => (this.attempted() ? this.errors() : {}));
+  readonly support = signal<SupportDraft>({ ...NO_SUPPORT_DRAFT });
+  readonly supportError = computed(() => validateSupportDraft(this.support()));
+  readonly shownSupportError = computed(() => (this.attempted() ? this.supportError() : null));
+  private readonly prices = computed(() => {
+    const net = parseMoney(this.manual().netPrice);
+    const cost = parseMoney(this.manual().cost);
+    return net !== null && cost !== null ? { net, cost } : null;
+  });
+  readonly marginOnCost = computed(() => {
+    const p = this.prices();
+    return p ? marginOnCost(p.net, p.cost) : null;
+  });
+  readonly marginAfterSupport = computed(() => {
+    const p = this.prices();
+    if (!p || this.supportError()) return null;
+    return marginAfterSupport(p.net, p.cost, supportFromDraft(this.support()));
+  });
   private readonly catalog = inject(ProductCatalogService);
   readonly query = signal('');
   readonly results = computed(() => this.catalog.search(this.query()));
@@ -65,6 +96,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
       this.productId.set(this.initialEntry.productId);
       this.manual.set({ ...this.initialEntry.manual });
     }
+    if (this.initialEntry?.support) this.support.set({ ...this.initialEntry.support });
   }
 
   ngAfterViewInit() {
@@ -76,10 +108,24 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     this.manual.update((draft) => ({ ...draft, [field]: value }));
   }
 
+  updateSupport(part: keyof SupportDraft, event: Event) {
+    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
+    this.support.update((s) => ({ ...s, [part]: value }));
+  }
+
+  formatPercent(value: number | null) {
+    return value === null ? '—' : value.toFixed(2) + '%';
+  }
+
   confirmManual() {
     this.attempted.set(true);
     if (Object.keys(this.errors()).length) return;
-    this.manualAdd.emit({ productId: this.productId().trim(), manual: { ...this.manual() } });
+    if (this.supportEnabled && this.supportError()) return;
+    this.manualAdd.emit({
+      productId: this.productId().trim(),
+      manual: { ...this.manual() },
+      ...(this.supportEnabled ? { support: { ...this.support() } } : {}),
+    });
   }
 
   @HostListener('document:keydown.escape')

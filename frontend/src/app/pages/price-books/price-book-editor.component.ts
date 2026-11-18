@@ -13,13 +13,22 @@ import {
   draftFromBook,
   emptyDraft,
   nextPriceBookId,
+  isSupportBook,
   newEntryDraft,
+  normalizePriceId,
   PriceBookDraft,
   PriceBookErrors,
   validatePriceBook,
 } from '../../domain/price-books';
 import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../domain/pricing';
-import { marginOnCost } from '../../domain/support';
+import {
+  marginAfterSupport,
+  marginOnCost,
+  NO_SUPPORT_DRAFT,
+  SupportDraft,
+  supportFromDraft,
+  validateSupportDraft,
+} from '../../domain/support';
 import { ProductPickerComponent } from './product-picker.component';
 
 type Mode = 'create' | 'edit' | 'view';
@@ -84,6 +93,13 @@ export class PriceBookEditorComponent {
         ? 'Edit price book'
         : (this.book()?.name ?? 'Price book'),
   );
+  /** The Price ID this book has (or will get); PS books carry Support. */
+  readonly supportBook = computed(() => {
+    if (this.mode() !== 'create') return isSupportBook(this.bookId() ?? '');
+    const draft = this.draft();
+    return isSupportBook(draft.autoId ? this.nextId() : normalizePriceId(draft.id));
+  });
+  readonly columnCount = computed(() => (this.editable() ? 19 : 18) + (this.supportBook() ? 2 : 0));
   readonly rows = computed(() =>
     this.draft().entries.map((entry) => {
       const product = this.catalog.byId(entry.productId);
@@ -94,18 +110,27 @@ export class PriceBookEditorComponent {
         product && price !== null ? discountPercent(product.masterListPrice, price) : null;
       const manualNet = entry.manual ? parseMoney(entry.manual.netPrice) : null;
       const manualCost = entry.manual ? parseMoney(entry.manual.cost) : null;
-      const margin = entry.manual
+      const basis = entry.manual
         ? manualNet !== null && manualCost !== null
-          ? marginOnCost(manualNet, manualCost)
+          ? { price: manualNet, cost: manualCost }
           : null
         : product && product.cost !== null
-          ? marginOnCost(price ?? product.masterListPrice, product.cost)
+          ? { price: price ?? product.masterListPrice, cost: product.cost }
           : null;
+      const supportDraft = entry.support ?? NO_SUPPORT_DRAFT;
+      const support = validateSupportDraft(supportDraft)
+        ? undefined
+        : supportFromDraft(supportDraft);
+      const margin = basis ? marginOnCost(basis.price, basis.cost) : null;
+      const afterSupport = basis ? marginAfterSupport(basis.price, basis.cost, support) : null;
       return {
         entry,
         product,
         discount,
         margin,
+        afterSupport,
+        support,
+        supportDraft,
         netPrice: price ?? product?.masterListPrice ?? null,
         discountAmount:
           product && price !== null
@@ -172,6 +197,18 @@ export class PriceBookEditorComponent {
     }));
   }
 
+  updateSupport(productId: string, part: keyof SupportDraft, event: Event) {
+    const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
+    this.draft.update((d) => ({
+      ...d,
+      entries: d.entries.map((e) =>
+        e.productId === productId
+          ? { ...e, support: { ...(e.support ?? NO_SUPPORT_DRAFT), [part]: value } }
+          : e,
+      ),
+    }));
+  }
+
   addProducts(ids: string[]) {
     this.draft.update((d) => ({
       ...d,
@@ -185,7 +222,11 @@ export class PriceBookEditorComponent {
     this.pickerOpen.set(true);
   }
 
-  saveManualProduct(value: { productId: string; manual: ManualProductDraft }) {
+  saveManualProduct(value: {
+    productId: string;
+    manual: ManualProductDraft;
+    support?: SupportDraft;
+  }) {
     this.draft.update((draft) => {
       const existing = draft.entries.find((e) => e.productId === this.editingProductId());
       const entry: PriceBookEntryDraft = {

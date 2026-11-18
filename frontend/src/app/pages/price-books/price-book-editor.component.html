@@ -215,6 +215,10 @@
               <th scope="col" [class.numeric]="field.kind !== 'text'">{{ field.label }}</th>
             }
             <th scope="col" class="numeric">Margin on cost</th>
+            @if (supportBook()) {
+              <th scope="col" class="numeric">Support</th>
+              <th scope="col" class="numeric">Margin after support</th>
+            }
             <th scope="col">Updated Selling Price</th>
             <th scope="col">Promotional Price</th>
             <th scope="col">Effective Start</th>
@@ -299,6 +303,46 @@
               <td class="numeric" [class.negative]="(row.margin ?? 0) < 0">
                 {{ row.margin === null ? '—' : row.margin.toFixed(2) + '%' }}
               </td>
+              @if (supportBook()) {
+                @if (editable()) {
+                  <td>
+                    <div class="support-input">
+                      <input
+                        class="price-input"
+                        inputmode="decimal"
+                        placeholder="—"
+                        [attr.aria-label]="entryLabel('Support', row.entry)"
+                        [value]="row.supportDraft.value"
+                        (input)="updateSupport(row.entry.productId, 'value', $event)"
+                      />
+                      <select
+                        [attr.aria-label]="entryLabel('Support type', row.entry)"
+                        (change)="updateSupport(row.entry.productId, 'kind', $event)"
+                      >
+                        <option value="amount" [selected]="row.supportDraft.kind === 'amount'">
+                          ₱
+                        </option>
+                        <option value="percent" [selected]="row.supportDraft.kind === 'percent'">
+                          %
+                        </option>
+                      </select>
+                    </div>
+                  </td>
+                } @else {
+                  <td class="numeric">
+                    @if (!row.support) {
+                      —
+                    } @else if (row.support.kind === 'amount') {
+                      {{ row.support.value | currency: 'PHP' : 'symbol' : '1.2-2' }}
+                    } @else {
+                      {{ row.support.value.toFixed(2) }}%
+                    }
+                  </td>
+                }
+                <td class="numeric" [class.negative]="(row.afterSupport ?? 0) < 0">
+                  {{ row.afterSupport === null ? '—' : row.afterSupport.toFixed(2) + '%' }}
+                </td>
+              }
               @if (editable() && !row.entry.manual) {
                 <td>
                   <input
@@ -406,7 +450,7 @@
             </tr>
             @if (row.errors.length) {
               <tr class="entry-error-row">
-                <td [attr.colspan]="editable() ? 19 : 18">
+                <td [attr.colspan]="columnCount()">
                   @for (message of row.errors; track message) {
                     <small class="field-error">{{ message }}</small>
                   }
@@ -415,7 +459,7 @@
             }
           } @empty {
             <tr>
-              <td [attr.colspan]="editable() ? 19 : 18" class="empty-table">
+              <td [attr.colspan]="columnCount()" class="empty-table">
                 No products yet. Use Add products to enter product details or choose from the
                 catalog.
               </td>
@@ -430,6 +474,7 @@
     <app-product-picker
       [excludedIds]="productIds()"
       [initialEntry]="editingEntry()"
+      [supportEnabled]="supportBook()"
       (add)="addProducts($event)"
       (manualAdd)="saveManualProduct($event)"
       (closed)="pickerOpen.set(false)"
