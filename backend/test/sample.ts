@@ -125,11 +125,40 @@ async function main() {
     const original = new ExcelJS.Workbook();
     await original.xlsx.load(file.buffer as any);
     const ws = original.getWorksheet(s.name)!;
+    // POS exports end with "TOTAL:" and "<N> items ******** NOTHING FOLLOWS ********" footer rows.
+    const texts = (r: ExcelJS.Row) => (r.values as unknown[]).map((v) => String(v ?? '').trim());
     let rows = 0;
+    let totalRow: ExcelJS.Row | undefined;
+    let itemsStated: number | undefined;
     ws.eachRow((r, n) => {
-      if (n > s.headerRow && r.hasValues) rows++;
+      if (n <= s.headerRow || !r.hasValues) return;
+      const cells = texts(r);
+      if (cells.includes('TOTAL:')) totalRow = r;
+      else if (cells.some((c) => c.includes('NOTHING FOLLOWS')))
+        itemsStated = Number(/(\d+)\s+items/i.exec(cells.join(' '))?.[1]);
+      else rows++;
     });
-    assert.equal(rows, sales.length, 'Every original source row retained');
+    assert.equal(rows, sales.length, 'Every original source row retained (footer rows excluded)');
+    if (itemsStated !== undefined)
+      assert.equal(sales.length, itemsStated, 'Row count matches the POS "N items" footer');
+    if (totalRow) {
+      const headers = texts(ws.getRow(s.headerRow)).map((h) => h.replace(/\s+/g, ' '));
+      const footer = (header: string) => Number(totalRow!.getCell(headers.indexOf(header)).value);
+      const sum = (pick: (row: (typeof sales)[number]) => unknown) =>
+        sales.reduce((t, row) => t.plus(new Decimal(String(pick(row) ?? 0))), new Decimal(0));
+      assert.ok(sum((r) => r.quantity).equals(footer('Qty')), 'Quantity matches the POS TOTAL row');
+      assert.ok(
+        sum((r) => r.lineTotal)
+          .minus(footer('Net Total'))
+          .abs()
+          .lte(1),
+        'Net total matches the POS TOTAL row (within ₱1 of POS footer rounding)',
+      );
+      console.log(
+        `POS footer: ${sales.length} items, qty ${footer('Qty')}, net ${footer('Net Total')}; ` +
+          `rows sum to net ${sum((r) => r.lineTotal).toFixed(2)}`,
+      );
+    }
     const value = (address: string) => {
       const c = ws.getCell(address);
       return c.type === ExcelJS.ValueType.Formula ? c.result : c.value;
@@ -159,9 +188,15 @@ async function main() {
           );
       }
       if (row.cells.date) {
+        // Older reference exports store real Excel dates; ZenPOS exports store MM/DD/YYYY text.
         const raw = value(row.cells.date);
-        assert.ok(raw instanceof Date);
-        assert.equal(raw.toISOString().slice(0, 10), item.salesDate);
+        const text = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(raw ?? '').trim());
+        assert.ok(raw instanceof Date || text, 'Readable date at source row ' + row.source.row);
+        const iso =
+          raw instanceof Date
+            ? raw.toISOString().slice(0, 10)
+            : `${text![3]}-${text![1].padStart(2, '0')}-${text![2].padStart(2, '0')}`;
+        assert.equal(iso, item.salesDate, 'Original date at source row ' + row.source.row);
       }
       if (item.totalCost !== null) {
         const cost = new Decimal(String(value(row.cells.cost))),
@@ -320,9 +355,12 @@ async function main() {
     const response = await request(app.getHttpServer())
       .post('/api/excel/calculate')
       .field('options', JSON.stringify({ sales: selection, configuration: config.defaults() }))
-      .attach('sales', file.buffer, file.originalname)
-      .expect(201);
+      .attach('sales', file.buffer, file.originalname);
+    assert.equal(response.status, 201, JSON.stringify(response.body).slice(0, 300));
     assert.deepEqual(response.body.result.summary, result.summary);
+    console.log(
+      `Calculated result: ${(Buffer.byteLength(JSON.stringify(response.body.result)) / 1048576).toFixed(1)} MB`,
+    );
     await request(app.getHttpServer())
       .post('/api/excel/export')
       .send(response.body)

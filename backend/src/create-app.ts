@@ -6,7 +6,8 @@ export async function createApplication(quiet = false) {
     bodyParser: false,
     ...(quiet ? { logger: false as const } : {}),
   });
-  app.use(json({ limit: '25mb' }));
+  // The export request posts the calculated result back; keep this above MAX_RESULT_BYTES.
+  app.use(json({ limit: '101mb' }));
   app.use(
     (
       _request: unknown,

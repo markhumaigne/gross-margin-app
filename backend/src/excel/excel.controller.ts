@@ -20,6 +20,9 @@ import { ExcelService } from './excel.service';
 import { ExcelExportService } from './excel-export.service';
 import { uploadOptions } from './upload';
 
+/** Largest calculated result sent to the browser (it is posted back to /api/excel/export). */
+export const MAX_RESULT_BYTES = 100 * 1024 * 1024;
+
 const selectionSchema = z
   .object({
     sheet: z.string().min(1).max(200),
@@ -72,9 +75,9 @@ export class ExcelController {
     const c = this.config.validate(input.configuration);
     const sales = this.excel.parse(file, input.sales);
     const result = this.calculator.calculate(sales, c);
-    if (Buffer.byteLength(JSON.stringify(result)) > 24 * 1024 * 1024)
+    if (Buffer.byteLength(JSON.stringify(result)) > MAX_RESULT_BYTES)
       throw new BadRequestException(
-        'The calculated report exceeds the 24 MB session limit. Split the reports into smaller batches.',
+        'The calculated report exceeds the 100 MB session limit. Split the reports into smaller batches.',
       );
     return { result, exportToken: this.sign(result) };
   }

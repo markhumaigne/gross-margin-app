@@ -239,7 +239,7 @@ Export is signed with a random in-memory HMAC key. Modified results or results f
 
 Uploads and reports stay in memory. The browser retains the session until reload. Only an explicit download saves a file. Responses use Cache-Control: no-store. No transaction localStorage or cookies are used.
 
-Limits: one file per request, 10 MB/file, 30 worksheets, 50,000 rows, 200 columns, 100 MB expanded ZIP content, 2,000 ZIP entries and 24 MB serialized result. Password-protected files are unsupported. Only genuine Excel ZIP/OLE content is accepted. Split larger reports into batches.
+Limits: one file per request, 10 MB/file, 30 worksheets, 50,000 rows, 200 columns, 100 MB expanded ZIP content, 2,000 ZIP entries and 100 MB serialized result (a 17-day, 43,240-row ZenPOS export produces about 56 MB; a one-day export about 4 MB). Password-protected files are unsupported. Only genuine Excel ZIP/OLE content is accepted. Split larger reports into batches.
 
 ExcelJS writes Product IDs and original Payment text as literal string cells (never formula objects), keeping their values exact and inert. Other source strings beginning with formula-like characters are escaped. Imported configuration formulas are rejected.
 
