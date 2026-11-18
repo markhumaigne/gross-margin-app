@@ -44,8 +44,8 @@
       (submit)="$event.preventDefault(); confirmManual()"
     >
       <p class="manual-product-hint">
-        Enter amounts per unit. Disc % is a percentage; margin on cost is calculated. Leave to Qty
-        blank for no upper limit.
+        Enter amounts per unit. Disc % is a percentage. Leave to Qty blank for no upper limit.
+        Margins are calculated in the products table.
       </p>
       <div class="form-grid manual-product-grid">
         <div class="form-field">
@@ -93,15 +93,6 @@
             }
           </div>
         }
-        <div class="form-field">
-          <label for="manual-margin">Margin on cost</label>
-          <output
-            id="manual-margin"
-            class="calculated-value"
-            [class.negative]="(marginOnCost() ?? 0) < 0"
-            >{{ formatPercent(marginOnCost()) }}</output
-          >
-        </div>
         @if (supportEnabled) {
           <div class="form-field">
             <label for="manual-support">Support</label>
@@ -127,20 +118,11 @@
               <small id="manual-support-error" class="field-error">{{ shownSupportError() }}</small>
             }
           </div>
-          <div class="form-field">
-            <label for="manual-margin-after">Margin after support</label>
-            <output
-              id="manual-margin-after"
-              class="calculated-value"
-              [class.negative]="(marginAfterSupport() ?? 0) < 0"
-              >{{ formatPercent(marginAfterSupport()) }}</output
-            >
-          </div>
         }
       </div>
     </form>
     <div class="modal-footer">
-      <span>Values are saved as entered; margins are calculated.</span>
+      <span>Values are saved as entered.</span>
       <div class="form-actions">
         <button mat-button type="button" (click)="close()">Cancel</button>
         <button mat-flat-button type="submit" form="manual-product-form">

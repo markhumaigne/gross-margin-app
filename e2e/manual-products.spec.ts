@@ -162,8 +162,8 @@ test('PM enters Support on a PS book and sees margin after support', async ({ pa
   }))
     await dialog.getByLabel(label, { exact: true }).fill(value);
   await expect(dialog.getByLabel('Support type', { exact: true })).toHaveValue('amount');
-  await expect(dialog).toContainText('-5.88%');
-  await expect(dialog).toContainText('6.66%');
+  await expect(dialog.getByText('Margin on cost')).toHaveCount(0);
+  await expect(dialog.getByText('Margin after support')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
   const row = page
     .getByRole('table', { name: 'Price book products' })
