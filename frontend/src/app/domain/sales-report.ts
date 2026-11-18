@@ -1,6 +1,7 @@
 import { fromCents, isBlank, parseMoney, percentOf, toCents } from './money';
 import { normalizePriceId, PriceBook } from './price-books';
 import { matchPriceBook, PriceMatchStatus } from './price-match';
+import { saleSupportCents, Support } from './support';
 
 export type SalesField =
   | 'productId'
@@ -37,6 +38,11 @@ export interface ProductSalesLine {
   cogs: number | null;
   grossProfit: number | null;
   grossMarginPercent: number | null;
+  /** Support earned under PS Price IDs (0 when none). */
+  support: number;
+  /** Net sales − COGS + support; null when cost is missing. */
+  grossProfitAfterSupport: number | null;
+  grossMarginAfterSupportPercent: number | null;
   costSource: CostSource;
   rowCount: number;
   /** Distinct Price IDs recorded on this product's included rows, sorted. */
@@ -58,6 +64,7 @@ export interface PriceComparisonLine {
   expectedRevenue: number | null;
   variance: number | null;
   status: PriceMatchStatus;
+  support: number;
 }
 
 export interface PriceComparison {
@@ -67,6 +74,8 @@ export interface PriceComparison {
   actualNetSales: number;
   expectedRevenue: number;
   variance: number;
+  /** Support to claim: every line that earned support, matched or not. */
+  support: number;
 }
 
 export interface SalesReportTotals {
@@ -76,6 +85,10 @@ export interface SalesReportTotals {
   cogs: number;
   grossProfit: number;
   grossMarginPercent: number | null;
+  support: number;
+  /** Covers products with a known cost, like gross profit. */
+  grossProfitAfterSupport: number;
+  grossMarginAfterSupportPercent: number | null;
   productsWithCost: number;
   productsMissingCost: number;
 }
@@ -300,6 +313,7 @@ interface Accumulator {
   rowCount: number;
   priceIds: Set<string>;
   regularPriceRows: number;
+  supportCents: number;
 }
 
 interface ComparisonAccumulator {
@@ -311,6 +325,8 @@ interface ComparisonAccumulator {
   status: PriceMatchStatus;
   price: number | null;
   source: 'promo' | 'updated' | 'master' | null;
+  support: Support | null;
+  supportCents: number;
   sellingPrices: Map<number, number>;
 }
 
@@ -399,6 +415,7 @@ export function buildSalesReport(
       rowCount: 0,
       priceIds: new Set<string>(),
       regularPriceRows: 0,
+      supportCents: 0,
     };
     if (!group.productName && name) group.productName = name;
     group.quantity = Math.round((group.quantity + quantity) * 1e6) / 1e6;
@@ -432,12 +449,19 @@ export function buildSalesReport(
         status: match.status,
         price: match.price,
         source: match.source,
+        support: match.support,
+        supportCents: 0,
         sellingPrices: new Map(),
       };
       comparisons.set(compareKey, line);
     }
     line.quantity = Math.round((line.quantity + quantity) * 1e6) / 1e6;
     line.actualCents += toCents(net);
+    if (line.support) {
+      const earned = saleSupportCents(line.support, quantity, toCents(net));
+      line.supportCents += earned;
+      group.supportCents += earned;
+    }
     if (line.price !== null) line.expectedCents += Math.round(toCents(line.price) * quantity);
     const selling = parseMoney(cell(row, 'sellingPrice'));
     if (selling !== null)
@@ -448,6 +472,7 @@ export function buildSalesReport(
   const lines: ProductSalesLine[] = [...groups.values()].map((g) => {
     const known = !g.missingCost;
     const profitCents = g.netCents - g.cogsCents;
+    const afterSupportCents = profitCents + g.supportCents;
     return {
       productId: g.productId,
       productName: g.productName || g.productId,
@@ -456,6 +481,9 @@ export function buildSalesReport(
       cogs: known ? fromCents(g.cogsCents) : null,
       grossProfit: known ? fromCents(profitCents) : null,
       grossMarginPercent: known ? percentOf(profitCents, g.netCents) : null,
+      support: fromCents(g.supportCents),
+      grossProfitAfterSupport: known ? fromCents(afterSupportCents) : null,
+      grossMarginAfterSupportPercent: known ? percentOf(afterSupportCents, g.netCents) : null,
       costSource: known ? 'report' : 'missing',
       rowCount: g.rowCount,
       priceIds: [...g.priceIds].sort(),
@@ -468,6 +496,7 @@ export function buildSalesReport(
   const costed = all.filter((g) => !g.missingCost);
   const knownNet = costed.reduce((sum, g) => sum + g.netCents, 0);
   const cogs = costed.reduce((sum, g) => sum + g.cogsCents, 0);
+  const costedSupport = costed.reduce((sum, g) => sum + g.supportCents, 0);
   const totals: SalesReportTotals = {
     quantity: Math.round(all.reduce((sum, g) => sum + g.quantity, 0) * 1e6) / 1e6,
     netSales: fromCents(all.reduce((sum, g) => sum + g.netCents, 0)),
@@ -475,6 +504,9 @@ export function buildSalesReport(
     cogs: fromCents(cogs),
     grossProfit: fromCents(knownNet - cogs),
     grossMarginPercent: percentOf(knownNet - cogs, knownNet),
+    support: fromCents(all.reduce((sum, g) => sum + g.supportCents, 0)),
+    grossProfitAfterSupport: fromCents(knownNet - cogs + costedSupport),
+    grossMarginAfterSupportPercent: percentOf(knownNet - cogs + costedSupport, knownNet),
     productsWithCost: costed.length,
     productsMissingCost: all.length - costed.length,
   };
@@ -495,6 +527,7 @@ export function buildSalesReport(
         expectedRevenue: priced ? fromCents(c.expectedCents) : null,
         variance: priced ? fromCents(c.actualCents - c.expectedCents) : null,
         status: c.status,
+        support: fromCents(c.supportCents),
       };
     })
     .sort((a, b) => a.priceId.localeCompare(b.priceId) || a.productId.localeCompare(b.productId));
@@ -517,6 +550,7 @@ export function buildSalesReport(
       actualNetSales: fromCents(matchedActual),
       expectedRevenue: fromCents(matchedExpected),
       variance: fromCents(matchedActual - matchedExpected),
+      support: fromCents([...comparisons.values()].reduce((sum, c) => sum + c.supportCents, 0)),
     },
   };
 }

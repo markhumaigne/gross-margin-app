@@ -37,7 +37,7 @@
         >
       </div>
       <div class="metric fee-metric">
-        <span>Gross margin</span
+        <span>Gross margin on sales</span
         ><strong>{{
           result.totals.grossMarginPercent === null
             ? '—'
@@ -46,6 +46,23 @@
         ><small
           >{{ result.totals.productsWithCost }} products with known cost ·
           {{ result.totals.productsMissingCost }} without</small
+        >
+      </div>
+      <div class="metric">
+        <span>Support</span
+        ><strong>{{ result.totals.support | currency: 'PHP' : 'symbol' : '1.2-2' }}</strong
+        ><small>Earned under PS Price IDs</small>
+      </div>
+      <div class="metric fee-metric">
+        <span>Gross margin after support</span
+        ><strong>{{
+          result.totals.grossMarginAfterSupportPercent === null
+            ? '—'
+            : (result.totals.grossMarginAfterSupportPercent | number: '1.2-2') + '%'
+        }}</strong
+        ><small
+          >{{ result.totals.grossProfitAfterSupport | currency: 'PHP' : 'symbol' : '1.2-2' }} gross
+          profit after support</small
         >
       </div>
       <div class="metric">
@@ -64,7 +81,9 @@
             <th scope="col" class="numeric">Net sales revenue</th>
             <th scope="col" class="numeric">COGS</th>
             <th scope="col" class="numeric">Gross profit</th>
-            <th scope="col" class="numeric">Gross margin %</th>
+            <th scope="col" class="numeric">Gross margin on sales %</th>
+            <th scope="col" class="numeric">Support</th>
+            <th scope="col" class="numeric">Gross margin after support %</th>
             <th scope="col">Price ID</th>
           </tr>
         </thead>
@@ -92,11 +111,21 @@
                     : (line.grossMarginPercent | number: '1.2-2') + '%'
                 }}
               </td>
+              <td class="numeric">
+                {{ line.support ? (line.support | currency: 'PHP' : 'symbol' : '1.2-2') : '—' }}
+              </td>
+              <td class="numeric" [class.negative]="(line.grossMarginAfterSupportPercent ?? 0) < 0">
+                {{
+                  line.grossMarginAfterSupportPercent === null
+                    ? '—'
+                    : (line.grossMarginAfterSupportPercent | number: '1.2-2') + '%'
+                }}
+              </td>
               <td>{{ priceIdsLabel(line) }}</td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="8" class="empty-table">No valid product rows in this report.</td>
+              <td colspan="10" class="empty-table">No valid product rows in this report.</td>
             </tr>
           }
         </tbody>
@@ -121,6 +150,16 @@
                     : (result.totals.grossMarginPercent | number: '1.2-2') + '%'
                 }}
               </td>
+              <td class="numeric">
+                {{ result.totals.support | currency: 'PHP' : 'symbol' : '1.2-2' }}
+              </td>
+              <td class="numeric">
+                {{
+                  result.totals.grossMarginAfterSupportPercent === null
+                    ? '—'
+                    : (result.totals.grossMarginAfterSupportPercent | number: '1.2-2') + '%'
+                }}
+              </td>
               <td></td>
             </tr>
           </tfoot>
@@ -129,9 +168,10 @@
     </div>
     <p class="table-footnote">
       Totals for cost, profit and margin include only products with known cost; a product with any
-      row missing cost shows blanks rather than a partial COGS. The 17-column table above keeps the
-      gross margin after bank charges. Product sections are calculated in this browser from the
-      uploaded file; price books are demo data.
+      row missing cost shows blanks rather than a partial COGS. Gross margin on sales = gross profit
+      ÷ net sales. After support, the Support earned under PS Price IDs is added to gross profit.
+      The 17-column table above keeps the gross margin after bank charges. Product sections are
+      calculated in this browser from the uploaded file; price books are demo data.
     </p>
     @if (result.issues.length) {
       <div class="table-scroll results-scroll">
@@ -214,6 +254,13 @@
           }}</strong
           ><small>Actual − expected</small>
         </div>
+        <div class="metric">
+          <span>Support to claim</span
+          ><strong>{{
+            result.priceComparison.support | currency: 'PHP' : 'symbol' : '1.2-2'
+          }}</strong
+          ><small>From PS price books</small>
+        </div>
       </div>
       <div class="table-scroll results-scroll">
         <table aria-label="Price book comparison">
@@ -228,6 +275,7 @@
               <th scope="col" class="numeric">Price-book price</th>
               <th scope="col" class="numeric">Expected revenue</th>
               <th scope="col" class="numeric">Variance</th>
+              <th scope="col" class="numeric">Support</th>
               <th scope="col">Status</th>
             </tr>
           </thead>
@@ -270,6 +318,9 @@
                       : (line.variance | currency: 'PHP' : 'symbol' : '1.2-2')
                   }}
                 </td>
+                <td class="numeric">
+                  {{ line.support ? (line.support | currency: 'PHP' : 'symbol' : '1.2-2') : '—' }}
+                </td>
                 <td>
                   <span class="status-pill" [class.warning]="line.status !== 'matched'">{{
                     matchLabels[line.status]
@@ -283,7 +334,9 @@
       <p class="table-footnote">
         Rows with a Price ID use that price book's promotional price, else its updated price.
         Variance = actual net sales − expected revenue. Rows without a Price ID sold at regular
-        price and are not compared. Changes made in Price books show here immediately.
+        price and are not compared. Support is the Support entered on PS price books: ₱ per unit ×
+        quantity, or % of actual net sales. Lines sold at ₱0 earn no support. Changes made in Price
+        books show here immediately.
       </p>
     } @else {
       <div class="info-line">

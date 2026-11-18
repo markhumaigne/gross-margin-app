@@ -211,6 +211,7 @@ test('manual products save without catalog records, retain all fields, and resol
     status: 'matched',
     price: 900,
     source: 'updated',
+    support: null,
   });
   const reopened = draftFromBook(book);
   const savedAgain = expectOk(savePriceBook([book], reopened, book.id, PRODUCTS, 'x', now)).book;

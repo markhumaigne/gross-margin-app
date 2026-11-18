@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import * as XLSX from 'xlsx';
 import { SAMPLE_EXPORT_ROWS } from '../frontend/src/app/mock-data/sample-export';
+import { SAMPLE_PRICE_BOOK_ROWS } from '../frontend/src/app/mock-data/sample-price-book';
 import { ACCOUNTS, signIn, signOut } from './helpers';
 
 function sampleFile() {
@@ -54,6 +55,7 @@ test('one upload gives bank deductions, gross margin by product and price book c
     '₱5,595.00 updated',
     '₱11,190.00',
     '₱400.00',
+    '—',
     'Matched',
   ]);
   await expect(comparisonRow(page, 'PS000015', '4800000600016')).toContainText(
@@ -219,4 +221,37 @@ test('an open Accounting tab receives newly saved Product Team prices', async ({
   await expect(row).toContainText('Matched');
   await expect(row).toContainText('₱5,000.00');
   await expect(row).toContainText('₱590.00');
+});
+
+test('Support entered on a PS book shows in the calculator', async ({ page }) => {
+  await signIn(page, ...ACCOUNTS.product);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(SAMPLE_PRICE_BOOK_ROWS.map((r) => [...r])),
+    'Price Book',
+  );
+  await page.getByLabel('Import ZenPOS price book files').setInputFiles({
+    name: 'Sample ZenPOS Price Book PS000015.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+  });
+  await expect(page.getByRole('status')).toContainText('PS000015 created: 3 products');
+  await page.getByRole('link', { name: 'Edit PS000015' }).click();
+  await page.getByLabel('Support for 4800000600016').fill('100');
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  await signOut(page);
+  await signIn(page, ...ACCOUNTS.accounting);
+  await uploadAndCalculate(page);
+  await expect(page.locator('.metric').filter({ hasText: 'Support to claim' })).toContainText(
+    '₱200.00',
+  );
+  await expect(
+    page
+      .getByRole('table', { name: 'Gross margin by product' })
+      .getByRole('row')
+      .filter({ hasText: '4800000600016' }),
+  ).toContainText('₱200.00');
+  await expect(comparisonRow(page, 'PS000015', '4800000600016')).toContainText('₱200.00');
 });
