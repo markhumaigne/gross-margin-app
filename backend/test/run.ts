@@ -179,6 +179,69 @@ test('Single product BDO 3 MOS fee and peso gross margin', () => {
   assert.equal(r.items[0].grossMargin, '3950.00');
   assert.equal(r.items[0].productId, 'LAPTOP-001');
 });
+const SUPPORT = [{ priceId: 'PS000015', productId: 'h-1', support: '500' }];
+const supported = (values: Partial<Sale> = {}) =>
+  sale({ priceId: 'ps000015', productId: 'H-1', quantity: '2', cost: '12500', ...values });
+
+test('PS Supplier Support adds to GrossMargin, totals and Sheet 1', async () => {
+  const r = calc.calculate([supported()], c(), SUPPORT);
+  const item = r.items[0];
+  assert.deepEqual(
+    [item.priceId, item.supplierSupport, item.adjustment, item.grossMargin],
+    ['PS000015', '1000.00', '1050.00', '4950.00'],
+  );
+  assert.match(item.explanation, /\+ ₱1000\.00 supplier support \(PS000015: ₱500\.00 × 2\)/);
+  assert.equal(r.summary.grossMargin, '4950.00');
+  assert.equal(r.branchDateSummary[0].grossMargin, '4950.00');
+  assert.equal(r.bankSummary[0].grossMargin, '4950.00');
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load((await exporter.report(r)) as any);
+  const ws = book.worksheets[0];
+  assert.equal(ws.columnCount, 19);
+  assert.deepEqual(
+    [ws.getCell('F1').value, ws.getCell('J1').value, ws.getCell('P1').value],
+    ['Price ID', 'Supplier Support', 'GrossMargin'],
+  );
+  assert.deepEqual(
+    [ws.getCell('F2').value, ws.getCell('J2').value, ws.getCell('P2').value],
+    ['PS000015', 1000, 4950],
+  );
+});
+
+test('Supplier Support is only for PS Price IDs with positive sales', () => {
+  const pl = calc.calculate([supported({ priceId: 'PL000015' })], c(), [
+    { priceId: 'PL000015', productId: 'H-1', support: '500' },
+  ]).items[0];
+  assert.deepEqual([pl.priceId, pl.supplierSupport, pl.grossMargin], ['PL000015', null, '3950.00']);
+  const free = calc.calculate([supported({ lineTotal: '0' })], c(), SUPPORT).items[0];
+  assert.equal(free.supplierSupport, null);
+  const other = calc.calculate([supported({ productId: 'H-2' })], c(), SUPPORT).items[0];
+  assert.equal(other.supplierSupport, null);
+  const none = calc.calculate([supported()], c()).items[0];
+  assert.deepEqual([none.supplierSupport, none.grossMargin], [null, '3950.00']);
+  const missing = calc.calculate([sale()], c(), SUPPORT).items[0];
+  assert.deepEqual([missing.priceId, missing.supplierSupport], ['', null]);
+});
+
+test('Supplier Support on split payments keeps the bank summary reconciled', () => {
+  const r = calc.calculate(
+    [
+      supported({
+        payment: 'BDO 3 MOS 20,000.00\nBPI 3 MOS 10,000.00',
+        payments: [part('BDO 3 MOS', '20000'), part('BPI 3 MOS', '10000')],
+      }),
+    ],
+    c(),
+    SUPPORT,
+  );
+  const margins = r.bankSummary.map((b) => new Decimal(b.grossMargin));
+  assert.equal(
+    margins.reduce((a, b) => a.plus(b), new Decimal(0)).toFixed(2),
+    r.summary.grossMargin,
+  );
+  assert.equal(r.items[0].supplierSupport, '1000.00');
+});
+
 test('BPI 12 MOS uses 12.50 percent', () => {
   const r = run([sale({ payment: 'BPI 12 MOS' })]);
   assert.equal(r.items[0].adjustment, '3750.00');
@@ -226,7 +289,7 @@ test('Cash retains its source row with zero bank deductions and no bank rate or 
   await book.xlsx.load((await exporter.report(r)) as any);
   const ws = book.worksheets[0];
   assert.equal(ws.rowCount, 1, 'Cash-only rows are omitted from Item Bank Deductions');
-  assert.equal(ws.columnCount, 17);
+  assert.equal(ws.columnCount, 19);
 });
 
 test('Cash-only gifts do not create negative margins and adjacent matched BDO rows still calculate', () => {
@@ -349,11 +412,11 @@ test('Matched Tender calculates its rate, charge and margin despite another unco
   assert.equal(r.summary.reviewCount, 2);
   const b = new ExcelJS.Workbook();
   await b.xlsx.load((await exporter.report(r)) as any);
-  assert.equal(b.worksheets[0].getCell('P2').value, 'BDO STRAIGHT');
-  assert.equal(b.worksheets[0].getCell('K2').value, payment);
-  assert.equal(b.worksheets[0].getCell('L2').value, 0.0285);
-  assert.equal(b.worksheets[0].getCell('M2').value, 0);
-  assert.equal(b.worksheets[0].getCell('N2').value, -238);
+  assert.equal(b.worksheets[0].getCell('R2').value, 'BDO STRAIGHT');
+  assert.equal(b.worksheets[0].getCell('M2').value, payment);
+  assert.equal(b.worksheets[0].getCell('N2').value, 0.0285);
+  assert.equal(b.worksheets[0].getCell('O2').value, 0);
+  assert.equal(b.worksheets[0].getCell('P2').value, -238);
 });
 
 test('SBC QRPH is excluded from charges while matched BDO payments calculate rate, fee and margin', async () => {
@@ -407,10 +470,10 @@ test('SBC QRPH is excluded from charges while matched BDO payments calculate rat
   }
   const b = new ExcelJS.Workbook();
   await b.xlsx.load((await exporter.report(r)) as any);
-  assert.equal(b.worksheets[0].getCell('L2').value, 0.0285);
-  assert.equal(b.worksheets[0].getCell('M2').value, 0);
-  assert.equal(b.worksheets[0].getCell('N2').value, -238);
-  assert.equal(b.worksheets[0].getCell('M3').value, 1282.22);
+  assert.equal(b.worksheets[0].getCell('N2').value, 0.0285);
+  assert.equal(b.worksheets[0].getCell('O2').value, 0);
+  assert.equal(b.worksheets[0].getCell('P2').value, -238);
+  assert.equal(b.worksheets[0].getCell('O3').value, 1282.22);
   assert.deepEqual(
     exporter.import(upload(Buffer.from(await b.xlsx.writeBuffer()))),
     r.configuration,
@@ -434,7 +497,7 @@ test('SBC QRPH-only items retain their source values but are omitted from Sheet 
     await book.xlsx.load((await exporter.report(r)) as any);
     const ws = book.worksheets[0];
     assert.equal(ws.rowCount, 1);
-    assert.equal(ws.columnCount, 17);
+    assert.equal(ws.columnCount, 19);
   }
 });
 
@@ -811,18 +874,18 @@ test('Sales-only Tender groups preserve labels and reconcile BNPL/SNPL fees acro
   const main = b.worksheets[0],
     summary = b.worksheets[1];
   assert.equal(main.rowCount, 3, 'Repeated payment evidence never duplicates products');
-  assert.equal(main.columnCount, 17);
+  assert.equal(main.columnCount, 19);
   for (const row of [2, 3]) {
-    assert.equal(main.getCell(row, 11).value, payment);
-    assert.equal(main.getCell(row, 16).value, 'BDO 6 MOS / BPI 3 MOS');
-    assert.match(String(main.getCell(row, 17).value), /Original payment\/tender: "BNPL BDO 6 MOS"/);
-    assert.match(String(main.getCell(row, 17).value), /Original payment\/tender: "BPI 3 MOS SNPL"/);
+    assert.equal(main.getCell(row, 13).value, payment);
+    assert.equal(main.getCell(row, 18).value, 'BDO 6 MOS / BPI 3 MOS');
+    assert.match(String(main.getCell(row, 19).value), /Original payment\/tender: "BNPL BDO 6 MOS"/);
+    assert.match(String(main.getCell(row, 19).value), /Original payment\/tender: "BPI 3 MOS SNPL"/);
   }
   assert.equal(summary.columnCount, 6);
   for (const [itemCol, summaryCol] of [
-    [10, 3],
-    [13, 5],
-    [14, 6],
+    [12, 3],
+    [15, 5],
+    [16, 6],
   ])
     assert.equal(
       summary.getCell(3, summaryCol).value,
@@ -879,9 +942,9 @@ test('PAYMAYA DEBIT with cash uses the configured rate on the card portion exact
     assert.equal(r.reviews.length, 0);
     const book = new ExcelJS.Workbook();
     await book.xlsx.load((await exporter.report(r)) as any);
-    assert.equal(book.worksheets[0].getCell('K2').value, payment);
-    assert.equal(book.worksheets[0].getCell('M2').value, 96);
-    assert.equal(book.worksheets[0].getCell('M3').value, 48);
+    assert.equal(book.worksheets[0].getCell('M2').value, payment);
+    assert.equal(book.worksheets[0].getCell('O2').value, 96);
+    assert.equal(book.worksheets[0].getCell('O3').value, 48);
     assert.equal(book.worksheets[1].getCell('E3').value, 144);
     const cfg = c();
     cfg.paymentMethods.find((m) => m.cardName === 'PAYMAYA DEBIT')!.rate = '3.00';
@@ -955,10 +1018,10 @@ test('PAYMAYA and cash tender with change calculates from Sales Report inputs an
     const book = new ExcelJS.Workbook();
     await book.xlsx.load((await exporter.report(r)) as any);
     const main = book.getWorksheet('Item Bank Deductions')!;
-    assert.equal(main.getCell('K2').value, payment);
-    assert.equal(main.getCell('L2').value, 0.024);
-    assert.equal(main.getCell('M2').value, 144);
-    assert.equal(main.getCell('N2').value, 1851);
+    assert.equal(main.getCell('M2').value, payment);
+    assert.equal(main.getCell('N2').value, 0.024);
+    assert.equal(main.getCell('O2').value, 144);
+    assert.equal(main.getCell('P2').value, 1851);
     assert.deepEqual(
       (book.worksheets[1].getRow(3).values as unknown[]).slice(3),
       [8995, 7000, 144, 1851],
@@ -1099,8 +1162,8 @@ test('Unit cost and total line cost are interpreted explicitly and displayed con
     const book = new ExcelJS.Workbook();
     await book.xlsx.load((await exporter.report(result)) as any);
     const main = book.worksheets[0];
-    assert.equal(main.getCell('H2').value, displayedCost);
-    assert.match(JSON.stringify(main.getCell('H2').note), /Original source Cost:.*25000/);
+    assert.equal(main.getCell('I2').value, displayedCost);
+    assert.match(JSON.stringify(main.getCell('I2').note), /Original source Cost:.*25000/);
     assert.match(result.items[0].explanation, /Source Cost "25000"/);
     assert.equal(
       result.items[0].cost,
@@ -1305,11 +1368,11 @@ test('An explicitly configured BDO PAY to BDO STRAIGHT alias calculates each pay
   const items = book.worksheets[0],
     summary = book.worksheets[1];
   assert.equal(items.rowCount, 3);
-  assert.equal(items.getCell('K2').value, payment);
-  assert.equal(items.getCell('L2').value, 0.0285);
-  assert.equal(items.getCell('M2').value, 35.63);
-  assert.equal(items.getCell('N2').value, 96.37);
-  assert.equal(items.getCell('P2').value, 'BDO STRAIGHT');
+  assert.equal(items.getCell('M2').value, payment);
+  assert.equal(items.getCell('N2').value, 0.0285);
+  assert.equal(items.getCell('O2').value, 35.63);
+  assert.equal(items.getCell('P2').value, 96.37);
+  assert.equal(items.getCell('R2').value, 'BDO STRAIGHT');
   assert.equal(summary.columnCount, 6);
   assert.deepEqual(
     (summary.getRow(3).values as unknown[]).slice(3),
@@ -1553,16 +1616,16 @@ test('Requested warning text is hidden without removing rows, resolving payments
   await book.xlsx.load((await exporter.report(r)) as any);
   const main = book.getWorksheet('Item Bank Deductions')!;
   assert.equal(main.rowCount, 5, 'Matched items remain except negative quantities moved to review');
-  assert.equal(main.getCell('K2').value, rows[1].payment);
-  assert.equal(main.getCell('M2').value, 315);
-  assert.equal(main.getCell('M3').value, null);
-  assert.equal(main.getCell('J3').value, 9800);
-  assert.equal(main.getCell('I3').value, 200);
+  assert.equal(main.getCell('M2').value, rows[1].payment);
+  assert.equal(main.getCell('O2').value, 315);
+  assert.equal(main.getCell('O3').value, null);
+  assert.equal(main.getCell('L3').value, 9800);
+  assert.equal(main.getCell('K3').value, 200);
   assert.equal(main.getCell('A5').value, 'ITEM-5');
-  assert.equal(main.getCell('F5').value, 1);
-  assert.equal(main.getCell('J5').value, 1000);
+  assert.equal(main.getCell('G5').value, 1);
+  assert.equal(main.getCell('L5').value, 1000);
   for (let row = 2; row <= main.rowCount; row++)
-    assert.doesNotMatch(String(main.getCell(row, 17).value ?? ''), hidden);
+    assert.doesNotMatch(String(main.getCell(row, 19).value ?? ''), hidden);
   const review = book.getWorksheet('Needs Review')!;
   assert.equal(review.rowCount, 6);
   for (let row = 2; row <= review.rowCount; row++)
@@ -1637,7 +1700,7 @@ test('Negative BDO 6 MOS quantities move to review with original source values a
   const main = book.getWorksheet('Item Bank Deductions')!;
   assert.equal(main.rowCount, 2, 'Only the valid positive-quantity item remains on Sheet 1');
   assert.equal(main.getCell('A2').value, r.items[5].productId);
-  assert.equal(main.getCell('M2').value, 1800);
+  assert.equal(main.getCell('O2').value, 1800);
   const review = book.getWorksheet('Needs Review')!;
   for (let i = 0; i < negativeItems.length; i++) {
     const row = review.getRow(i + 2);
@@ -1699,7 +1762,7 @@ test('Negative quantities exclude positive prices and costs while valid losses a
   await book.xlsx.load((await exporter.report(r)) as any);
   assert.equal(book.worksheets[0].rowCount, 2);
   assert.equal(book.worksheets[0].getCell('A2').value, 'ITEM-0');
-  assert.equal(book.worksheets[0].getCell('N2').value, -18);
+  assert.equal(book.worksheets[0].getCell('P2').value, -18);
   assert.equal(book.getWorksheet('Needs Review')!.rowCount, 5);
   assert.deepEqual(
     (book.worksheets[1].getRow(3).values as unknown[]).slice(3),
@@ -1862,9 +1925,9 @@ test('Sheet 2 groups and sorts dates/branches and reconciles every amount to eli
   await b.xlsx.load((await exporter.report(r)) as any);
   const main = b.worksheets[0],
     summary = b.worksheets[1];
-  assert.equal(main.columnCount, 17);
+  assert.equal(main.columnCount, 19);
   assert.equal(main.rowCount, 5, 'Only the four configured bank-payment products are exported');
-  assert.equal(main.getCell('H4').value, 120, 'Sheet 1 displays total cost for quantity 2');
+  assert.equal(main.getCell('I4').value, 120, 'Sheet 1 displays total cost for quantity 2');
   assert.equal(summary.name, 'Gross Margin by Branch & Date');
   assert.equal(summary.columnCount, 6);
   assert.equal(summary.rowCount, 6, 'Title, headers, three groups and totals');
@@ -1891,10 +1954,10 @@ test('Sheet 2 groups and sorts dates/branches and reconciles every amount to eli
     );
     const totals = [0, 0, 0, 0].map((n) => new Decimal(n));
     for (const product of products) {
-      totals[0] = totals[0].plus(String(product.getCell(10).value));
-      totals[1] = totals[1].plus(String(product.getCell(8).value));
-      totals[2] = totals[2].plus(String(product.getCell(13).value));
-      totals[3] = totals[3].plus(String(product.getCell(14).value));
+      totals[0] = totals[0].plus(String(product.getCell(12).value));
+      totals[1] = totals[1].plus(String(product.getCell(9).value));
+      totals[2] = totals[2].plus(String(product.getCell(15).value));
+      totals[3] = totals[3].plus(String(product.getCell(16).value));
     }
     assert.equal((data.getCell(1).value as Date).toISOString(), group.date + 'T00:00:00.000Z');
     assert.equal(data.getCell(1).numFmt, 'dd mmm yyyy');
@@ -2048,7 +2111,7 @@ test('Empty Sheet 2 retains its heading, six columns and zero totals', async () 
   const b = new ExcelJS.Workbook();
   await b.xlsx.load((await exporter.report(r)) as any);
   assert.equal(b.worksheets[0].rowCount, 1, 'No matched items leaves only Sheet 1 headers');
-  assert.equal(b.worksheets[0].columnCount, 17);
+  assert.equal(b.worksheets[0].columnCount, 19);
   assert.equal(b.getWorksheet('Needs Review')!.rowCount, 2, 'Unknown payment remains reviewable');
   const ws = b.getWorksheet(BRANCH_DATE_SUMMARY_SHEET)!;
   assert.equal(ws.columnCount, 6);
@@ -2102,17 +2165,17 @@ test('Only configured Tender items appear in Sheet 1, preserving source order, r
   assert.equal(r.items.length, variants.length, 'Source audit retains all processed items');
   assert.equal(r.summary.processedItems, variants.length);
   assert.equal(main.rowCount, expected.length + 1);
-  assert.equal(main.columnCount, 17);
+  assert.equal(main.columnCount, 19);
   for (const [i, item] of expected.entries()) {
     const row = main.getRow(i + 2);
     assert.equal(row.getCell(1).value, item.productId);
-    assert.equal(row.getCell(11).value, item.originalPaymentMethod);
-    assert.equal(row.getCell(15).value, item.sourceRow);
-    assert.equal(row.getCell(16).value, item.cardName);
-    assert.equal(row.getCell(13).value, item.adjustment === null ? null : Number(item.adjustment));
-    assert.equal(row.getCell(8).value, item.totalCost === null ? null : Number(item.totalCost));
+    assert.equal(row.getCell(13).value, item.originalPaymentMethod);
+    assert.equal(row.getCell(17).value, item.sourceRow);
+    assert.equal(row.getCell(18).value, item.cardName);
+    assert.equal(row.getCell(15).value, item.adjustment === null ? null : Number(item.adjustment));
+    assert.equal(row.getCell(9).value, item.totalCost === null ? null : Number(item.totalCost));
     assert.match(
-      String(row.getCell(17).value),
+      String(row.getCell(19).value),
       i < 6 ? /Included in Sheet 2:/ : /Excluded from Sheet 2:/,
     );
   }
@@ -2136,7 +2199,7 @@ test('Only configured Tender items appear in Sheet 1, preserving source order, r
   assert.deepEqual(r, snapshot, 'Report filtering does not change calculations or configuration');
 });
 
-test('Exact 17-column four-sheet export, Product ID in A as text, dates, values and style', async () => {
+test('Exact 19-column four-sheet export, Product ID in A as text, dates, values and style', async () => {
   const r = run(parse(reportFixture())),
     b = new ExcelJS.Workbook();
   await b.xlsx.load((await exporter.report(r)) as any);
@@ -2145,7 +2208,7 @@ test('Exact 17-column four-sheet export, Product ID in A as text, dates, values 
     ['Item Bank Deductions', BRANCH_DATE_SUMMARY_SHEET, 'Configuration Settings', 'Needs Review'],
   );
   const ws = b.worksheets[0];
-  assert.equal(ws.columnCount, 17);
+  assert.equal(ws.columnCount, 19);
   assert.deepEqual(
     (ws.getRow(1).values as string[]).slice(1),
     ITEM_COLUMNS.map((c) => c.header),
@@ -2154,9 +2217,9 @@ test('Exact 17-column four-sheet export, Product ID in A as text, dates, values 
   assert.equal(ws.getCell('A2').value, '000123');
   assert.equal(ws.getCell('A2').numFmt, '@');
   assert.equal(ws.getCell('A2').type, ExcelJS.ValueType.String);
-  assert.equal(ws.getCell('M2').value, 1050);
-  assert.equal(ws.getCell('N2').value, 3950);
-  assert.equal(ws.getCell('O2').value, 2);
+  assert.equal(ws.getCell('O2').value, 1050);
+  assert.equal(ws.getCell('P2').value, 3950);
+  assert.equal(ws.getCell('Q2').value, 2);
   assert.equal((ws.getCell('B2').value as Date).toISOString(), '2026-10-01T00:00:00.000Z');
   assert.equal(ws.views[0].state, 'frozen');
   assert.ok(ws.autoFilter);
@@ -2168,8 +2231,8 @@ test('Missing cost stays blank in export; source identifiers and formula-like te
   assert.equal(b.worksheets[0].getCell('A2').value, '=SKU');
   assert.equal(b.worksheets[0].getCell('A2').type, ExcelJS.ValueType.String);
   assert.equal(typeof b.worksheets[0].getCell('E2').value, 'string');
-  assert.equal(b.worksheets[0].getCell('N2').value, null);
-  assert.equal(b.worksheets[0].getCell('M2').value, 1050);
+  assert.equal(b.worksheets[0].getCell('P2').value, null);
+  assert.equal(b.worksheets[0].getCell('O2').value, 1050);
 });
 test('Edited configuration and negative subsidy rates round-trip from Excel', async () => {
   const cfg = c();
@@ -2225,9 +2288,11 @@ test('Sheet 1 copies Payment verbatim, labels configured names Tender and omits 
     'Branch',
     'Invoice Number',
     'Product Name',
+    'Price ID',
     'Quantity',
     'Price',
     'Cost',
+    'Supplier Support',
     'Discount',
     'Line Total',
     'Payment',
@@ -2238,10 +2303,10 @@ test('Sheet 1 copies Payment verbatim, labels configured names Tender and omits 
     'Tender',
     'Calculation Explanation',
   ]);
-  assert.equal(ws.getCell('K2').value, original);
-  assert.equal(ws.getCell('K2').type, ExcelJS.ValueType.String);
-  assert.equal(ws.getCell('P2').value, 'BDO 3 MOS');
-  assert.equal(ws.columnCount, 17);
+  assert.equal(ws.getCell('M2').value, original);
+  assert.equal(ws.getCell('M2').type, ExcelJS.ValueType.String);
+  assert.equal(ws.getCell('R2').value, 'BDO 3 MOS');
+  assert.equal(ws.columnCount, 19);
 });
 
 test('Four-column settings preserve custom bank links, aliases, patterns and non-card methods', async () => {

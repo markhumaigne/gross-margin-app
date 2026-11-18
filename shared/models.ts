@@ -58,6 +58,8 @@ export interface Sale {
   branch: string;
   invoice: string;
   product: string;
+  /** POS Price ID (PL/PS/PI), normalized to upper case; blank when the report has none. */
+  priceId: string;
   quantity: string;
   price: string;
   cost: string;
@@ -74,12 +76,21 @@ export interface Sale {
   cells: Record<string, string>;
   original: Record<string, string>;
 }
+/** Supplier Support (₱ per unit) from a PS price book, sent by the browser with Calculate. */
+export interface PriceSupport {
+  priceId: string;
+  productId: string;
+  support: string;
+}
 export interface ItemResult {
   productId: string;
   salesDate: string;
   branch: string;
   invoice: string;
   product: string;
+  priceId: string;
+  /** Support × quantity for a PS Price ID; included in grossMargin. */
+  supplierSupport: string | null;
   quantity: string;
   price: string;
   cost: string;
@@ -198,9 +209,11 @@ export const ITEM_COLUMNS = [
   { header: 'Branch', key: 'branch', format: 'text' },
   { header: 'Invoice Number', key: 'invoice', format: 'text' },
   { header: 'Product Name', key: 'product', format: 'text' },
+  { header: 'Price ID', key: 'priceId', format: 'text' },
   { header: 'Quantity', key: 'quantity', format: 'number' },
   { header: 'Price', key: 'price', format: 'money' },
   { header: 'Cost', key: 'totalCost', format: 'money' },
+  { header: 'Supplier Support', key: 'supplierSupport', format: 'money' },
   { header: 'Discount', key: 'discount', format: 'money' },
   { header: 'Line Total', key: 'lineTotal', format: 'money' },
   { header: 'Payment', key: 'originalPaymentMethod', format: 'text' },

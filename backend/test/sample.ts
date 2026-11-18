@@ -318,7 +318,7 @@ async function main() {
     ]);
   }
   const main = book.worksheets[0];
-  assert.equal(main.columnCount, 17);
+  assert.equal(main.columnCount, 19);
   assert.deepEqual(
     (main.getRow(1).values as string[]).slice(1),
     ITEM_COLUMNS.map((c) => c.header),
@@ -331,22 +331,28 @@ async function main() {
     assert.equal(main.getCell(index + 2, 1).value, item.productId || '');
     assert.equal(main.getCell(index + 2, 1).type, ExcelJS.ValueType.String);
     assert.equal(main.getCell(index + 2, 5).value, item.product);
+    assert.equal(main.getCell(index + 2, 6).value ?? '', item.priceId, 'Price ID on Sheet 1');
     assert.equal(
-      main.getCell(index + 2, 8).value,
+      main.getCell(index + 2, 10).value,
+      item.supplierSupport === null ? null : Number(item.supplierSupport),
+      'Supplier Support on Sheet 1',
+    );
+    assert.equal(
+      main.getCell(index + 2, 9).value,
       item.totalCost === null ? null : Number(item.totalCost),
       'Sheet 1 displays the same line cost used by gross margin and Sheet 2',
     );
-    assert.equal(main.getCell(index + 2, 11).value, item.originalPaymentMethod);
+    assert.equal(main.getCell(index + 2, 13).value, item.originalPaymentMethod);
     assert.equal(
-      main.getCell(index + 2, 13).value,
+      main.getCell(index + 2, 15).value,
       item.adjustment === null ? null : Number(item.adjustment),
     );
     assert.equal(
-      main.getCell(index + 2, 14).value,
+      main.getCell(index + 2, 16).value,
       item.grossMargin === null ? null : Number(item.grossMargin),
     );
-    assert.equal(main.getCell(index + 2, 15).value, item.sourceRow);
-    assert.equal(main.getCell(index + 2, 16).value, item.cardName);
+    assert.equal(main.getCell(index + 2, 17).value, item.sourceRow);
+    assert.equal(main.getCell(index + 2, 18).value, item.cardName);
   }
   assert.deepEqual(exporter.import(upload(buffer)), result.configuration);
   const app = await createApplication(true);

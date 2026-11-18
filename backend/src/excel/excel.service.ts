@@ -26,6 +26,7 @@ export const FIELDS: Record<string, string[]> = {
   lineTotal: ['Net Total', 'Net Sales', 'Net Amount', 'Line Total', 'Item Net Sales Amount'],
   payment: ['Payment', 'Original Tender Payment Method', 'Payment Method', 'Card Name'],
   paymentAmount: ['Line Payment Amount', 'Payment Amount', 'Card Amount', 'Paid Amount'],
+  priceId: ['Price ID', 'Price Book ID', 'Price List ID', 'Price List'],
 };
 const REQUIRED = ['invoice', 'product', 'quantity', 'lineTotal'];
 const MAX_ROWS = 50000,
@@ -333,6 +334,7 @@ export class ExcelService {
         branch: get('branch'),
         invoice: get('invoice'),
         product: get('product'),
+        priceId: get('priceId').trim().toUpperCase(),
         quantity: get('quantity'),
         price: amount('price'),
         cost: amount('cost'),

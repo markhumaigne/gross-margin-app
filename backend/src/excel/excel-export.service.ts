@@ -369,6 +369,7 @@ export class ExcelExportService {
             : i.quantity,
         price: numeric(i.price),
         totalCost: numeric(i.totalCost),
+        supplierSupport: numeric(i.supplierSupport),
         discount: numeric(i.discount),
         lineTotal: numeric(i.lineTotal),
         appliedRate:
@@ -394,15 +395,18 @@ export class ExcelExportService {
         JSON.stringify(i.quantity) +
         '. This cell shows the calculated total product cost used for gross margin. See Calculation Explanation for the cost basis and Sheet 2 inclusion.';
     });
-    ws.getCell('H1').note =
+    ws.getCell(1, ws.getColumn('totalCost').number).note =
       'Total product cost used for gross margin and Sheet 2: unit cost × quantity, or the source total line cost without multiplying again. Original source cost is preserved in each cell note and Calculation Explanation. Sum only rows marked Included in Sheet 2 to reconcile with that summary; unresolved costs stay blank.';
-    ws.getCell('J1').note = 'Final net line sales amount. Discount is not deducted a second time.';
+    ws.getCell(1, ws.getColumn('lineTotal').number).note =
+      'Final net line sales amount. Discount is not deducted a second time.';
+    ws.getCell(1, ws.getColumn('supplierSupport').number).note =
+      'Supplier Support from the PS price book for this Price ID and product: Support per unit × quantity. Included in GrossMargin. Blank for PL/PI, regular-price and ₱0 sales.';
     ws.getCell(1, ws.getColumn('cardName').number).note =
       'Recognized configured card names from Sales Report payment details. BNPL/SNPL labels are ignored unless explicitly configured; original Payment text is preserved. A name remains visible when another payment or source value needs review; it does not mean the bank charge has been calculated. See Calculation Explanation.';
     ws.getCell(1, ws.getColumn('adjustment').number).note =
       'Positive = bank charge; negative = subsidy. Only items with a configured bank payment match appear on this sheet. Negative-quantity items are moved to Needs Review and excluded from summary totals. Cash-only, other no-charge-only and unmatched rows are omitted. Unresolved calculations remain blank. In a split, only the matched card portion receives a bank charge. When another payment method is unconfigured, only matched-method charges are shown; see Calculation Explanation. Partial rows are excluded from confirmed totals.';
     ws.getCell(1, ws.getColumn('grossMargin').number).note =
-      'Line Total minus total product cost and calculated bank charges/subsidies. Blank when no configured card matches, or cost/charges are unresolved. Provisional when another payment method remains unconfigured; see Calculation Explanation. Partial rows are excluded from confirmed totals.';
+      'Line Total minus total product cost and calculated bank charges/subsidies, plus Supplier Support. Blank when no configured card matches, or cost/charges are unresolved. Provisional when another payment method remains unconfigured; see Calculation Explanation. Partial rows are excluded from confirmed totals.';
     const summary = this.table(
       book,
       BRANCH_DATE_SUMMARY_SHEET,

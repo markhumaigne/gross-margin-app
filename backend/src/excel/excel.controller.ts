@@ -13,7 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
-import { Calculation, Selection } from '../../../shared/models';
+import { Calculation, PriceSupport, Selection } from '../../../shared/models';
 import { CalculationService } from '../calculation/calculation.service';
 import { ConfigService } from '../config/config.service';
 import { ExcelService } from './excel.service';
@@ -22,6 +22,19 @@ import { uploadOptions } from './upload';
 
 /** Largest calculated result sent to the browser (it is posted back to /api/excel/export). */
 export const MAX_RESULT_BYTES = 100 * 1024 * 1024;
+
+/** PS Support sent by the browser (price books live there); ₱ per unit with up to 2 decimals. */
+const priceSupportSchema = z
+  .array(
+    z
+      .object({
+        priceId: z.string().trim().max(20),
+        productId: z.string().trim().min(1).max(100),
+        support: z.string().regex(/^\d{1,12}(\.\d{1,2})?$/),
+      })
+      .strict(),
+  )
+  .max(100000);
 
 const selectionSchema = z
   .object({
@@ -61,10 +74,14 @@ export class ExcelController {
   @Post('excel/calculate')
   @UseInterceptors(FileInterceptor('sales', uploadOptions))
   calculate(@UploadedFile() file: Express.Multer.File, @Body('options') options: string) {
-    let input: { sales: Selection; configuration?: unknown };
+    let input: { sales: Selection; configuration?: unknown; priceSupport?: PriceSupport[] };
     try {
       input = z
-        .object({ sales: selectionSchema, configuration: z.unknown() })
+        .object({
+          sales: selectionSchema,
+          configuration: z.unknown(),
+          priceSupport: priceSupportSchema.optional(),
+        })
         .strict()
         .parse(JSON.parse(options));
     } catch {
@@ -74,7 +91,7 @@ export class ExcelController {
     }
     const c = this.config.validate(input.configuration);
     const sales = this.excel.parse(file, input.sales);
-    const result = this.calculator.calculate(sales, c);
+    const result = this.calculator.calculate(sales, c, input.priceSupport ?? []);
     if (Buffer.byteLength(JSON.stringify(result)) > MAX_RESULT_BYTES)
       throw new BadRequestException(
         'The calculated report exceeds the 100 MB session limit. Split the reports into smaller batches.',

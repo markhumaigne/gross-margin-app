@@ -8,6 +8,7 @@ export function sale(values: Partial<Sale> = {}): Sale {
     branch: 'ASUS',
     invoice: '0001',
     product: 'Laptop',
+    priceId: '',
     quantity: '1',
     price: '30000',
     cost: '25000',

@@ -5,6 +5,7 @@ import {
   Configuration,
   ItemResult,
   PaymentPart,
+  PriceSupport,
   Sale,
   BankSummary,
   isBranchDateSummaryEligible,
@@ -103,8 +104,22 @@ function reportIssue(issue: string): string {
 }
 @Injectable()
 export class CalculationService {
-  calculate(sales: Sale[], configuration: Configuration): Calculation {
+  calculate(
+    sales: Sale[],
+    configuration: Configuration,
+    priceSupport: PriceSupport[] = [],
+  ): Calculation {
     configuration = withDefaultAliases(configuration);
+    // PS (external promotion) Support per unit, keyed by Price ID + Product ID.
+    const key = (priceId: string, productId: string) =>
+      priceId.trim().toUpperCase() + '|' + productId.trim().toUpperCase();
+    const supportPerUnit = new Map<string, Decimal>();
+    for (const entry of priceSupport) {
+      const value = money(entry.support);
+      if (value && !value.isNegative() && /^PS/i.test(entry.priceId.trim()))
+        supportPerUnit.set(key(entry.priceId, entry.productId), value);
+    }
+    const supportNotes: string[] = sales.map(() => '');
     const allocations = new Map<number, Allocation[]>();
     const prepared = sales.map((s) => paymentData(s, configuration));
     const recognized = sales.map((s, index) =>
@@ -176,12 +191,33 @@ export class CalculationService {
           status = 'Needs Review';
         }
       }
+      // Supplier Support = Support per unit × quantity for a PS Price ID on a positive sale.
+      let supplierSupport: string | null = null;
+      const priceId = s.priceId.trim().toUpperCase();
+      const perUnit = priceId.startsWith('PS')
+        ? supportPerUnit.get(key(priceId, s.productId))
+        : undefined;
+      if (perUnit && net?.gt(0) && quantity?.gt(0)) {
+        supplierSupport = fixed(perUnit.times(quantity).toDecimalPlaces(2, Decimal.ROUND_HALF_UP));
+        supportNotes[index] =
+          ' + ₱' +
+          supplierSupport +
+          ' supplier support (' +
+          priceId +
+          ': ₱' +
+          fixed(perUnit) +
+          ' × ' +
+          quantity.toString() +
+          ')';
+      }
       return {
         productId: s.productId,
         salesDate: s.date,
         branch: s.branch,
         invoice: s.invoice,
         product: s.product,
+        priceId,
+        supplierSupport,
         quantity: s.quantity,
         price: s.price,
         cost: s.cost,
@@ -427,7 +463,12 @@ export class CalculationService {
               ? ratePairs.map((p) => p.cardName + ': ' + p.rate + '%').join('; ')
               : null;
         if (item.totalCost !== null) {
-          item.grossMargin = fixed(line.minus(item.totalCost).minus(adjustment));
+          item.grossMargin = fixed(
+            line
+              .minus(item.totalCost)
+              .minus(adjustment)
+              .plus(item.supplierSupport ?? 0),
+          );
           item.explanation +=
             (item.partialCalculation ? ' Provisional Gross Margin = ₱' : ' Gross Margin = ₱') +
             fixed(line) +
@@ -435,7 +476,9 @@ export class CalculationService {
             item.totalCost +
             ' cost − ₱' +
             fixed(adjustment) +
-            ' charge/subsidy = ₱' +
+            ' charge/subsidy' +
+            supportNotes[index] +
+            ' = ₱' +
             item.grossMargin +
             '.';
         }
@@ -531,6 +574,11 @@ export class CalculationService {
       if (sum(costWeights).isZero()) costWeights = parts.map(() => new Decimal(1));
       const costs =
         item.totalCost === null ? null : allocate(new Decimal(item.totalCost), costWeights);
+      // Supplier Support is part of GrossMargin, so it is shared across payments like cost.
+      const supports =
+        item.totalCost === null || item.supplierSupport === null
+          ? null
+          : allocate(new Decimal(item.supplierSupport), costWeights);
       parts.forEach((p, j) => {
         if (p.fee.isNegative()) subsidies = subsidies.plus(p.fee.abs());
         else charges = charges.plus(p.fee);
@@ -553,7 +601,9 @@ export class CalculationService {
         b.subsidies = fixed(new Decimal(b.subsidies).plus(p.fee.isNegative() ? p.fee.abs() : 0));
         if (costs)
           b.grossMargin = fixed(
-            new Decimal(b.grossMargin).plus(p.amount.minus(costs[j]).minus(p.fee)),
+            new Decimal(b.grossMargin)
+              .plus(p.amount.minus(costs[j]).minus(p.fee))
+              .plus(supports ? supports[j] : 0),
           );
         b.seen.add(index);
         if (item.issues.length || item.warnings.length) b.reviewed.add(index);
