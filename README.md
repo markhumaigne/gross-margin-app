@@ -70,9 +70,32 @@ The old `/sales-report` address forwards to the calculator. The sidebar shows on
 
 Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Saving persists the pricing workspace before showing success. Other tabs at the same site receive the changes and update Accounting's price comparison automatically. Blocked/full browser storage is reported as an error instead of a successful save.
 
-Price IDs follow the POS format: `PL` or `PS` followed by six digits (e.g. `PL000013`, `PS000015`). With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a POS price list. IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
+Price IDs follow the ZenPOS format: a prefix followed by six digits (e.g. `PL000013`, `PS000015`, `PI000005`).
 
-**Import from sales export** reads a POS "Sales Report by Product" export (`.xlsx`, `.xls` or `.csv`): products not yet in the catalog are added (name, unit, Master Price, Selling Price, unit Cost; tagged *Imported*), and each Price ID becomes a price book holding the POS Selling Price per product — `PL` prices as the updated price, `PS` prices at or below Master Price as the promotional price. Existing products and price book entries are never changed; existing Price IDs only gain missing products. Imports persist in this browser across refreshes and sign-ins. **Download sample export** provides a demo file.
+| Prefix | Meaning | Support |
+| --- | --- | --- |
+| `PL` | Managed price only | None |
+| `PS` | External promotion (supplier support or rebate) | Entered by the Product Team per product |
+| `PI` | Internal promotion (no rebate) | None |
+
+With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a ZenPOS price list. **Duplicate** gives the copy the next number with the same prefix (a copy of `PS000005` becomes the next free `PS` number). IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
+
+**Import ZenPOS price book** reads ZenPOS "Price Book" exports (`.xlsx`, `.xls` or `.csv`), one price book per file; several files can be chosen at once. The header block gives the Price ID, name, active flag, memo (saved as the description) and Limited Period (the validity dates; `No` means effective from the import date with no expiration). Each product row keeps its own Product ID (barcodes keep every digit and leading zeros), name, Qty, to Qty, unit, Unit Price, Discount, Disc %, Price After Discount (the net price the calculator compares) and Stnd Cost. Limited Days, Time, Regions, Branches and Price Levels are not imported; ZenPOS enforces them at the till. Imported rows never change the shared catalog.
+
+- A new Price ID creates the price book. If another book already uses the name, the Price ID is appended to it.
+- An existing Price ID is updated from the file: name, memo, active flag, dates, prices and cost come from ZenPOS. Support, row memo and Master List Price entered in this app are kept for products still in the file; products missing from the file are removed and new ones are added without Support. With `Limited Period: No` the book keeps its effective date and loses its expiration. Re-importing the same file changes nothing.
+- Rows with a blank Product ID, an unreadable or negative price or cost, or a repeated Product ID are skipped and counted.
+- Each file is saved on its own and reported on its own line (for example `PS000005 updated: 2 added, 1 removed, 5 prices changed, Support kept on 64`). A file that cannot be read or is not a price book export is listed with its reason while the other files still import.
+- Browser storage holds about 5 MB: roughly eight or nine books the size of a 1,400-product `PL` book (about 550 KB each). When it is full, that file is reported as not saved and nothing from it is kept.
+
+**Download sample price book** provides a demo ZenPOS export (`PS000015` Demo Headset Promo) whose headset matches the demo sales export, so Support can be tried end to end.
+
+**Support** (PS books only) is entered by the Product Team on each product, in Add products or directly in the price book table, as **₱ per unit** or **% of the net price**. PL and PI books never store Support. Margins in price books use the ZenPOS formula so imported numbers match ZenPOS:
+
+- Margin on cost = (net price − cost) ÷ cost × 100
+- Margin after support = (net price − net cost) ÷ net cost × 100, where net cost = cost − support per unit (a % support is net price × % ÷ 100). A net cost of zero or less shows —.
+
+Margin is always calculated; it is no longer typed in Add products. Manual and imported rows accept Qty 0 (ZenPOS uses 0 to mean any quantity).
 
 Each product keeps three separate prices:
 
@@ -86,14 +109,16 @@ Discount % = (Master List Price − Promotional Price, or Updated Selling Price)
 
 After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change, and they update immediately when a price book changes.
 
-**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 17-column table keeps the after-charges GrossMargin.
+**05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 17-column table keeps the after-charges GrossMargin.
 
 - Gross Profit = Net Sales Revenue − Cost of Goods Sold
-- Gross Margin % = Gross Profit ÷ Net Sales Revenue × 100
+- Gross Margin on sales % = Gross Profit ÷ Net Sales Revenue × 100 (the calculator keeps margin on sales; price books show ZenPOS margin on cost)
+- Support per sales row with a `PS` Price ID = ₱ support × quantity, or % support × the row's net sales; rows sold at ₱0 earn none. Support counts even when the PS book has since been deactivated.
+- Gross profit after support = Gross Profit + Support; Gross margin after support % = that ÷ Net Sales Revenue × 100. After-support totals cover products with known cost; the Support total covers every row.
 
 COGS uses the report's cost (unit cost × quantity, or line total cost). A product with any row missing cost shows blank COGS, profit and margin (never a partial COGS) and is excluded from cost totals; cost is never estimated. Missing IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Product rows needing review** (first 200 shown).
 
-**06 Price book comparison** covers rows that carry a Price ID: for each Price ID and product it shows quantity, actual net sales, the POS selling price, the price-book price (promotional, else updated), expected revenue (quantity × price-book price) and variance (actual − expected), with status *Matched*, *Price ID not found*, *Price book inactive* or *Product not in price book*. Rows without a Price ID sold at regular price and are not compared; entry validity dates are not checked because the POS already applied the ID. Totals cover matched lines.
+**06 Price book comparison** covers rows that carry a Price ID: for each Price ID and product it shows quantity, actual net sales, the POS selling price, the price-book price (promotional, else updated), expected revenue (quantity × price-book price) variance (actual − expected) and Support, with status *Matched*, *Price ID not found*, *Price book inactive* or *Product not in price book*. **Support to claim** totals the Support on every line. Rows without a Price ID sold at regular price and are not compared; entry validity dates are not checked because the POS already applied the ID. Totals cover matched lines.
 
 The calculator's parser skips the POS export footer rows (`TOTAL:` and `… NOTHING FOLLOWS …`), so they are not counted as items or listed in Needs Review. All product and price-book figures are demonstration data.
 
@@ -235,9 +260,9 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, sales-export import, and the calculator product and price-book sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 17 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
-`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, sales export parsing and gross margin aggregation, Price ID matching, export import and the demo sample.
+`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
 
 Backend tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety, signed download validation and skipping POS export footer rows.
 
