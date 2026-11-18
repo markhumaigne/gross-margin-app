@@ -46,6 +46,16 @@ function validManual(value: unknown): boolean {
   );
 }
 
+function validSupport(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    record(value) &&
+    (value.kind === 'amount' || value.kind === 'percent') &&
+    amount(value.value) &&
+    (value.kind === 'amount' || (value.value as number) <= 100)
+  );
+}
+
 function validEntry(value: unknown): boolean {
   return (
     record(value) &&
@@ -53,7 +63,8 @@ function validEntry(value: unknown): boolean {
     (value.effectiveEnd === null || typeof value.effectiveEnd === 'string') &&
     nullableAmount(value.updatedPrice) &&
     nullableAmount(value.promoPrice) &&
-    (value.manual === undefined || validManual(value.manual))
+    (value.manual === undefined || validManual(value.manual)) &&
+    validSupport(value.support)
   );
 }
 

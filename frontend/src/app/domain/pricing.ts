@@ -7,6 +7,13 @@ import {
   manualProductToDraft,
   validateManualProduct,
 } from './manual-products';
+import {
+  Support,
+  SupportDraft,
+  supportFromDraft,
+  supportToDraft,
+  validateSupportDraft,
+} from './support';
 
 export interface Product {
   id: string;
@@ -35,6 +42,8 @@ export interface PriceBookEntry {
   effectiveStart: string;
   effectiveEnd: string | null;
   memo: string;
+  /** Supplier Support; only kept on PS (external promotion) price books. */
+  support?: Support;
 }
 
 /** Editable form values for an entry; prices are kept as typed until validated. */
@@ -46,6 +55,7 @@ export interface PriceBookEntryDraft {
   effectiveStart: string;
   effectiveEnd: string;
   memo: string;
+  support?: SupportDraft;
 }
 
 type EntryPrices = Pick<PriceBookEntry, 'updatedPrice' | 'promoPrice'>;
@@ -67,11 +77,6 @@ export function effectivePrice(
 export function discountPercent(masterListPrice: number, price: number): number | null {
   if (masterListPrice <= 0) return null;
   return percentOf(toCents(masterListPrice) - toCents(price), toCents(masterListPrice));
-}
-
-export function marginPercent(price: number, cost: number): number | null {
-  if (price <= 0) return null;
-  return percentOf(toCents(price) - toCents(cost), toCents(price));
 }
 
 export function entryStatus(
@@ -114,6 +119,10 @@ export function validateEntryDraft(
       }
     }
   }
+  if (draft.support) {
+    const supportError = validateSupportDraft(draft.support);
+    if (supportError) errors.push(supportError);
+  }
   const startValid = isIsoDate(draft.effectiveStart);
   const endBlank = !draft.effectiveEnd.trim();
   const endValid = !endBlank && isIsoDate(draft.effectiveEnd);
@@ -133,8 +142,9 @@ export function validateEntryDraft(
   return errors;
 }
 
-/** Converts a validated draft. Blank prices become null. */
+/** Converts a validated draft. Blank prices become null; blank Support is left out. */
 export function entryFromDraft(draft: PriceBookEntryDraft): PriceBookEntry {
+  const support = supportFromDraft(draft.support);
   return {
     productId: draft.productId.trim(),
     updatedPrice: draft.manual
@@ -151,6 +161,7 @@ export function entryFromDraft(draft: PriceBookEntryDraft): PriceBookEntry {
     effectiveStart: draft.effectiveStart,
     effectiveEnd: draft.effectiveEnd.trim() ? draft.effectiveEnd : null,
     memo: draft.memo.trim(),
+    ...(support ? { support } : {}),
   };
 }
 
@@ -163,6 +174,7 @@ export function entryToDraft(entry: PriceBookEntry): PriceBookEntryDraft {
     effectiveStart: entry.effectiveStart,
     effectiveEnd: entry.effectiveEnd ?? '',
     memo: entry.memo,
+    ...(entry.support ? { support: supportToDraft(entry.support) } : {}),
   };
 }
 

@@ -12,7 +12,6 @@ export interface ManualProduct {
   discount: number;
   netPrice: number;
   cost: number;
-  margin: number;
 }
 
 export type ManualProductDraft = { [K in keyof ManualProduct]: string };
@@ -35,7 +34,6 @@ export const MANUAL_PRODUCT_FIELDS: readonly {
   { key: 'discount', label: 'Discount', kind: 'money' },
   { key: 'netPrice', label: 'Net Price', kind: 'money' },
   { key: 'cost', label: 'Cost', kind: 'money' },
-  { key: 'margin', label: 'Margin', kind: 'percent' },
 ];
 
 export function emptyManualProduct(): ManualProductDraft {
@@ -50,7 +48,6 @@ export function emptyManualProduct(): ManualProductDraft {
     discount: '0',
     netPrice: '',
     cost: '',
-    margin: '',
   };
 }
 
@@ -60,7 +57,7 @@ function quantity(value: string): number | null {
   const text = value.trim();
   const number = Number(text);
   return /^(\d+(\.\d+)?|\.\d+)(e[+-]?\d+)?$/i.test(text) &&
-    number > 0 &&
+    number >= 0 &&
     number <= Number.MAX_SAFE_INTEGER
     ? number
     : null;
@@ -81,16 +78,13 @@ export function validateManualProduct(
     if (field.kind === 'text') {
       if (!text.trim()) errors[field.key] = `${field.label} is required.`;
     } else if (field.kind === 'quantity') {
-      if (quantity(text) === null)
-        errors[field.key] = `${field.label} must be a positive quantity.`;
+      if (quantity(text) === null) errors[field.key] = `${field.label} must be zero or more.`;
     } else {
       const value = parseMoney(text);
-      if (value === null || (field.key !== 'margin' && value < 0))
-        errors[field.key] =
-          `${field.label} must be ${field.key === 'margin' ? 'a number' : 'zero or more'} with up to 2 decimals.`;
+      if (value === null || value < 0)
+        errors[field.key] = `${field.label} must be zero or more with up to 2 decimals.`;
       else if (field.key === 'discountPercent' && value > 100)
         errors.discountPercent = 'Disc % must be between 0 and 100.';
-      else if (field.key === 'margin' && value > 100) errors.margin = 'Margin cannot exceed 100%.';
     }
   }
   const from = quantity(draft.qty);
@@ -100,7 +94,7 @@ export function validateManualProduct(
   return errors;
 }
 
-/** Call only after validation. User-entered discounts and margins are preserved. */
+/** Call only after validation. User-entered discounts are preserved; margins are calculated. */
 export function manualProductFromDraft(draft: ManualProductDraft): ManualProduct {
   return {
     name: draft.name.trim(),
@@ -113,7 +107,6 @@ export function manualProductFromDraft(draft: ManualProductDraft): ManualProduct
     discount: parseMoney(draft.discount)!,
     netPrice: parseMoney(draft.netPrice)!,
     cost: parseMoney(draft.cost)!,
-    margin: parseMoney(draft.margin)!,
   };
 }
 
@@ -129,6 +122,5 @@ export function manualProductToDraft(product: ManualProduct): ManualProductDraft
     discount: product.discount.toFixed(2),
     netPrice: product.netPrice.toFixed(2),
     cost: product.cost.toFixed(2),
-    margin: product.margin.toFixed(2),
   };
 }

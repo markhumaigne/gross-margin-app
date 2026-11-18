@@ -214,6 +214,7 @@
             @for (field of manualFields; track field.key) {
               <th scope="col" [class.numeric]="field.kind !== 'text'">{{ field.label }}</th>
             }
+            <th scope="col" class="numeric">Margin on cost</th>
             <th scope="col">Updated Selling Price</th>
             <th scope="col">Promotional Price</th>
             <th scope="col">Effective Start</th>
@@ -234,9 +235,6 @@
                   <td
                     [class.numeric]="field.kind !== 'text'"
                     [class.name-cell]="field.key === 'name'"
-                    [class.negative]="
-                      field.key === 'margin' && (parseAmount(manual.margin) ?? 0) < 0
-                    "
                   >
                     @switch (field.kind) {
                       @case ('money') {
@@ -297,10 +295,10 @@
                       : '—'
                   }}
                 </td>
-                <td class="numeric" [class.negative]="(row.margin ?? 0) < 0">
-                  {{ row.margin === null ? '—' : row.margin.toFixed(2) + '%' }}
-                </td>
               }
+              <td class="numeric" [class.negative]="(row.margin ?? 0) < 0">
+                {{ row.margin === null ? '—' : row.margin.toFixed(2) + '%' }}
+              </td>
               @if (editable() && !row.entry.manual) {
                 <td>
                   <input

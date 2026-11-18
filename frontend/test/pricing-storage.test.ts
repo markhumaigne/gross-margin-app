@@ -32,7 +32,6 @@ test('pricing storage round trips the catalog and books together, including manu
     discount: 90,
     netPrice: 810,
     cost: 850,
-    margin: -4.94,
   };
   data.books[0].entries[0].updatedPrice = 810;
   expectOk(writePricingStorage(() => storage, data));
@@ -121,4 +120,40 @@ test('an unreadable snapshot cannot replace previously saved pricing data', () =
   expectFail(writePricingStorage(() => storage, invalid));
   assert.equal(saved, original);
   assert.equal(expectOk(readPricingStorage(() => storage))?.books[0].id, 'PL000013');
+});
+
+const roundTrip = (data: unknown) => {
+  const saved = JSON.stringify(data);
+  return readPricingStorage(() => ({ getItem: () => saved }));
+};
+
+test('pricing saved before Support still loads', () => {
+  const data = state();
+  Object.assign(data.books[0].entries[0], {
+    updatedPrice: 900,
+    manual: {
+      name: 'Old manual item',
+      qty: 1,
+      toQty: null,
+      unit: 'PCS',
+      masterListPrice: 1200,
+      unitPrice: 1000,
+      discountPercent: 10,
+      discount: 100,
+      netPrice: 900,
+      cost: 950,
+      margin: -5.56,
+    },
+  });
+  expectOk(roundTrip(data));
+});
+
+test('Support round trips and invalid Support is rejected', () => {
+  const data = state();
+  data.books[0].entries[0].support = { kind: 'percent', value: 5 };
+  assert.deepEqual(expectOk(roundTrip(data)), data);
+  data.books[0].entries[0].support = { kind: 'percent', value: 101 };
+  assert.match(expectFail(roundTrip(data)), /saved price books/i);
+  data.books[0].entries[0].support = { kind: 'rebate', value: 5 } as never;
+  assert.match(expectFail(roundTrip(data)), /saved price books/i);
 });

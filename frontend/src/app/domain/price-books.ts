@@ -206,13 +206,20 @@ export function savePriceBook(
     effectiveDate: draft.effectiveDate,
     expirationDate: draft.expirationDate.trim() ? draft.expirationDate : null,
     active: draft.active,
-    entries: draft.entries.map(entryFromDraft),
+    entries: draft.entries
+      .map(entryFromDraft)
+      .map((e) => (isSupportBook(id) ? e : withoutSupport(e))),
     updatedAt: now.toISOString(),
     updatedBy: actor,
   };
   const next =
     editingId === null ? [...books, book] : books.map((b) => (b.id === editingId ? book : b));
   return ok({ books: next, book });
+}
+
+function withoutSupport(entry: PriceBookEntry): PriceBookEntry {
+  const { support: _support, ...rest } = entry;
+  return rest;
 }
 
 function copyName(books: readonly PriceBook[], name: string): string {
@@ -240,6 +247,7 @@ export function duplicatePriceBook(
     entries: source.entries.map((e) => ({
       ...e,
       ...(e.manual ? { manual: { ...e.manual } } : {}),
+      ...(e.support ? { support: { ...e.support } } : {}),
     })),
     updatedAt: now.toISOString(),
     updatedBy: actor,

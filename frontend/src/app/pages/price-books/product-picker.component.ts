@@ -16,7 +16,8 @@ import { CurrencyPipe } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { ProductCatalogService } from '../../core/product-catalog.service';
-import { marginPercent, PriceBookEntryDraft, Product } from '../../domain/pricing';
+import { PriceBookEntryDraft, Product } from '../../domain/pricing';
+import { marginOnCost } from '../../domain/support';
 import {
   emptyManualProduct,
   MANUAL_PRODUCT_FIELDS,
@@ -91,7 +92,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
   }
 
   margin(product: Product) {
-    return product.cost === null ? null : marginPercent(product.sellingPrice, product.cost);
+    return product.cost === null ? null : marginOnCost(product.sellingPrice, product.cost);
   }
 
   setQuery(value: string) {

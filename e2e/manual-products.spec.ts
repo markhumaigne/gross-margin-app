@@ -14,7 +14,6 @@ async function fillProduct(dialog: Locator, id = '001-CUSTOM') {
     Discount: '100',
     'Net Price': '900',
     Cost: '950',
-    Margin: '-5.56',
   }))
     await dialog.getByLabel(label, { exact: true }).fill(value);
 }
@@ -46,7 +45,7 @@ test('manual products retain all fields through save, edit, duplicate, and remov
     '₱100.00',
     '₱900.00',
     '₱950.00',
-    '-5.56%',
+    '-5.26%',
   ])
     await expect(row).toContainText(value);
   await page.getByRole('link', { name: 'Edit', exact: true }).click();

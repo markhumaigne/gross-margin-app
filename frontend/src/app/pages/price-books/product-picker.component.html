@@ -44,8 +44,8 @@
       (submit)="$event.preventDefault(); confirmManual()"
     >
       <p class="manual-product-hint">
-        Enter amounts per unit. Disc % and Margin are percentages. Leave to Qty blank for no upper
-        limit.
+        Enter amounts per unit. Disc % is a percentage; margin on cost is calculated. Leave to Qty
+        blank for no upper limit.
       </p>
       <div class="form-grid manual-product-grid">
         <div class="form-field">
@@ -138,7 +138,7 @@
             <th scope="col" class="numeric">Master List Price</th>
             <th scope="col" class="numeric">Selling Price</th>
             <th scope="col" class="numeric">Cost</th>
-            <th scope="col" class="numeric">Margin %</th>
+            <th scope="col" class="numeric">Margin on cost</th>
           </tr>
         </thead>
         <tbody>

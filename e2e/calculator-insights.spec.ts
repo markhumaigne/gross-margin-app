@@ -134,7 +134,6 @@ async function createSavedHeadsetPrice(page: Page) {
     Discount: '295',
     'Net Price': '2500',
     Cost: '1960',
-    Margin: '21.60',
   }))
     await dialog.getByLabel(label, { exact: true }).fill(value);
   await dialog.getByRole('button', { name: 'Add product', exact: true }).click();

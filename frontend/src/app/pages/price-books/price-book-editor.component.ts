@@ -18,12 +18,8 @@ import {
   PriceBookErrors,
   validatePriceBook,
 } from '../../domain/price-books';
-import {
-  discountPercent,
-  entryStatus,
-  marginPercent,
-  PriceBookEntryDraft,
-} from '../../domain/pricing';
+import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../domain/pricing';
+import { marginOnCost } from '../../domain/support';
 import { ProductPickerComponent } from './product-picker.component';
 
 type Mode = 'create' | 'edit' | 'view';
@@ -96,9 +92,14 @@ export class PriceBookEditorComponent {
       const price = promo ?? updated;
       const discount =
         product && price !== null ? discountPercent(product.masterListPrice, price) : null;
-      const margin =
-        product && product.cost !== null
-          ? marginPercent(price ?? product.masterListPrice, product.cost)
+      const manualNet = entry.manual ? parseMoney(entry.manual.netPrice) : null;
+      const manualCost = entry.manual ? parseMoney(entry.manual.cost) : null;
+      const margin = entry.manual
+        ? manualNet !== null && manualCost !== null
+          ? marginOnCost(manualNet, manualCost)
+          : null
+        : product && product.cost !== null
+          ? marginOnCost(price ?? product.masterListPrice, product.cost)
           : null;
       return {
         entry,

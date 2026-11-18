@@ -175,7 +175,7 @@ test.describe('Price book editor', () => {
     await expect(row).toContainText('₱4,952.00');
     await expect(row).toContainText('-0.04%');
     await page.getByLabel('Promotional price for 4800000400010').fill('4000');
-    await expect(row).toContainText('-23.80%');
+    await expect(row).toContainText('-19.22%');
   });
 });
 

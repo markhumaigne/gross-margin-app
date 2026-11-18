@@ -6,7 +6,6 @@ import {
   effectivePrice,
   entryFromDraft,
   entryStatus,
-  marginPercent,
   PriceBookEntryDraft,
   priceSource,
   searchProducts,
@@ -33,14 +32,11 @@ test('effective price prefers promo, then updated, then master', () => {
   assert.equal(priceSource({ updatedPrice: 5495, promoPrice: null }), 'updated');
 });
 
-test('discount and margin percentages', () => {
+test('discount percentages', () => {
   assert.equal(discountPercent(5795, 4995), 13.81);
   assert.equal(discountPercent(5795, 5495), 5.18);
   assert.equal(discountPercent(1000, 1100), -10);
   assert.equal(discountPercent(0, 10), null);
-  assert.equal(marginPercent(6190, 4861), 21.47);
-  assert.equal(marginPercent(4950, 4952), -0.04);
-  assert.equal(marginPercent(0, 5), null);
 });
 
 test('entry status from validity dates (inclusive)', () => {
