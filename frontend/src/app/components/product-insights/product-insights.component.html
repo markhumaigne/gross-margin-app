@@ -247,13 +247,6 @@
           }}</strong
           ><small>Quantity × price-book price</small>
         </div>
-        <div class="metric fee-metric">
-          <span>Variance</span
-          ><strong [class.negative]="result.priceComparison.variance < 0">{{
-            result.priceComparison.variance | currency: 'PHP' : 'symbol' : '1.2-2'
-          }}</strong
-          ><small>Actual − expected</small>
-        </div>
         <div class="metric">
           <span>Support to claim</span
           ><strong>{{
@@ -274,7 +267,6 @@
               <th scope="col" class="numeric">POS selling price</th>
               <th scope="col" class="numeric">Price-book price</th>
               <th scope="col" class="numeric">Expected revenue</th>
-              <th scope="col" class="numeric">Variance</th>
               <th scope="col" class="numeric">Support</th>
               <th scope="col">Status</th>
             </tr>
@@ -311,13 +303,6 @@
                       : (line.expectedRevenue | currency: 'PHP' : 'symbol' : '1.2-2')
                   }}
                 </td>
-                <td class="numeric" [class.negative]="(line.variance ?? 0) < 0">
-                  {{
-                    line.variance === null
-                      ? '—'
-                      : (line.variance | currency: 'PHP' : 'symbol' : '1.2-2')
-                  }}
-                </td>
                 <td class="numeric">
                   {{ line.support ? (line.support | currency: 'PHP' : 'symbol' : '1.2-2') : '—' }}
                 </td>
@@ -333,7 +318,7 @@
       </div>
       <p class="table-footnote">
         Rows with a Price ID use that price book's promotional price, else its updated price.
-        Variance = actual net sales − expected revenue. Rows without a Price ID sold at regular
+        Expected revenue = quantity × price-book price. Rows without a Price ID sold at regular
         price and are not compared. Support is the ₱ per unit entered on PS price books × quantity
         sold. Lines sold at ₱0 earn no support. Changes made in Price books show here immediately.
       </p>

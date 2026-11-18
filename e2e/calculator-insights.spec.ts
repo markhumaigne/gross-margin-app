@@ -54,10 +54,13 @@ test('one upload gives bank deductions, gross margin by product and price book c
     '₱5,795.00',
     '₱5,595.00 updated',
     '₱11,190.00',
-    '₱400.00',
     '—',
     'Matched',
   ]);
+  // Section 06 compares prices only; Variance is not shown.
+  const comparison = page.getByRole('table', { name: 'Price book comparison' });
+  await expect(comparison.getByRole('columnheader', { name: 'Variance' })).toHaveCount(0);
+  await expect(page.locator('.metric').filter({ hasText: 'Variance' })).toHaveCount(0);
   await expect(comparisonRow(page, 'PS000015', '4800000600016')).toContainText(
     'Price ID not found',
   );
@@ -82,7 +85,7 @@ test('price book changes flow to the calculator without recalculating (Admin, ke
   await nav.getByRole('link', { name: 'Price books' }).click();
   await page.getByRole('button', { name: 'Deactivate PL000013' }).click();
   await nav.getByRole('link', { name: 'Bank rate calculator' }).click();
-  await expect(comparisonRow(page, 'PL000030', '4800000100011')).toContainText('₱1,000.00');
+  await expect(comparisonRow(page, 'PL000030', '4800000100011')).toContainText('₱4,795.00');
   await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText(
     'Price book inactive',
   );
@@ -101,7 +104,7 @@ test('Product Team change reaches Accounting after sign-in; sample download work
   await page.getByRole('button', { name: 'Download sample Sales Report by Product' }).click();
   expect((await download).suggestedFilename()).toBe('Sample Sales Report by Product.xlsx');
   await uploadAndCalculate(page);
-  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱200.00');
+  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱11,390.00');
 });
 
 test('product sections fit a phone and clear when inputs change', async ({ page }) => {
@@ -155,7 +158,7 @@ test('saved price books still calculate after a refresh and Accounting sign-in',
   const row = comparisonRow(page, 'PS000015', '4800000600016');
   await expect(row).toContainText('Matched');
   await expect(row).toContainText('₱5,000.00');
-  await expect(row).toContainText('₱590.00');
+  await expect(row).toContainText('₱2,500.00');
 });
 
 test('a browser storage failure keeps the draft and never claims the price was saved', async ({
@@ -190,7 +193,7 @@ test('a browser storage failure keeps the draft and never claims the price was s
   await page.reload();
   await signIn(page, ...ACCOUNTS.accounting);
   await uploadAndCalculate(page);
-  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱200.00');
+  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱11,390.00');
 });
 
 test('unreadable saved data is reported and preserved when a user tries to save', async ({
@@ -220,7 +223,7 @@ test('an open Accounting tab receives newly saved Product Team prices', async ({
   await createSavedHeadsetPrice(page);
   await expect(row).toContainText('Matched');
   await expect(row).toContainText('₱5,000.00');
-  await expect(row).toContainText('₱590.00');
+  await expect(row).toContainText('₱2,500.00');
 });
 
 test('Support entered on a PS book shows in the calculator', async ({ page }) => {
