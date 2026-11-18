@@ -133,6 +133,17 @@ export class CalculationService {
           ? new Decimal(s.quantity.trim())
           : null,
     }));
+    // A negative line with a positive quantity is a deduction applied on the receipt (a deposit,
+    // pre-order or voucher paid earlier). It is accepted when its receipt also has positive
+    // lines; otherwise it is reviewed as a refund. A negative quantity is always a return.
+    const refundIssue = (s: Sale) =>
+      'Negative sales / refund: ' +
+      sourceValue(s, 'lineTotal', 'Net Total') +
+      '. Original negative value retained for review; bank charges and gross margin are not calculated.';
+    const PRICE_ISSUE = 'Price is missing or invalid; its original value was preserved.';
+    const deductionCandidate = sourceValues.map(
+      ({ net, quantity }) => !!net?.isNegative() && !!quantity?.gt(0),
+    );
     const items: ItemResult[] = sales.map((s, index) => {
       const issues = [...s.issues],
         warnings = [...s.warnings];
@@ -148,12 +159,8 @@ export class CalculationService {
             '. Check the mapped Net Total column and source value.',
         );
         status = 'Invalid Sales Amount';
-      } else if (net.isNegative()) {
-        issues.push(
-          'Negative sales / refund: ' +
-            sourceValue(s, 'lineTotal', 'Net Total') +
-            '. Original negative value retained for review; bank charges and gross margin are not calculated.',
-        );
+      } else if (net.isNegative() && !deductionCandidate[index]) {
+        issues.push(refundIssue(s));
         status = 'Needs Review';
       }
       if (quantity?.isNegative()) {
@@ -171,8 +178,7 @@ export class CalculationService {
         );
         if (status === 'Calculated') status = 'Needs Review';
       }
-      if (!price || price.isNegative())
-        issues.push('Price is missing or invalid; its original value was preserved.');
+      if (!price || (price.isNegative() && !deductionCandidate[index])) issues.push(PRICE_ISSUE);
       if (!discount || discount.isNegative())
         issues.push('Discount is missing or invalid. No zero discount was assumed.');
       if (!s.product.trim()) issues.push('Missing Product Name.');
@@ -260,10 +266,17 @@ export class CalculationService {
         if (items[i].status !== 'Invalid Sales Amount') items[i].status = status;
       });
     const process = (indices: number[], parts: PaymentPart[]) => {
+      const hasPositiveLine = indices.some((i) => !!sourceValues[i].net?.isPositive());
+      const deductions = new Set(indices.filter((i) => deductionCandidate[i] && hasPositiveLine));
+      for (const i of indices.filter((i) => deductionCandidate[i] && !deductions.has(i))) {
+        items[i].issues.push(refundIssue(sales[i]));
+        if (money(sales[i].price)?.isNegative()) items[i].issues.push(PRICE_ISSUE);
+        items[i].status = 'Needs Review';
+      }
       const badRows = indices.filter(
         (i) =>
           !sourceValues[i].net ||
-          sourceValues[i].net!.isNegative() ||
+          (sourceValues[i].net!.isNegative() && !deductions.has(i)) ||
           !sourceValues[i].quantity ||
           sourceValues[i].quantity!.lte(0) ||
           sales[i].issues.length ||
@@ -288,7 +301,9 @@ export class CalculationService {
           );
         return;
       }
-      const weights = indices.map((i) => money(sales[i].lineTotal)!);
+      const lineValues = indices.map((i) => money(sales[i].lineTotal)!);
+      // Deduction lines reduce what is paid today but receive no share of the payments.
+      const weights = lineValues.map((v) => (v.isNegative() ? new Decimal(0) : v));
       const amounts = parts.map((p) => money(p.amount));
       if (!parts.length || amounts.some((a) => !a || a.isNegative())) {
         fail(
@@ -298,7 +313,7 @@ export class CalculationService {
         return;
       }
       const matches = parts.map((p) => matchRate(p.method, configuration, p.description));
-      const net = sum(weights),
+      const net = sum(lineValues),
         paid = sum(amounts as Decimal[]);
       // Cash tender can include change. Keep every configured bank amount intact
       // and remove only an excess fully covered by explicitly identified cash.
@@ -425,7 +440,7 @@ export class CalculationService {
       parts.forEach((part, p) => {
         const match = matches[p],
           amount = amounts[p]!;
-        const amountsPerItem = net.isZero()
+        const amountsPerItem = sum(weights).isZero()
           ? weights.map(() => new Decimal(0))
           : allocate(amount, weights);
         const fee = match.method
@@ -520,6 +535,11 @@ export class CalculationService {
             item.grossMargin +
             '.';
         }
+        if (deductions.has(index))
+          item.explanation +=
+            ' Deduction line (deposit, pre-order or voucher applied on this receipt): ₱' +
+            fixed(line) +
+            ' reduces the amount paid today and receives no bank charge.';
         item.explanation +=
           ' Net Line Total already includes discounts; discount was not deducted again.';
         if (!item.issues.length)

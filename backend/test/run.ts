@@ -339,6 +339,79 @@ test('Each card rate has its own Applied Bank Rate column, in Tender order', asy
   );
 });
 
+// Receipt 3074-00002758: a ₱500 pre-order deposit paid earlier is deducted on the final receipt.
+const depositReceipt = (payment = 'CC#0000 PAYMAYA CREDIT 0000 3,795.00') => {
+  const payments = [part('PAYMAYA CREDIT', '3795')];
+  const row = (n: number) => ({ file: 'sales.xlsx', sheet: 'Sales Report', row: n });
+  return [
+    sale({
+      productId: 'ZELDA',
+      product: 'ZELDA OCARINA',
+      price: '4295',
+      lineTotal: '4295',
+      cost: '3479',
+      payment,
+      payments,
+    }),
+    sale({
+      productId: 'ZELDA',
+      product: 'ZELDA OCARINA (deposit)',
+      price: '-500',
+      lineTotal: '-500',
+      cost: '0',
+      payment,
+      payments,
+      source: row(3),
+    }),
+    sale({
+      productId: 'BAG',
+      product: 'SMALL BAG',
+      price: '0',
+      lineTotal: '0',
+      cost: '7',
+      payment,
+      payments,
+      source: row(4),
+    }),
+  ];
+};
+
+test('A deposit deduction line does not hold the receipt; the card is charged on what it paid', () => {
+  const r = calc.calculate(depositReceipt(), c());
+  assert.deepEqual(
+    r.items.map((i) => i.issues),
+    [[], [], []],
+  );
+  assert.equal(r.summary.charges, '109.68', '₱3,795.00 × 2.89%');
+  assert.equal(r.summary.sales, '3795.00', 'Sales equal what the customer paid today');
+  const [product, deduction] = r.items;
+  assert.deepEqual(
+    [deduction.adjustment, deduction.grossMargin, deduction.cardName],
+    ['0.00', '-500.00', 'PAYMAYA CREDIT'],
+  );
+  assert.match(deduction.explanation, /deduction/i);
+  assert.equal(product.grossMargin, '706.32', '4,295 − 3,479 − 109.68');
+  assert.equal(r.summary.grossMargin, '199.32', '706.32 − 500 deduction − 7 bag cost');
+  assert.equal(r.branchDateSummary[0].sales, '3795.00');
+  assert.equal(r.branchDateSummary[0].grossMargin, '199.32');
+});
+
+test('A negative line on a receipt without positive lines is still a refund for review', () => {
+  const r = calc.calculate(
+    [
+      sale({
+        price: '-500',
+        lineTotal: '-500',
+        cost: '0',
+        payment: 'Cash -500.00',
+        payments: [part('Cash', '-500')],
+      }),
+    ],
+    c(),
+  );
+  assert.match(r.items[0].issues.join(' '), /Negative sales \/ refund/);
+});
+
 test('BPI 12 MOS uses 12.50 percent', () => {
   const r = run([sale({ payment: 'BPI 12 MOS' })]);
   assert.equal(r.items[0].adjustment, '3750.00');
