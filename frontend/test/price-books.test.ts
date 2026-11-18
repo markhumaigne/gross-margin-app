@@ -6,8 +6,10 @@ import {
   emptyDraft,
   filterPriceBooks,
   hasErrors,
+  isSupportBook,
   newEntryDraft,
   nextPriceBookId,
+  PriceBook,
   PriceBookDraft,
   savePriceBook,
   setPriceBookActive,
@@ -152,7 +154,7 @@ test('manual Price IDs are normalised, validated and unique', () => {
   const manual = (id: string) => ({ ...base(), autoId: false, id });
   const e = (id: string) => validatePriceBook(manual(id), SEED_PRICE_BOOKS, PRODUCTS, null).id;
   assert.equal(e(' ps000015 '), undefined);
-  assert.equal(e('PX123'), 'Price ID must be PL or PS followed by 6 digits (e.g. PL000123).');
+  assert.equal(e('PX123'), 'Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).');
   assert.equal(e('pl000013'), 'Price ID PL000013 is already used.');
   const { book } = expectOk(
     savePriceBook(SEED_PRICE_BOOKS, manual(' ps000015 '), null, PRODUCTS, 'x', now),
@@ -300,4 +302,39 @@ test('small decimal quantities can be saved again after reopening', () => {
     savePriceBook([book], draftFromBook(book), book.id, PRODUCTS, 'x', now),
   ).book;
   assert.deepEqual(saved.entries, book.entries);
+});
+
+const book = (id: string): PriceBook => ({
+  id,
+  name: 'Book ' + id,
+  description: '',
+  effectiveDate: '2026-11-01',
+  expirationDate: null,
+  active: true,
+  entries: [],
+  updatedAt: now.toISOString(),
+  updatedBy: 'x',
+});
+
+test('PI Price IDs are accepted and the error names all three prefixes', () => {
+  const draft = { ...emptyDraft('2026-11-18'), autoId: false, id: 'pi000004', name: 'Internal' };
+  assert.equal(validatePriceBook(draft, SEED_PRICE_BOOKS, PRODUCTS, null).id, undefined);
+  const bad = validatePriceBook({ ...draft, id: 'PX000001' }, SEED_PRICE_BOOKS, PRODUCTS, null);
+  assert.equal(bad.id, 'Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).');
+  assert.equal(isSupportBook('PS000005'), true);
+  assert.equal(isSupportBook('PI000005'), false);
+  assert.equal(isSupportBook('PL000005'), false);
+});
+
+test('automatic IDs count per prefix', () => {
+  const books = [book('PS000005'), book('PS000010'), book('PL000034')];
+  assert.equal(nextPriceBookId(books, 'PS'), 'PS000011');
+  assert.equal(nextPriceBookId(books, 'PI'), 'PI000001');
+  assert.equal(nextPriceBookId(books), 'PL000035');
+});
+
+test('duplicating a PS book gives the copy the next PS number', () => {
+  const books = [...SEED_PRICE_BOOKS, book('PS000010')];
+  const { book: copy } = expectOk(duplicatePriceBook(books, 'PS000010', 'Lead', now));
+  assert.equal(copy.id, 'PS000011');
 });

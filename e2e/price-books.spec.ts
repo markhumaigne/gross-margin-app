@@ -191,7 +191,7 @@ test.describe('Price IDs and sales export import', () => {
     await expect(page.getByText('Price ID PL000013 is already used.')).toBeVisible();
     await page.getByLabel('Price ID', { exact: true }).fill('PX12');
     await expect(
-      page.getByText('Price ID must be PL or PS followed by 6 digits (e.g. PL000123).'),
+      page.getByText('Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).'),
     ).toBeVisible();
     await page.getByLabel('Price ID', { exact: true }).fill('ps000015');
     await page.getByRole('button', { name: 'Save price book' }).click();

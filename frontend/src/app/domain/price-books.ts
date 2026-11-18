@@ -47,8 +47,22 @@ export type StatusFilter = 'all' | 'active' | 'inactive';
 
 const NOT_FOUND = 'Price book not found.';
 
-/** POS price list IDs: PL (price list) or PS (special/promo) followed by 6 digits. */
-export const PRICE_ID_PATTERN = /^(PL|PS)\d{6}$/;
+/**
+ * POS price list IDs followed by 6 digits: PL (managed price), PS (external promotion with
+ * supplier support) or PI (internal promotion without rebate).
+ */
+export const PRICE_ID_PATTERN = /^(PL|PS|PI)\d{6}$/;
+export type PriceIdPrefix = 'PL' | 'PS' | 'PI';
+
+export function priceIdPrefix(id: string): PriceIdPrefix {
+  const prefix = id.trim().slice(0, 2).toUpperCase();
+  return prefix === 'PS' || prefix === 'PI' ? prefix : 'PL';
+}
+
+/** Only external promotions (PS) carry supplier Support. */
+export function isSupportBook(id: string): boolean {
+  return /^PS/i.test(id.trim());
+}
 
 export function normalizePriceId(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -106,7 +120,7 @@ export function validatePriceBook(
   if (editingId === null && !draft.autoId) {
     const id = normalizePriceId(draft.id);
     if (!PRICE_ID_PATTERN.test(id))
-      errors.id = 'Price ID must be PL or PS followed by 6 digits (e.g. PL000123).';
+      errors.id = 'Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).';
     else if (books.some((b) => b.id.toUpperCase() === id))
       errors.id = `Price ID ${id} is already used.`;
   }
@@ -151,25 +165,25 @@ export function hasErrors(errors: PriceBookErrors): boolean {
   );
 }
 
-export function nextPriceBookId(books: readonly PriceBook[]): string {
+export function nextPriceBookId(books: readonly PriceBook[], prefix: PriceIdPrefix = 'PL'): string {
   let max = 0;
   const used = new Set<string>();
   for (const b of books) {
-    const match = /^PL(\d{6})$/.exec(b.id);
-    if (match) {
-      max = Math.max(max, Number(match[1]));
+    const match = /^(PL|PS|PI)(\d{6})$/.exec(b.id);
+    if (match && match[1] === prefix) {
+      max = Math.max(max, Number(match[2]));
       used.add(b.id);
     }
   }
   // A manually entered/imported high ID must not overflow the six-digit POS format.
   if (max === 999999) {
     for (let n = 1; n <= 999999; n++) {
-      const id = 'PL' + String(n).padStart(6, '0');
+      const id = prefix + String(n).padStart(6, '0');
       if (!used.has(id)) return id;
     }
     return '';
   }
-  return 'PL' + String(max + 1).padStart(6, '0');
+  return prefix + String(max + 1).padStart(6, '0');
 }
 
 export function savePriceBook(
@@ -216,7 +230,7 @@ export function duplicatePriceBook(
 ): Result<{ books: PriceBook[]; book: PriceBook }> {
   const source = books.find((b) => b.id === id);
   if (!source) return fail(NOT_FOUND);
-  const nextId = nextPriceBookId(books);
+  const nextId = nextPriceBookId(books, priceIdPrefix(source.id));
   if (!nextId) return fail('No automatic Price IDs are available.');
   const book: PriceBook = {
     ...source,
