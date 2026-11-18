@@ -397,7 +397,7 @@ test('Negative quantities move to review and contribute no sales or cost to eith
   ]);
 });
 
-test('Requested warnings stay hidden and negative quantities remain available in review', async ({
+test('Charge has no bank charge, warnings stay hidden and negative quantities remain in review', async ({
   page,
 }) => {
   const f = fixture(),
@@ -406,7 +406,7 @@ test('Requested warnings stay hidden and negative quantities remain available in
   b.Sheets['Sales Report'] = XLSX.utils.aoa_to_sheet([
     headers,
     [
-      'PARTIAL',
+      'CHARGE-SPLIT',
       '2026-10-01',
       'ASUS',
       '1',
@@ -447,16 +447,20 @@ test('Requested warnings stay hidden and negative quantities remain available in
   ).toBeVisible();
   await expect(table.locator('tbody tr')).toHaveCount(3);
   await expect(table).not.toContainText(hidden);
-  for (const id of ['PARTIAL', 'DISCREPANCY', 'VALID'])
+  for (const id of ['CHARGE-SPLIT', 'DISCREPANCY', 'VALID'])
     await expect(table.getByRole('cell', { name: id, exact: true })).toBeVisible();
-  const partial = table.locator('tbody tr').nth(0);
-  await expect(partial.locator('td').nth(12)).toHaveText('BDO 3 MOS 9,500.00 Charge 500.00');
-  await expect(partial.locator('td').nth(16)).toHaveText('₱308.75');
-  await expect(partial.locator('td').nth(20)).toContainText('Partial calculation');
+  // CHARGE is a default no-charge method: BDO 3 MOS ₱9,500 × 3.25% is fully calculated.
+  const split = table.locator('tbody tr').nth(0);
+  await expect(split.locator('td').nth(12)).toHaveText('BDO 3 MOS 9,500.00 Charge 500.00');
+  await expect(split.locator('td').nth(16)).toHaveText('₱308.75');
+  await expect(split.locator('td').nth(20)).toContainText(
+    'Configured method with no bank charge Charge: ₱500.00',
+  );
+  await expect(split.locator('td').nth(20)).not.toContainText('Partial calculation');
   await expect(table.locator('tbody tr').nth(1).locator('td').nth(16)).toHaveText('—');
   await expect(table.getByRole('cell', { name: 'NEGATIVE', exact: true })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Needs Review (3)', exact: true }).click();
-  await expect(table.locator('tbody tr')).toHaveCount(3);
+  await page.getByRole('tab', { name: 'Needs Review (2)', exact: true }).click();
+  await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table).not.toContainText(hidden);
   await expect(table.getByRole('cell', { name: 'DISCREPANCY', exact: true })).toBeVisible();
   await expect(table.getByRole('cell', { name: 'NEGATIVE', exact: true })).toBeVisible();
@@ -466,10 +470,10 @@ test('Requested warnings stay hidden and negative quantities remain available in
   await expect(table.locator('tbody tr').first().locator('td')).toHaveText([
     '01 Oct 2026',
     'ASUS',
-    '₱1,000.00',
-    '₱800.00',
-    '₱55.00',
-    '₱145.00',
+    '₱11,000.00',
+    '₱8,800.00',
+    '₱363.75',
+    '₱1,836.25',
   ]);
 });
 

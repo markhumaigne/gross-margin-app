@@ -229,7 +229,11 @@ async function main() {
           .replace(/\b(?:BNPL|SNPL)\b/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
-        if (literal === 'CASH' || literal === 'CASH PAYMENT' || literal === 'SBC QRPH') continue;
+        // Cash and the configured no-charge methods (SBC QRPH, CHARGE, GCASH, …) carry no fee.
+        const noCharge = ['CASH', 'CASH PAYMENT', ...result.configuration.nonCardMethods].map((m) =>
+          m.toUpperCase().replace(/\s+/g, ' ').trim(),
+        );
+        if (noCharge.some((m) => literal === m || literal.startsWith(m + ' '))) continue;
         const matched = result.configuration.paymentMethods
           .flatMap((method) => [
             { name: method.cardName, method },

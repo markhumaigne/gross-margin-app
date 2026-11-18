@@ -113,7 +113,14 @@ test('Default settings match all 49 approved rates and calculate/export those ra
   for (const method of settings.paymentMethods)
     assert.equal(method.bank, method.cardName.split(' ')[0]);
   assert.deepEqual(settings.aliases, [{ alias: 'BDO PAY', cardName: 'BDO PAY/CASA' }]);
-  assert.deepEqual(settings.nonCardMethods, ['CASH', 'SBC QRPH']);
+  assert.deepEqual(settings.nonCardMethods, [
+    'CASH',
+    'SBC QRPH',
+    'CHARGE',
+    'GCASH',
+    'ONLINE PAYMENT',
+    'SPAYLATER',
+  ]);
   const result = calc.calculate(
     expected.map(([payment], index) =>
       sale({
@@ -410,6 +417,39 @@ test('A negative line on a receipt without positive lines is still a refund for 
     c(),
   );
   assert.match(r.items[0].issues.join(' '), /Negative sales \/ refund/);
+});
+
+test('CHARGE, GCASH, ONLINE PAYMENT and SPAYLATER have no bank charge by default', () => {
+  // Receipt 3056-00009846: only PAYMAYA CREDIT is a configured card.
+  const payments = [
+    part('SBC QRPH', '50000'),
+    part('GCASH', '50000'),
+    part('PAYMAYA CREDIT JUAN DELA CRUZ', '78510'),
+    part('Cash', '43000'),
+  ];
+  const r = calc.calculate(
+    [sale({ lineTotal: '221510', cost: '200000', payment: 'GCASH …', payments })],
+    config.defaults(),
+  );
+  assert.deepEqual([r.items[0].issues, r.items[0].partialCalculation], [[], false]);
+  assert.equal(r.summary.charges, '2268.94', 'Only PAYMAYA CREDIT ₱78,510.00 × 2.89%');
+  for (const method of ['Charge', 'ONLINE PAYMENT', 'SPAYLATER']) {
+    const mixed = calc.calculate(
+      [
+        sale({
+          lineTotal: '10000',
+          payment: method + ' + BPI 6 MOS',
+          payments: [part(method, '4000'), part('BPI 6 MOS', '6000')],
+        }),
+      ],
+      config.defaults(),
+    ).items[0];
+    assert.deepEqual(
+      [mixed.issues, mixed.adjustment],
+      [[], '330.00'],
+      method + ' + ₱6,000 × 5.50%',
+    );
+  }
 });
 
 test('BPI 12 MOS uses 12.50 percent', () => {
@@ -1751,7 +1791,10 @@ test('Requested warning text is hidden without removing rows, resolving payments
     }),
   );
   const originals = structuredClone(rows);
-  const r = run(rows);
+  // Settings saved before CHARGE became a default no-charge method still hide its warning.
+  const olderSettings = c();
+  olderSettings.nonCardMethods = olderSettings.nonCardMethods.filter((m) => m !== 'CHARGE');
+  const r = calc.calculate(rows, olderSettings);
   const hidden =
     /"Charge": Unknown payment method or missing configured bank rate\.|Invoice payment discrepancy:/;
   assert.equal(r.items.length, rows.length);

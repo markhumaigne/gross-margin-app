@@ -53,5 +53,5 @@
   ],
   "aliases": [{ "alias": "BDO PAY", "cardName": "BDO PAY/CASA" }],
   "patterns": [],
-  "nonCardMethods": ["CASH", "SBC QRPH"]
+  "nonCardMethods": ["CASH", "SBC QRPH", "CHARGE", "GCASH", "ONLINE PAYMENT", "SPAYLATER"]
 }
