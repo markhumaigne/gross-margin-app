@@ -232,7 +232,15 @@
         </thead>
         <tbody>
           @for (row of rows(); track row.entry.productId) {
-            <tr [class.review-row]="row.errors.length">
+            <tr
+              [class.review-row]="row.errors.length"
+              [class.clickable-row]="!editable()"
+              [attr.data-product]="row.entry.productId"
+              [attr.tabindex]="editable() ? null : 0"
+              [attr.title]="editable() ? null : 'Click to edit this product'"
+              (click)="openRow(row.entry.productId)"
+              (keydown.enter)="openRow(row.entry.productId)"
+            >
               <td class="nowrap">{{ row.entry.productId }}</td>
               @if (row.entry.manual; as manual) {
                 @for (field of manualFields; track field.key) {

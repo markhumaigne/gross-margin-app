@@ -1823,6 +1823,13 @@ textarea.invalid {
   margin: -12px 0 18px;
   font-size: 10px;
 }
+.clickable-row {
+  cursor: pointer;
+}
+.clickable-row:hover td,
+.clickable-row:focus-visible td {
+  background: #f3f7fc;
+}
 .import-lines {
   margin: 0;
   padding-left: 16px;

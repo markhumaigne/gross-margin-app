@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -53,6 +53,7 @@ export class PriceBookEditorComponent {
   private readonly service = inject(PriceBookService);
   private readonly catalog = inject(ProductCatalogService);
   private readonly auth = inject(AuthService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly today = todayInManila();
 
   readonly mode = signal<Mode>('view');
@@ -163,8 +164,28 @@ export class PriceBookEditorComponent {
       this.mode.set((this.route.snapshot.data['mode'] as Mode | undefined) ?? 'view');
       this.bookId.set(params.get('id'));
       this.load();
-      const notice = (history.state as { notice?: unknown } | null)?.notice;
-      this.notice.set(typeof notice === 'string' ? notice : '');
+      const state = history.state as { notice?: unknown; focusProduct?: unknown } | null;
+      this.notice.set(typeof state?.notice === 'string' ? state.notice : '');
+      if (this.mode() === 'edit' && typeof state?.focusProduct === 'string')
+        this.focusRow(state.focusProduct);
+    });
+  }
+
+  /** Viewing: clicking a product opens the book in edit mode at that product. */
+  openRow(productId: string) {
+    if (this.mode() !== 'view' || !this.bookId()) return;
+    void this.router.navigate(['/price-books', this.bookId(), 'edit'], {
+      state: { focusProduct: productId },
+    });
+  }
+
+  private focusRow(productId: string) {
+    setTimeout(() => {
+      const row = Array.from(
+        this.host.nativeElement.querySelectorAll<HTMLElement>('tr[data-product]'),
+      ).find((r) => r.dataset['product'] === productId);
+      row?.scrollIntoView({ block: 'center' });
+      row?.querySelector<HTMLInputElement>('input')?.focus();
     });
   }
 

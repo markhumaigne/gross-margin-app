@@ -190,3 +190,20 @@ test('PM enters Support on a PS book and sees margin after support', async ({ pa
       .getByRole('columnheader', { name: 'Support', exact: true }),
   ).toHaveCount(0);
 });
+
+test('clicking a product while viewing opens it in edit mode', async ({ page }) => {
+  await signIn(page, ...ACCOUNTS.product);
+  await page.getByRole('link', { name: 'View PL000013' }).click();
+  const products = page.getByRole('table', { name: 'Price book products' });
+  await products.getByRole('row').filter({ hasText: '4800000100011' }).click();
+  await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
+  const price = page.getByLabel('Updated selling price for 4800000100011');
+  await expect(price).toBeFocused();
+  await price.fill('5,000.00');
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page).toHaveURL(/\/price-books\/PL000013$/);
+  await expect(products.getByRole('row').filter({ hasText: '4800000100011' })).toContainText(
+    '₱5,595.00',
+  );
+});
