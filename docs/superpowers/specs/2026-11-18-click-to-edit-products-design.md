@@ -12,3 +12,5 @@
 **Non-goals:** No changes to validation, storage or the calculator. Date and memo errors keep showing on the row in the table, as today.
 
 **Left to the builder:** The hover and cursor styling for clickable rows. Keyboard access: rows are focusable and open on Enter.
+
+**Update (2026-11-18, at the user's request):** Clicking a ZenPOS or manual row now opens **Edit product** directly, from view mode (after switching to edit mode) or from edit mode. Clicks on the row's own inputs and buttons do not open it. Catalog rows keep the focus-the-row behaviour.

@@ -232,8 +232,14 @@ test('the side Edit changes every field of an imported product', async ({ page }
     .filter({ hasText: '4800000600016' });
   await row.click();
   await expect(page).toHaveURL(/\/price-books\/PS000015\/edit$/);
-  await page.getByRole('button', { name: 'Edit product 4800000600016', exact: true }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Edit product' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Product ID', { exact: true })).toHaveValue('4800000600016');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await row.getByLabel('Support for 4800000600016').click();
+  await expect(dialog).toHaveCount(0);
+  await row.getByText('Wireless Headset with Microphone').click();
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Effective start', { exact: true })).toHaveValue('2026-11-01');
   await dialog.getByLabel('Net Price', { exact: true }).fill('2500');
   await dialog.getByLabel('Support', { exact: true }).fill('100');

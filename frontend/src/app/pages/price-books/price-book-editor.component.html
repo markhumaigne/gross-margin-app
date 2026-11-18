@@ -234,12 +234,12 @@
           @for (row of rows(); track row.entry.productId) {
             <tr
               [class.review-row]="row.errors.length"
-              [class.clickable-row]="!editable()"
+              [class.clickable-row]="!editable() || !!row.entry.manual"
               [attr.data-product]="row.entry.productId"
-              [attr.tabindex]="editable() ? null : 0"
-              [attr.title]="editable() ? null : 'Click to edit this product'"
-              (click)="openRow(row.entry.productId)"
-              (keydown.enter)="openRow(row.entry.productId)"
+              [attr.tabindex]="!editable() || row.entry.manual ? 0 : null"
+              [attr.title]="!editable() || row.entry.manual ? 'Click to edit this product' : null"
+              (click)="openRow(row.entry.productId, $event)"
+              (keydown.enter)="openRow(row.entry.productId, $event)"
             >
               <td class="nowrap">{{ row.entry.productId }}</td>
               @if (row.entry.manual; as manual) {

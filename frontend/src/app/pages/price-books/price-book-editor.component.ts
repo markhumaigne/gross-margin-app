@@ -171,12 +171,22 @@ export class PriceBookEditorComponent {
     });
   }
 
-  /** Viewing: clicking a product opens the book in edit mode at that product. */
-  openRow(productId: string) {
-    if (this.mode() !== 'view' || !this.bookId()) return;
-    void this.router.navigate(['/price-books', this.bookId(), 'edit'], {
-      state: { focusProduct: productId },
-    });
+  /**
+   * Clicking a product: rows with their own details (ZenPOS and manual rows) open Edit product;
+   * catalog rows get their first field focused. While viewing, the book switches to edit mode
+   * first. Clicks on the row's own inputs and buttons are left alone.
+   */
+  openRow(productId: string, event: Event) {
+    if ((event.target as HTMLElement).closest('input, select, textarea, button, a')) return;
+    if (this.mode() === 'view') {
+      if (!this.bookId()) return;
+      void this.router.navigate(['/price-books', this.bookId(), 'edit'], {
+        state: { focusProduct: productId },
+      });
+      return;
+    }
+    const entry = this.draft().entries.find((e) => e.productId === productId);
+    if (entry?.manual) this.openProductPicker(productId);
   }
 
   private focusRow(productId: string) {
@@ -185,7 +195,9 @@ export class PriceBookEditorComponent {
         this.host.nativeElement.querySelectorAll<HTMLElement>('tr[data-product]'),
       ).find((r) => r.dataset['product'] === productId);
       row?.scrollIntoView({ block: 'center' });
-      row?.querySelector<HTMLInputElement>('input')?.focus();
+      if (this.draft().entries.find((e) => e.productId === productId)?.manual)
+        this.openProductPicker(productId);
+      else row?.querySelector<HTMLInputElement>('input')?.focus();
     });
   }
 
