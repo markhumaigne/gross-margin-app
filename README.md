@@ -52,31 +52,31 @@ These modules are a **frontend-only demonstration** with no database or backend 
 
 ### Development accounts and access
 
-| Username | Password | Role |
-| --- | --- | --- |
-| admin | Admin123! | Admin |
-| accounting | Accounting123! | Accounting Head |
-| productteam | Product123! | Product Team |
+| Username    | Password       | Role            |
+| ----------- | -------------- | --------------- |
+| admin       | Admin123!      | Admin           |
+| accounting  | Accounting123! | Accounting Head |
+| productteam | Product123!    | Product Team    |
 
-| Module | Admin | Accounting Head | Product Team |
-| --- | --- | --- | --- |
-| Bank rate calculator (`/calculator`, incl. product sections) | ✓ | ✓ | – |
-| Price books (`/price-books`) | ✓ | – | ✓ |
-| User accounts (`/users`) | ✓ | – | – |
+| Module                                                       | Admin | Accounting Head | Product Team |
+| ------------------------------------------------------------ | ----- | --------------- | ------------ |
+| Bank rate calculator (`/calculator`, incl. product sections) | ✓     | ✓               | –            |
+| Price books (`/price-books`)                                 | ✓     | –               | ✓            |
+| User accounts (`/users`)                                     | ✓     | –               | –            |
 
 The old `/sales-report` address forwards to the calculator. The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
 
 ### Price books
 
-Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Saving persists the pricing workspace before showing success. Other tabs at the same site receive the changes and update Accounting's price comparison automatically. Blocked/full browser storage is reported as an error instead of a successful save.
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. While viewing a price book, click any product row to open the book in edit mode at that product. In edit mode, a product's **Edit** button (on the right of ZenPOS and manual rows) opens a window with all of its details, prices, cost, Support (PS books), effective start and end, and memo. Nothing is kept until **Save price book**. Saving persists the pricing workspace before showing success. Other tabs at the same site receive the changes and update Accounting's price comparison automatically. Blocked/full browser storage is reported as an error instead of a successful save.
 
 Price IDs follow the ZenPOS format: a prefix followed by six digits (e.g. `PL000013`, `PS000015`, `PI000005`).
 
-| Prefix | Meaning | Support |
-| --- | --- | --- |
-| `PL` | Managed price only | None |
-| `PS` | External promotion (supplier support or rebate) | Entered by the Product Team per product |
-| `PI` | Internal promotion (no rebate) | None |
+| Prefix | Meaning                                         | Support                                 |
+| ------ | ----------------------------------------------- | --------------------------------------- |
+| `PL`   | Managed price only                              | None                                    |
+| `PS`   | External promotion (supplier support or rebate) | Entered by the Product Team per product |
+| `PI`   | Internal promotion (no rebate)                  | None                                    |
 
 With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a ZenPOS price list. **Duplicate** gives the copy the next number with the same prefix (a copy of `PS000005` becomes the next free `PS` number). IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
 
@@ -118,7 +118,7 @@ After **Calculate**, the calculator reads the same uploaded file in the browser 
 
 COGS uses the report's cost (unit cost × quantity, or line total cost). A product with any row missing cost shows blank COGS, profit and margin (never a partial COGS) and is excluded from cost totals; cost is never estimated. Missing IDs, refunds/negative values, zero quantities and invalid amounts are excluded and listed under **Product rows needing review** (first 200 shown).
 
-**06 Price book comparison** covers rows that carry a Price ID: for each Price ID and product it shows quantity, actual net sales, the POS selling price, the price-book price (promotional, else updated), expected revenue (quantity × price-book price) variance (actual − expected) and Support, with status *Matched*, *Price ID not found*, *Price book inactive* or *Product not in price book*. **Support to claim** totals the Support on every line. Rows without a Price ID sold at regular price and are not compared; entry validity dates are not checked because the POS already applied the ID. Totals cover matched lines.
+**06 Price book comparison** covers rows that carry a Price ID: for each Price ID and product it shows quantity, actual net sales, the POS selling price, the price-book price (promotional, else updated), expected revenue (quantity × price-book price) variance (actual − expected) and Support, with status _Matched_, _Price ID not found_, _Price book inactive_ or _Product not in price book_. **Support to claim** totals the Support on every line. Rows without a Price ID sold at regular price and are not compared; entry validity dates are not checked because the POS already applied the ID. Totals cover matched lines.
 
 The calculator's parser skips the POS export footer rows (`TOTAL:` and `… NOTHING FOLLOWS …`), so they are not counted as items or listed in Needs Review. All product and price-book figures are demonstration data.
 
@@ -133,25 +133,25 @@ The filename is Sales_Bank_Rate_Deductions_YYYYMMDD_HHMMSS.xlsx, with generation
 
 The main sheet has these exact columns:
 
-| Column | Name |
-| --- | --- |
-| A | Product ID |
-| B | Sales Date |
-| C | Branch |
-| D | Invoice Number |
-| E | Product Name |
-| F | Quantity |
-| G | Price |
-| H | Cost |
-| I | Discount |
-| J | Line Total |
-| K | Payment |
-| L | Applied Bank Rate |
-| M | Bank Charges / Subsidy |
-| N | GrossMargin |
-| O | Sales Source Row |
-| P | Tender |
-| Q | Calculation Explanation |
+| Column | Name                    |
+| ------ | ----------------------- |
+| A      | Product ID              |
+| B      | Sales Date              |
+| C      | Branch                  |
+| D      | Invoice Number          |
+| E      | Product Name            |
+| F      | Quantity                |
+| G      | Price                   |
+| H      | Cost                    |
+| I      | Discount                |
+| J      | Line Total              |
+| K      | Payment                 |
+| L      | Applied Bank Rate       |
+| M      | Bank Charges / Subsidy  |
+| N      | GrossMargin             |
+| O      | Sales Source Row        |
+| P      | Tender                  |
+| Q      | Calculation Explanation |
 
 Payment copies the original Sales Report Payment cell verbatim, including line breaks. Tender is the matched configured card name. Original BNPL/SNPL Tender descriptions also appear in Calculation Explanation, including when they came from separate Tender columns inside the Sales Report. Bank and Status are omitted from the main worksheet and its preview; review reasons remain in Calculation Explanation and Needs Review. There is no separate payment-report input or cross-report invoice matching.
 
@@ -222,14 +222,14 @@ Use **Export settings**, or edit Configuration Settings from a calculated report
 
 ## API
 
-| Endpoint | Request | Response |
-| --- | --- | --- |
-| GET /api/config/defaults | None | Default JSON |
-| POST /api/excel/preview | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
-| POST /api/excel/calculate | Multipart sales and JSON-string options | result and exportToken |
-| POST /api/excel/export | Unchanged result and exportToken | Four-sheet Excel file |
-| POST /api/config/import | Multipart file | Validated settings |
-| POST /api/config/export | Configuration JSON | Settings workbook |
+| Endpoint                  | Request                                  | Response                                             |
+| ------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| GET /api/config/defaults  | None                                     | Default JSON                                         |
+| POST /api/excel/preview   | Multipart file; optional headerRow query | Sheets, mappings, cost basis, counts, first ten rows |
+| POST /api/excel/calculate | Multipart sales and JSON-string options  | result and exportToken                               |
+| POST /api/excel/export    | Unchanged result and exportToken         | Four-sheet Excel file                                |
+| POST /api/config/import   | Multipart file                           | Validated settings                                   |
+| POST /api/config/export   | Configuration JSON                       | Settings workbook                                    |
 
 Calculation options contain sales: {sheet, headerRow, mapping, costBasis, paymentScope} and configuration. Mapping keys: productId, date, branch, invoice, product, quantity, price, cost, discount, lineTotal, payment, paymentAmount. Required mappings are invoice, product, quantity and lineTotal; missing optional data stays in the output with appropriate review/warnings. Cost basis is auto/unit/line; payment scope is invoice/line.
 

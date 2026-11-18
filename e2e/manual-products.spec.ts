@@ -207,3 +207,41 @@ test('clicking a product while viewing opens it in edit mode', async ({ page }) 
     '₱5,595.00',
   );
 });
+
+test('the side Edit changes every field of an imported product', async ({ page }) => {
+  await signIn(page, ...ACCOUNTS.product);
+  const XLSX = await import('xlsx');
+  const { SAMPLE_PRICE_BOOK_ROWS } =
+    await import('../frontend/src/app/mock-data/sample-price-book');
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(SAMPLE_PRICE_BOOK_ROWS.map((r) => [...r])),
+    'Price Book',
+  );
+  await page.getByLabel('Import ZenPOS price book files').setInputFiles({
+    name: 'sample.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+  });
+  await expect(page.getByRole('status')).toContainText('PS000015 created');
+  await page.getByRole('link', { name: 'View PS000015' }).click();
+  const row = page
+    .getByRole('table', { name: 'Price book products' })
+    .getByRole('row')
+    .filter({ hasText: '4800000600016' });
+  await row.click();
+  await expect(page).toHaveURL(/\/price-books\/PS000015\/edit$/);
+  await page.getByRole('button', { name: 'Edit product 4800000600016', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Effective start', { exact: true })).toHaveValue('2026-11-01');
+  await dialog.getByLabel('Net Price', { exact: true }).fill('2500');
+  await dialog.getByLabel('Support', { exact: true }).fill('100');
+  await dialog.getByLabel('Effective end', { exact: true }).fill('2026-11-20');
+  await dialog.getByLabel('Memo', { exact: true }).fill('Sony claim');
+  await dialog.getByRole('button', { name: 'Save product', exact: true }).click();
+  await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
+  for (const text of ['₱2,500.00', '₱100.00', 'Nov 20, 2026', 'Sony claim'])
+    await expect(row).toContainText(text);
+});

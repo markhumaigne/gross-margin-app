@@ -39,11 +39,19 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
   @Input() initialEntry: PriceBookEntryDraft | null = null;
   /** PS (external promotion) books show the Support field. */
   @Input() supportEnabled = false;
+  /** Validity for a new product: the price book's dates. */
+  @Input() defaultDates: { effectiveStart: string; effectiveEnd: string } = {
+    effectiveStart: '',
+    effectiveEnd: '',
+  };
   @Output() add = new EventEmitter<string[]>();
   @Output() manualAdd = new EventEmitter<{
     productId: string;
     manual: ManualProductDraft;
     support?: SupportDraft;
+    effectiveStart: string;
+    effectiveEnd: string;
+    memo: string;
   }>();
   @Output() closed = new EventEmitter<void>();
   @ViewChild('searchInput') private searchInput?: ElementRef<HTMLInputElement>;
@@ -69,7 +77,25 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     () => this.selectable().length > 0 && this.selectable().every((p) => this.selected().has(p.id)),
   );
 
+  /** Row validity and memo, edited together with the product details. */
+  readonly rowInfo = signal({ effectiveStart: '', effectiveEnd: '', memo: '' });
+
+  updateRowInfo(field: 'effectiveStart' | 'effectiveEnd' | 'memo', event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.rowInfo.update((info) => ({ ...info, [field]: value }));
+  }
+
   ngOnInit() {
+    const entry = this.initialEntry;
+    this.rowInfo.set(
+      entry
+        ? {
+            effectiveStart: entry.effectiveStart,
+            effectiveEnd: entry.effectiveEnd,
+            memo: entry.memo,
+          }
+        : { ...this.defaultDates, memo: '' },
+    );
     if (this.initialEntry?.manual) {
       this.productId.set(this.initialEntry.productId);
       this.manual.set({ ...this.initialEntry.manual });
@@ -98,6 +124,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
       productId: this.productId().trim(),
       manual: { ...this.manual() },
       ...(this.supportEnabled ? { support: this.support() } : {}),
+      ...this.rowInfo(),
     });
   }
 

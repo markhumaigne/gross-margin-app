@@ -468,6 +468,10 @@
       [excludedIds]="productIds()"
       [initialEntry]="editingEntry()"
       [supportEnabled]="supportBook()"
+      [defaultDates]="{
+        effectiveStart: draft().effectiveDate,
+        effectiveEnd: draft().expirationDate,
+      }"
       (add)="addProducts($event)"
       (manualAdd)="saveManualProduct($event)"
       (closed)="pickerOpen.set(false)"

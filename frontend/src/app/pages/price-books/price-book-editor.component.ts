@@ -242,6 +242,9 @@ export class PriceBookEditorComponent {
     productId: string;
     manual: ManualProductDraft;
     support?: SupportDraft;
+    effectiveStart: string;
+    effectiveEnd: string;
+    memo: string;
   }) {
     this.draft.update((draft) => {
       const existing = draft.entries.find((e) => e.productId === this.editingProductId());

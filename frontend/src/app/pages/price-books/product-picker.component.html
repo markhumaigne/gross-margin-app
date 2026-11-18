@@ -113,6 +113,34 @@
             }
           </div>
         }
+        <div class="form-field">
+          <label for="manual-effective-start">Effective start</label>
+          <input
+            id="manual-effective-start"
+            type="date"
+            [value]="rowInfo().effectiveStart"
+            (input)="updateRowInfo('effectiveStart', $event)"
+          />
+        </div>
+        <div class="form-field">
+          <label for="manual-effective-end">Effective end</label>
+          <input
+            id="manual-effective-end"
+            type="date"
+            [value]="rowInfo().effectiveEnd"
+            (input)="updateRowInfo('effectiveEnd', $event)"
+          />
+        </div>
+        <div class="form-field manual-name-field">
+          <label for="manual-memo">Memo</label>
+          <input
+            id="manual-memo"
+            type="text"
+            autocomplete="off"
+            [value]="rowInfo().memo"
+            (input)="updateRowInfo('memo', $event)"
+          />
+        </div>
       </div>
     </form>
     <div class="modal-footer">
