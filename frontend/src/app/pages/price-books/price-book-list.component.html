@@ -1,6 +1,5 @@
-<div class="page-heading">
-  <div>
-    <div class="eyebrow">PRICING</div>
+<header class="page-heading">
+  <div class="page-title">
     <h1>Price books</h1>
     <p>Create and manage selling and promotional price lists.</p>
   </div>
@@ -19,10 +18,12 @@
       {{ importing() ? 'Importing…' : 'Import ZenPOS price book' }}
     </button>
     <a mat-flat-button class="heading-action" routerLink="/price-books/new"
-      ><span aria-hidden="true">+</span> New price book</a
+      ><svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 3v10M3 8h10" /></svg
+      >New price book</a
     >
   </div>
-</div>
+</header>
 <p class="subtle import-hint">
   Import reads ZenPOS “Price Book” exports, one price book per file. A new Price ID creates a price
   book; an existing one is updated from the file and keeps the Support you entered. Saved prices are
@@ -66,7 +67,9 @@
 <section class="section-card">
   <div class="tab-toolbar">
     <label class="search-label"
-      ><span aria-hidden="true">⌕</span
+      ><svg viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="m10.5 10.5 3 3" /></svg
       ><input
         type="search"
         aria-label="Search price books"
@@ -103,7 +106,7 @@
             <td class="name-cell">{{ book.name }}</td>
             <td class="memo-cell">{{ book.description || '—' }}</td>
             <td class="numeric">{{ book.entries.length }}</td>
-            <td class="nowrap">
+            <td class="validity-cell">
               @if (book.expirationDate) {
                 {{ book.effectiveDate | date: 'MMM d, y' }} –
                 {{ book.expirationDate | date: 'MMM d, y' }}

@@ -17,6 +17,8 @@ export class ExcelUploadComponent {
   readonly api = inject(ExcelApiService);
   readonly loading = signal(false);
   readonly error = signal('');
+  /** True while a file is dragged over the drop area, to highlight it. */
+  readonly dragging = signal(false);
   workbook = signal<WorkbookPreview | undefined>(undefined);
   selected = signal<SheetPreview | undefined>(undefined);
   file?: File;
@@ -79,8 +81,17 @@ export class ExcelUploadComponent {
     input.value = '';
     if (file) void this.load(file);
   }
+  dragOver(event: DragEvent) {
+    event.preventDefault();
+    this.dragging.set(true);
+  }
+  dragLeave(event: DragEvent) {
+    const area = event.currentTarget as HTMLElement;
+    if (!area.contains(event.relatedTarget as Node | null)) this.dragging.set(false);
+  }
   drop(event: DragEvent) {
     event.preventDefault();
+    this.dragging.set(false);
     const file = event.dataTransfer?.files[0];
     if (file) void this.load(file);
   }

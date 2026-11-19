@@ -60,13 +60,27 @@
   </p>
 </div>
 <div class="result-status" [class.has-reviews]="result.summary.reviewCount > 0">
-  <span>{{
-    result.summary.reviewCount
-      ? 'Review flagged rows before using this report.'
-      : 'All source rows processed.'
-  }}</span>
+  <span class="result-status-text"
+    ><svg viewBox="0 0 16 16" aria-hidden="true">
+      @if (result.summary.reviewCount) {
+        <path d="M8 2.2 14.2 13H1.8zM8 6.5v3M8 11.3v.1" />
+      } @else {
+        <circle cx="8" cy="8" r="6.2" />
+        <path d="m5.2 8.2 2 2 3.8-4.2" />
+      }</svg
+    >{{
+      result.summary.reviewCount
+        ? 'Review flagged rows before using this report.'
+        : 'All source rows processed.'
+    }}</span
+  >
   <button mat-flat-button (click)="downloadReport.emit()" [disabled]="downloading">
-    {{ downloading ? 'Preparing workbook…' : '↓ Download Calculated Excel Report' }}
+    @if (!downloading) {
+      <svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 2.5v8M5 7.5l3 3 3-3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" />
+      </svg>
+    }
+    {{ downloading ? 'Preparing workbook…' : 'Download Calculated Excel Report' }}
   </button>
 </div>
 <mat-tab-group animationDuration="0ms" (selectedIndexChange)="changeView($event)">
@@ -75,7 +89,7 @@
   <mat-tab [label]="'Needs Review (' + result.reviews.length + ')'"></mat-tab>
 </mat-tab-group>
 @if (view === 1) {
-  <h3>{{ branchDateSummaryTitle }}</h3>
+  <h3 class="view-title">{{ branchDateSummaryTitle }}</h3>
   <p class="table-footnote">
     Totals use the same fully calculated product rows for sales, cost, signed charges/subsidies and
     gross margin. Negative-quantity, cash-only, unmatched and provisional rows, and rows missing
@@ -87,7 +101,9 @@
 }
 <div class="tab-toolbar">
   <label class="search-label"
-    ><span aria-hidden="true">⌕</span
+    ><svg viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="m10.5 10.5 3 3" /></svg
     ><input
       type="search"
       aria-label="Search results"
@@ -105,7 +121,11 @@
               sortKey === col.key ? (ascending ? 'ascending' : 'descending') : 'none'
             "
           >
-            <button class="column-sort" (click)="sort(col.key)">
+            <button
+              class="column-sort"
+              [class.sorted]="sortKey === col.key"
+              (click)="sort(col.key)"
+            >
               {{ col.header }} {{ sortKey === col.key ? (ascending ? '↑' : '↓') : '' }}
             </button>
           </th>
@@ -121,6 +141,7 @@
               [class.reason-cell]="
                 ['explanation', 'reason', 'originalPaymentMethod'].includes(col.key)
               "
+              [class.explanation-cell]="col.key === 'explanation'"
               [attr.title]="display(row[col.key])"
             >
               @if (col.format === 'date') {
@@ -134,9 +155,9 @@
                   display(row[col.key])
                 }}</span>
                 @if (warning(row)) {
-                  <small class="identifier-warning" [attr.title]="warning(row)"
-                    >⚠ {{ warning(row) }}</small
-                  >
+                  <small class="identifier-warning" [attr.title]="warning(row)">{{
+                    warning(row)
+                  }}</small>
                 }
               } @else {
                 {{ display(row[col.key]) }}

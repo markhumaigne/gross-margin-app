@@ -1,63 +1,80 @@
 <div class="login-page">
-  <section class="login-card" aria-labelledby="login-title">
-    <div class="login-brand">
-      <span class="brand-mark"
-        ><svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <path
-            d="M5 6h18v16H5zM9 3v22M5 11h18M5 17h18"
-            stroke="currentColor"
-            stroke-width="1.7"
-          /></svg></span
-      >ledger<span class="brand-dot">.</span>
+  <aside class="login-showcase">
+    <span class="brand-lockup login-lockup"
+      ><img src="images/ledger-banner.png" alt="Ledger" width="869" height="287"
+    /></span>
+    <div class="login-pitch">
+      <p class="login-statement">
+        Card charges, gross margins and price books, worked out from your Sales Report.
+      </p>
+      <dl class="login-modules">
+        <div>
+          <dt>Accounting</dt>
+          <dd>Upload a Sales Report, apply bank rates and download a reconciled workbook.</dd>
+        </div>
+        <div>
+          <dt>Product Team</dt>
+          <dd>Keep selling and promotional prices, and supplier support, in price books.</dd>
+        </div>
+        <div>
+          <dt>Admin</dt>
+          <dd>Manage accounts and assign roles.</dd>
+        </div>
+      </dl>
     </div>
-    <h1 id="login-title">Sign in</h1>
-    <p class="login-subtitle">Pricing and accounting workspace</p>
-    @if (error()) {
-      <div class="error-message" role="alert">{{ error() }}</div>
-    }
-    <form class="login-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <label
-        >Username <input formControlName="username" autocomplete="username" autocapitalize="none"
-      /></label>
-      <label
-        >Password <input formControlName="password" type="password" autocomplete="current-password"
-      /></label>
-      <button mat-flat-button type="submit" class="login-button">Sign in</button>
-    </form>
-    <div class="dev-accounts">
-      <h2>Development accounts</h2>
-      <p>Mock credentials for this frontend prototype only. Not production authentication.</p>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Username</th>
-            <th scope="col">Password</th>
-            <th scope="col">Role</th>
-            <th scope="col"><span class="visually-hidden">Action</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (account of devAccounts; track account.username) {
+  </aside>
+  <section class="login-panel" aria-labelledby="login-title">
+    <div class="login-card">
+      <h1 id="login-title">Sign in</h1>
+      <p class="login-subtitle">Pricing and accounting workspace</p>
+      @if (error()) {
+        <div class="error-message" role="alert">{{ error() }}</div>
+      }
+      <form class="login-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <label
+          >Username <input formControlName="username" autocomplete="username" autocapitalize="none"
+        /></label>
+        <label
+          >Password
+          <input formControlName="password" type="password" autocomplete="current-password"
+        /></label>
+        <button mat-flat-button type="submit" class="login-button">Sign in</button>
+      </form>
+      <div class="dev-accounts">
+        <h2>Development accounts</h2>
+        <p>Mock credentials for this frontend prototype only. Not production authentication.</p>
+        <table>
+          <thead>
             <tr>
-              <td>{{ account.username }}</td>
-              <td>
-                <code>{{ account.password }}</code>
-              </td>
-              <td>{{ account.role }}</td>
-              <td>
-                <button
-                  mat-button
-                  type="button"
-                  [attr.aria-label]="'Use ' + account.username"
-                  (click)="use(account)"
-                >
-                  Use
-                </button>
-              </td>
+              <th scope="col">Username</th>
+              <th scope="col">Password</th>
+              <th scope="col">Role</th>
+              <th scope="col"><span class="visually-hidden">Action</span></th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (account of devAccounts; track account.username) {
+              <tr>
+                <td class="username">{{ account.username }}</td>
+                <td>
+                  <code>{{ account.password }}</code>
+                </td>
+                <td>{{ account.role }}</td>
+                <td class="dev-action">
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Use ' + account.username"
+                    (click)="use(account)"
+                  >
+                    Use
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>

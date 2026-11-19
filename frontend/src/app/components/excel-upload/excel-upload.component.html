@@ -1,13 +1,19 @@
 <div class="upload-panel">
   <div class="upload-label">
-    <span class="file-glyph" aria-hidden="true">↥</span>
     <div>
       <h3>{{ title }}</h3>
       <p>Product IDs, costs, sales amounts and payment details</p>
     </div>
-    <span class="required-label">REQUIRED</span>
+    <span class="required-label">Required</span>
   </div>
-  <div class="drop-area" (dragover)="$event.preventDefault()" (drop)="drop($event)">
+  <div
+    class="drop-area"
+    [class.dragging]="dragging()"
+    [class.has-file]="!!file && !error()"
+    (dragover)="dragOver($event)"
+    (dragleave)="dragLeave($event)"
+    (drop)="drop($event)"
+  >
     <input
       #fileInput
       type="file"
@@ -16,9 +22,21 @@
       [attr.aria-label]="'Upload ' + title"
       (change)="pick($event)"
     />
-    <div class="upload-symbol" aria-hidden="true">▤</div>
+    <div class="upload-symbol" aria-hidden="true">
+      @if (file && !error()) {
+        <svg viewBox="0 0 24 24">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5M8.5 13.5l2.5 2.5 4.5-5" />
+        </svg>
+      } @else {
+        <svg viewBox="0 0 24 24">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5" />
+        </svg>
+      }
+    </div>
     <strong>{{ file?.name || 'Drop your Excel workbook here' }}</strong>
-    <p>.xlsx or .xls · up to 10 MB</p>
+    <p>Excel workbook (.xlsx or .xls), up to 10 MB</p>
     <button mat-stroked-button type="button" (click)="fileInput.click()" [disabled]="loading()">
       {{ file ? 'Replace workbook' : 'Browse files' }}
     </button>

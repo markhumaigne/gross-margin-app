@@ -12,9 +12,16 @@
       accept=".xlsx,.xls"
       aria-label="Import configuration workbook"
       (change)="pick($event)"
-    /><button mat-button (click)="importInput.click()" [disabled]="busy">↥ Import Excel</button
+    /><button mat-button (click)="importInput.click()" [disabled]="busy">
+      <svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 10.5V2.5M5 5.5l3-3 3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" />
+      </svg>
+      Import Excel</button
     ><button mat-button (click)="exportSettings.emit()" [disabled]="busy || form.invalid">
-      ↧ Export settings</button
+      <svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 2.5v8M5 7.5l3 3 3-3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" />
+      </svg>
+      Export settings</button
     ><button mat-button class="muted-button" (click)="resetSettings.emit()" [disabled]="busy">
       Reset defaults
     </button>
@@ -25,7 +32,9 @@
     <mat-tab [label]="'Payment methods (' + methods.length + ')'">
       <div class="tab-toolbar">
         <label class="search-label"
-          ><span aria-hidden="true">⌕</span
+          ><svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="m10.5 10.5 3 3" /></svg
           ><input
             type="search"
             placeholder="Search bank or card name…"

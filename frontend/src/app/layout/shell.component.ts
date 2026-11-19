@@ -17,14 +17,19 @@ import { Permission, ROLE_LABELS } from '../domain/roles';
 interface NavItem {
   path: string;
   label: string;
-  icon: string;
+  icon: 'calculator' | 'price-tag' | 'users';
   permission: Permission;
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/calculator', label: 'Bank rate calculator', icon: '▦', permission: 'calculator' },
-  { path: '/price-books', label: 'Price books', icon: '◫', permission: 'price-books' },
-  { path: '/users', label: 'User accounts', icon: '◉', permission: 'users' },
+  {
+    path: '/calculator',
+    label: 'Bank rate calculator',
+    icon: 'calculator',
+    permission: 'calculator',
+  },
+  { path: '/price-books', label: 'Price books', icon: 'price-tag', permission: 'price-books' },
+  { path: '/users', label: 'User accounts', icon: 'users', permission: 'users' },
 ];
 
 @Component({
@@ -43,6 +48,14 @@ export class ShellComponent {
     return role ? ROLE_LABELS[role] : '';
   });
   readonly navItems = computed(() => NAV_ITEMS.filter((item) => this.auth.can(item.permission)));
+  /** Up to two initials for the account avatar, e.g. "Accounting Head" -> "AH". */
+  readonly initials = computed(() => {
+    const words = (this.user()?.displayName ?? '').trim().split(/\s+/).filter(Boolean);
+    return words
+      .slice(0, 2)
+      .map((word) => word[0].toUpperCase())
+      .join('');
+  });
   readonly label = signal('');
   readonly onCalculator = signal(false);
 

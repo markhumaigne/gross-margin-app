@@ -37,6 +37,8 @@ export class DashboardComponent {
   readonly busy = signal(false);
   readonly configBusy = signal(false);
   readonly downloading = signal(false);
+  /** True once the current results were downloaded; marks the last step of the rail done. */
+  readonly downloaded = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
   readonly loadingDefaults = signal(true);
@@ -72,11 +74,19 @@ export class DashboardComponent {
   }
   invalidate() {
     this.revision++;
+    this.downloaded.set(false);
     this.analysedUpload.set(undefined);
     if (this.response()) {
       this.response.set(undefined);
       this.notice.set('Inputs changed. Calculate again to update the results.');
     }
+  }
+  /** The first step still to do, highlighted in the progress rail. */
+  get currentStep() {
+    if (!this.sales?.valid) return 1;
+    if (!this.configValid) return 2;
+    if (!this.response()) return 3;
+    return 4;
   }
   get ready() {
     return (
@@ -95,6 +105,7 @@ export class DashboardComponent {
     this.error.set('');
     this.notice.set('');
     this.response.set(undefined);
+    this.downloaded.set(false);
     try {
       // PS Support from the price books saved in this browser becomes Supplier Support.
       const response = await this.api.calculate(
@@ -159,6 +170,7 @@ export class DashboardComponent {
     this.error.set('');
     try {
       saveDownload(await this.api.exportReport(response), 'Sales_Bank_Rate_Deductions.xlsx');
+      this.downloaded.set(true);
     } catch (e) {
       this.error.set(await readableError(e));
     } finally {

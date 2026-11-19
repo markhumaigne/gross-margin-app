@@ -11,7 +11,12 @@ import { homePath, ROLE_LABELS } from '../../domain/roles';
   template: `
     <section class="section-card">
       <div class="empty-state">
-        <div class="empty-icon" aria-hidden="true">⛔</div>
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="5" y="10.5" width="14" height="10" rx="2" />
+            <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5" />
+          </svg>
+        </div>
         <h1 class="forbidden-title">Access denied</h1>
         <p>Your role ({{ roleLabel() }}) cannot open this page.</p>
         <a mat-flat-button class="forbidden-action" [routerLink]="home()">Go to your workspace</a>
