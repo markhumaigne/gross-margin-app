@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { expectFail, expectOk, test } from './harness';
 import {
+  deletePriceBook,
   draftFromBook,
   duplicatePriceBook,
   emptyDraft,
@@ -106,6 +107,16 @@ test('duplicate creates an inactive independent copy with a unique name', () => 
   assert.equal(second.book.name, 'Standard Retail 2026 (copy 2)');
   first.book.entries[0].memo = 'changed';
   assert.equal(SEED_PRICE_BOOKS[0].entries[0].memo, '');
+});
+
+test('delete removes only that price book', () => {
+  const left = expectOk(deletePriceBook(SEED_PRICE_BOOKS, 'PL000030'));
+  assert.deepEqual(
+    left.map((b) => b.id),
+    SEED_PRICE_BOOKS.filter((b) => b.id !== 'PL000030').map((b) => b.id),
+  );
+  assert.ok(SEED_PRICE_BOOKS.some((b) => b.id === 'PL000030'));
+  assert.equal(expectFail(deletePriceBook(SEED_PRICE_BOOKS, 'PL999999')), 'Price book not found.');
 });
 
 test('activate/deactivate and filtering', () => {

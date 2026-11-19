@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+  deletePriceBook,
   duplicatePriceBook,
   PriceBook,
   PriceBookDraft,
@@ -121,5 +122,14 @@ export class PriceBookService {
     const saved = this.workspace.commit(result.value);
     if (!saved.ok) return saved;
     return ok(this.byId(id)!);
+  }
+
+  delete(actor: UserAccount, id: string): Result<void> {
+    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
+    const loaded = this.workspace.reload();
+    if (!loaded.ok) return loaded;
+    const result = deletePriceBook(this.books(), id);
+    if (!result.ok) return result;
+    return this.workspace.commit(result.value);
   }
 }

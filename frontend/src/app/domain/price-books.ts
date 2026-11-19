@@ -270,6 +270,11 @@ export function setPriceBookActive(
   );
 }
 
+export function deletePriceBook(books: readonly PriceBook[], id: string): Result<PriceBook[]> {
+  if (!books.some((b) => b.id === id)) return fail(NOT_FOUND);
+  return ok(books.filter((b) => b.id !== id));
+}
+
 export function filterPriceBooks(
   books: readonly PriceBook[],
   query: string,

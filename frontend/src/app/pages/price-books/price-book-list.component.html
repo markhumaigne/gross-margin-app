@@ -147,7 +147,15 @@
                 [attr.aria-label]="(book.active ? 'Deactivate ' : 'Activate ') + book.id"
                 (click)="toggle(book)"
               >
-                {{ book.active ? 'Deactivate' : 'Activate' }}
+                {{ book.active ? 'Deactivate' : 'Activate' }}</button
+              ><button
+                mat-button
+                type="button"
+                class="danger-action"
+                [attr.aria-label]="'Delete ' + book.id"
+                (click)="remove(book)"
+              >
+                Delete
               </button>
             </td>
           </tr>

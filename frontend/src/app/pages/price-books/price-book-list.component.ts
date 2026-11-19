@@ -86,6 +86,15 @@ export class PriceBookListComponent implements OnInit {
     else this.show(result.error, true);
   }
 
+  remove(book: PriceBook) {
+    const actor = this.auth.currentUser();
+    if (!actor) return;
+    if (!confirm(`Delete ${book.id} (${book.name})? This cannot be undone.`)) return;
+    const result = this.service.delete(actor, book.id);
+    if (result.ok) this.show(`${book.id} deleted.`);
+    else this.show(result.error, true);
+  }
+
   private show(message: string, isError = false) {
     this.notice.set(isError ? '' : message);
     this.error.set(isError ? message : '');

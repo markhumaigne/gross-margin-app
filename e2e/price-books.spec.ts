@@ -47,6 +47,25 @@ test.describe('Price book list', () => {
     await expect(page.getByRole('row').filter({ hasText: 'PL000030' })).toContainText('Active');
   });
 
+  test('delete asks for confirmation and survives a reload', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    const row = page.getByRole('row').filter({ hasText: 'PL000030' });
+    page.once('dialog', (d) => d.dismiss());
+    await page.getByRole('button', { name: 'Delete PL000030' }).click();
+    await expect(row).toHaveCount(1);
+    page.once('dialog', (d) => {
+      expect(d.message()).toBe('Delete PL000030 (November Monitor Sale)? This cannot be undone.');
+      void d.accept();
+    });
+    await page.getByRole('button', { name: 'Delete PL000030' }).click();
+    await expect(page.getByRole('status')).toHaveText('PL000030 deleted.');
+    await expect(row).toHaveCount(0);
+    await page.reload();
+    await signIn(page, ...ACCOUNTS.product);
+    await expect(page.getByRole('table', { name: 'Price books' })).toBeVisible();
+    await expect(row).toHaveCount(0);
+  });
+
   test('Admin can manage price books too', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.admin);
     await navigateInApp(page, '/price-books');
