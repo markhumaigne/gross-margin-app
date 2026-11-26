@@ -218,6 +218,44 @@ test.describe('Price book editor', () => {
     ).toBeVisible();
   });
 
+  test('search finds products inside a price book', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await navigateInApp(page, '/price-books/PL000013');
+    const table = page.getByRole('table', { name: 'Price book products' });
+    const rows = table.locator('tbody tr[data-product]');
+    const search = page.getByLabel('Search products');
+    await expect(rows).toHaveCount(2);
+    await search.fill('keyboard combo');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toHaveAttribute('data-product', '4800000200014');
+    await expect(page.getByText('Showing 1 of 2 products')).toBeVisible();
+    await search.fill('4800000100');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('24" IPS Monitor FHD 100Hz');
+    await search.fill('tablet');
+    await expect(rows).toHaveCount(0);
+    await expect(table).toContainText('No products match “tablet”.');
+    await search.fill('');
+    await expect(rows).toHaveCount(2);
+    await expect(page.getByText(/Showing \d+ of/)).toHaveCount(0);
+
+    // While editing, a product added that doesn't match the search clears it so it stays in view.
+    await page.getByRole('link', { name: 'Edit', exact: true }).click();
+    await page.getByLabel('Search products').fill('monitor');
+    await expect(rows).toHaveCount(1);
+    await addProduct(page, {
+      'Product ID': '4800000400010',
+      Name: 'USB-C Docking Station 8-in-1',
+      Unit: 'PCS',
+      'Master List Price': '4950',
+      'Unit Price': '4950',
+      'Net Price': '4950',
+      Cost: '4000',
+    });
+    await expect(page.getByLabel('Search products')).toHaveValue('');
+    await expect(rows).toHaveCount(3);
+  });
+
   test('Accounting Head cannot reach the editor', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.accounting);
     for (const url of ['/price-books/new', '/price-books/PL000013/edit']) {

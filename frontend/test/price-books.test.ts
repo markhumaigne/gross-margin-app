@@ -6,6 +6,7 @@ import {
   draftFromBook,
   duplicatePriceBook,
   emptyDraft,
+  filterEntries,
   filterPriceBooks,
   hasErrors,
   isSupportBook,
@@ -165,6 +166,31 @@ test('activate/deactivate and filtering', () => {
   assert.deepEqual(
     filterPriceBooks(SEED_PRICE_BOOKS, 'branches', 'active').map((b) => b.id),
     ['PL000013'],
+  );
+});
+
+test('product search inside a price book matches product ID and every word of the name', () => {
+  const entries = [
+    entryDraft('5707119059558', { name: 'STEELSERIES ARCTIS NOVA 3P WIRELESS HEADSET AQUA (61688)' }),
+    entryDraft('5707119061315', {
+      name: 'STEELSERIES ARCTIS NOVA 3P WIRELESS HEADSET LAVENDER (61692)',
+    }),
+    entryDraft('4800000100011', { name: '24" IPS Monitor FHD 100Hz' }),
+  ];
+  const ids = (query: string) => filterEntries(entries, query).map((e) => e.productId);
+  assert.deepEqual(ids(''), ['5707119059558', '5707119061315', '4800000100011']);
+  assert.deepEqual(ids('   '), ['5707119059558', '5707119061315', '4800000100011']);
+  assert.deepEqual(ids('5707119061'), ['5707119061315']);
+  assert.deepEqual(ids('arctis lavender'), ['5707119061315']);
+  assert.deepEqual(ids('  Lavender   ARCTIS '), ['5707119061315']);
+  assert.deepEqual(ids('61688'), ['5707119059558']);
+  assert.deepEqual(ids('steelseries'), ['5707119059558', '5707119061315']);
+  assert.deepEqual(ids('monitor 4800'), ['4800000100011']);
+  assert.deepEqual(ids('keyboard'), []);
+  // Saved entries search the same way.
+  assert.deepEqual(
+    filterEntries(SEED_PRICE_BOOKS[0]!.entries, 'keyboard').map((e) => e.productId),
+    ['4800000200014'],
   );
 });
 

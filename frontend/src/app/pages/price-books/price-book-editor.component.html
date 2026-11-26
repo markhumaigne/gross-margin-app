@@ -219,6 +219,27 @@
         </button>
       }
     </div>
+    @if (draft().entries.length) {
+      <div class="tab-toolbar">
+        <label class="search-label"
+          ><svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="m10.5 10.5 3 3" /></svg
+          ><input
+            type="search"
+            aria-label="Search products"
+            placeholder="Search by product ID or name"
+            autocomplete="off"
+            [value]="productQuery()"
+            (input)="setProductQuery($event)"
+        /></label>
+        @if (searching()) {
+          <span class="subtle" aria-live="polite"
+            >Showing {{ visibleRows().length }} of {{ draft().entries.length }} products</span
+          >
+        }
+      </div>
+    }
     <div class="table-scroll">
       <table aria-label="Price book products" class="entries-table">
         <thead>
@@ -242,7 +263,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of rows(); track row.entry.productId) {
+          @for (row of visibleRows(); track row.entry.productId) {
             <tr
               class="clickable-row"
               tabindex="0"
@@ -380,7 +401,11 @@
           } @empty {
             <tr>
               <td [attr.colspan]="columnCount()" class="empty-table">
-                No products yet. Use Add products to enter product details.
+                @if (draft().entries.length) {
+                  No products match “{{ productQuery().trim() }}”.
+                } @else {
+                  No products yet. Use Add products to enter product details.
+                }
               </td>
             </tr>
           }

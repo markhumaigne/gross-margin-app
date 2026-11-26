@@ -11,6 +11,7 @@ import { ManualProductDraft, MANUAL_PRODUCT_FIELDS } from '../../../../../shared
 import {
   draftFromBook,
   emptyDraft,
+  filterEntries,
   nextPriceBookId,
   isSupportBook,
   normalizePriceId,
@@ -125,6 +126,13 @@ export class PriceBookEditorComponent {
       };
     }),
   );
+  /** Search inside this price book's products (Product ID or name). */
+  readonly productQuery = signal('');
+  readonly searching = computed(() => this.productQuery().trim() !== '');
+  readonly visibleRows = computed(() => {
+    const shown = new Set(filterEntries(this.draft().entries, this.productQuery()));
+    return this.rows().filter((row) => shown.has(row.entry));
+  });
   readonly productIds = computed(() =>
     this.draft()
       .entries.filter((e) => e.productId !== this.editingProductId())
@@ -148,6 +156,7 @@ export class PriceBookEditorComponent {
           ? state.focusProduct
           : null;
       this.opened = false;
+      this.productQuery.set('');
       void this.workspace.ensureLoaded().then(() => this.open());
     });
     // A failed first load can be retried from the shell; open the book once it arrives.
@@ -228,6 +237,10 @@ export class PriceBookEditorComponent {
     }));
   }
 
+  setProductQuery(event: Event) {
+    this.productQuery.set((event.target as HTMLInputElement).value);
+  }
+
   openProductPicker(productId: string | null = null) {
     this.editingProductId.set(productId);
     this.pickerOpen.set(true);
@@ -258,6 +271,9 @@ export class PriceBookEditorComponent {
     });
     this.pickerOpen.set(false);
     this.editingProductId.set(null);
+    // Keep the product just added or edited in view even if it doesn't match the search.
+    const saved = this.draft().entries.find((e) => e.productId === value.productId);
+    if (saved && !filterEntries([saved], this.productQuery()).length) this.productQuery.set('');
   }
 
   removeProduct(productId: string) {
@@ -285,6 +301,8 @@ export class PriceBookEditorComponent {
     if (!result.ok) {
       this.notice.set('');
       this.error.set(result.error);
+      // Show every product again so a highlighted one isn't hidden by the search.
+      if (Object.keys(this.errors().entries).length) this.productQuery.set('');
       return;
     }
     this.initialDraft = JSON.stringify(this.draft());

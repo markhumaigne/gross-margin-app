@@ -275,6 +275,23 @@ export function filterPriceBooks(
 }
 
 /**
+ * Products of one price book matching a search, in their original order. Every word of the query
+ * must appear in the Product ID or the product name (ignoring case), so "arctis lavender" finds
+ * "STEELSERIES ARCTIS NOVA 3P WIRELESS HEADSET LAVENDER". An empty query matches everything.
+ */
+export function filterEntries<T extends { productId: string; manual: { name: string } }>(
+  entries: readonly T[],
+  query: string,
+): T[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [...entries];
+  return entries.filter((e) => {
+    const text = `${e.productId} ${e.manual.name}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
+}
+
+/**
  * Supplier Support sent with Calculate: every PS book (active or not, because sales made under an
  * ended promotion still earn support) and each of its products that has Support, in ₱ per unit.
  */
