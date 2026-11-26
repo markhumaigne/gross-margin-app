@@ -1,4 +1,4 @@
-import { test, expect, Download } from '@playwright/test';
+import { test, expect, Download } from './fixtures';
 import ExcelJS from 'exceljs';
 import { signIn } from './helpers';
 import * as XLSX from 'xlsx';

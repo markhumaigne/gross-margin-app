@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { ACCOUNTS, navigateInApp, signIn } from './helpers';
 
 /** A ZenPOS price book export built from the demo sample, with label values overridden. */

@@ -1,4 +1,4 @@
-import { test, expect, Locator } from '@playwright/test';
+import { test, expect, Locator } from './fixtures';
 import { ACCOUNTS, navigateInApp, signIn } from './helpers';
 
 async function fillProduct(dialog: Locator, id = '001-CUSTOM') {

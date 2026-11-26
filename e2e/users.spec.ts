@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { ACCOUNTS, navigateInApp, signIn, signOut } from './helpers';
 
 test('Admin transfers the Accounting Head role; exactly one holder remains', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { ACCOUNTS, navigateInApp, navLinks, signIn, signOut } from './helpers';
 
 test('unauthenticated deep link goes to sign-in and returns after login', async ({ page }) => {

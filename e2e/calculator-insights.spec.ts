@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './fixtures';
 import * as XLSX from 'xlsx';
 import { SAMPLE_EXPORT_ROWS } from '../frontend/src/app/mock-data/sample-export';
 import { SAMPLE_PRICE_BOOK_ROWS } from '../frontend/src/app/mock-data/sample-price-book';

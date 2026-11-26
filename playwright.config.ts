@@ -1,6 +1,11 @@
+import { config } from 'dotenv';
 import { defineConfig } from '@playwright/test';
+
+config({ path: 'backend/.env', quiet: true });
+
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   timeout: 60000,
   workers: 1,
   fullyParallel: false,
@@ -21,7 +26,11 @@ export default defineConfig({
     {
       command: 'npm run start -w backend',
       url: 'http://127.0.0.1:3100/api/config/defaults',
-      env: { PORT: '3100' },
+      env: {
+        PORT: '3100',
+        DATABASE_URL: process.env.TEST_DATABASE_URL ?? '',
+        AUTH_SECRET: process.env.AUTH_SECRET ?? '',
+      },
       reuseExistingServer: false,
       timeout: 60000,
     },
