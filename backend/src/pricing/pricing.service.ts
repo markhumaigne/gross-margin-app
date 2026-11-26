@@ -31,8 +31,8 @@ export class PricingService {
   }
 
   async create(actor: UserAccount, draft: PriceBookDraft): Promise<PriceBookWriteResponse> {
-    const { book, pricing } = await this.write(({ books, products }) => {
-      const result = savePriceBook(books, draft, null, products, actor.displayName, new Date());
+    const { book, pricing } = await this.write(({ books }) => {
+      const result = savePriceBook(books, draft, null, actor.displayName, new Date());
       return result.ok ? { ok: true, value: { ...result.value, extra: null } } : result;
     });
     return { book: book as PriceBook, pricing };
@@ -44,14 +44,14 @@ export class PricingService {
     draft: PriceBookDraft,
     expectedUpdatedAt?: string,
   ): Promise<PriceBookWriteResponse> {
-    const { book, pricing } = await this.write(({ books, products }) => {
+    const { book, pricing } = await this.write(({ books }) => {
       const stored = books.find((b) => b.id === id);
       if (stored && expectedUpdatedAt !== undefined && stored.updatedAt !== expectedUpdatedAt)
         throw new ConflictException(
           `Price book ${id} was changed by ${stored.updatedBy} after you opened it. ` +
             'Your changes were not saved. Open the price book again to see the latest version.',
         );
-      const result = savePriceBook(books, draft, id, products, actor.displayName, new Date());
+      const result = savePriceBook(books, draft, id, actor.displayName, new Date());
       return result.ok ? { ok: true, value: { ...result.value, extra: null } } : result;
     });
     return { book: book as PriceBook, pricing };

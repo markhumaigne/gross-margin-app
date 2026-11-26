@@ -90,7 +90,7 @@ test('a new Price ID creates an editable book from the file', () => {
   });
   assert.equal(summary.created, true);
   assert.equal(formatImportSummary(summary), 'PS000005 created: 2 products');
-  assert.equal(hasErrors(validatePriceBook(draftFromBook(book), books, [], book.id)), false);
+  assert.equal(hasErrors(validatePriceBook(draftFromBook(book), books, book.id)), false);
 });
 
 test('summaries count with thousands separators and report skipped rows', () => {
@@ -180,7 +180,7 @@ test('a name used by another book gets the Price ID appended', () => {
   assert.equal(own.name, 'Sony Promo');
 });
 
-test('catalog rows of an existing book are replaced by the file', () => {
+test('rows of an existing book are replaced by the file', () => {
   const { book, summary } = run(
     SEED_PRICE_BOOKS,
     parsed({ priceId: 'PL000013', products: [row('4800000100011', 5595, 4681)] }),

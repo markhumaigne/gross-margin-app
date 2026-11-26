@@ -1,5 +1,27 @@
-import { test, expect } from './fixtures';
-import { ACCOUNTS, navigateInApp, signIn } from './helpers';
+import { test, expect, Page } from './fixtures';
+import { ACCOUNTS, editNetPrice, navigateInApp, signIn } from './helpers';
+
+/** Adds a product with its own details through Add products (manual entry). */
+async function addProduct(page: Page, values: Record<string, string>) {
+  await page.getByRole('button', { name: 'Add products', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add products' });
+  for (const [label, value] of Object.entries(values))
+    await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
+const MONITOR = {
+  'Product ID': '4800000100011',
+  Name: '24" IPS Monitor FHD 100Hz',
+  Unit: 'PCS',
+  'Master List Price': '5795',
+  'Unit Price': '5795',
+  'Disc %': '5.18',
+  Discount: '300',
+  'Net Price': '5495',
+  Cost: '4681',
+};
 
 /** A ZenPOS price book export built from the demo sample, with label values overridden. */
 async function zenposFile(name: string, labels: Record<string, string> = {}) {
@@ -83,35 +105,34 @@ test.describe('Price book list', () => {
 });
 
 test.describe('Price book editor', () => {
-  test('Product Team creates a price book with updated and promotional prices', async ({
-    page,
-  }) => {
+  test('Product Team creates a price book with products and their prices', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
     await page.getByRole('link', { name: 'New price book' }).click();
     await page.getByLabel('Price book name').fill('Weekend Flash Sale');
     await page.getByLabel('Effective date').fill('2099-01-01');
     await page.getByLabel('Expiration date').fill('2099-01-31');
-    await page.getByRole('button', { name: 'Add products' }).click();
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Search catalog', exact: true })
-      .click();
-    const dialog = page.getByRole('dialog', { name: 'Add products' });
-    await dialog.getByLabel('Search products').fill('4800000100011');
-    await dialog.getByLabel('Select 4800000100011').check();
-    await dialog.getByLabel('Search products').fill('keyboard and mouse');
-    await dialog.getByLabel('Select 4800000200014').check();
-    await dialog.getByRole('button', { name: 'Add 2 products' }).click();
-    await page.getByLabel('Updated selling price for 4800000100011').fill('₱5,495.00');
-    await page.getByLabel('Promotional price for 4800000200014').fill('999');
+    await addProduct(page, { ...MONITOR, 'Net Price': '₱5,495.00' });
+    await addProduct(page, {
+      'Product ID': '4800000200014',
+      Name: 'Wireless Keyboard and Mouse Combo',
+      Unit: 'SET',
+      'Master List Price': '1495',
+      'Unit Price': '1495',
+      'Disc %': '33.18',
+      Discount: '496',
+      'Net Price': '999',
+      Cost: '820',
+    });
     const table = page.getByRole('table', { name: 'Price book products' });
     const r1 = table.getByRole('row').filter({ hasText: '4800000100011' });
     await expect(r1).toContainText('₱5,795.00');
     await expect(r1).toContainText('5.18%');
+    await expect(r1).toContainText('₱5,495.00');
+    await expect(r1).toContainText('17.39%');
     await expect(r1).toContainText('Scheduled');
-    await expect(table.getByRole('row').filter({ hasText: '4800000200014' })).toContainText(
-      '33.18%',
-    );
+    const r2 = table.getByRole('row').filter({ hasText: '4800000200014' });
+    await expect(r2).toContainText('33.18%');
+    await expect(r2).toContainText('21.83%');
     await page.getByRole('button', { name: 'Save price book' }).click();
     await expect(page).toHaveURL(/\/price-books\/PL000035$/);
     await expect(page.getByRole('status')).toHaveText('Price book PL000035 saved.');
@@ -155,14 +176,8 @@ test.describe('Price book editor', () => {
     await page.getByRole('link', { name: 'New price book' }).click();
     await page.getByLabel('Effective date').fill('2099-02-01');
     await page.getByLabel('Expiration date').fill('2099-01-01');
-    await page.getByRole('button', { name: 'Add products' }).click();
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Search catalog', exact: true })
-      .click();
-    await page.getByRole('dialog').getByLabel('Select 4800000100011').check();
-    await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
-    await page.getByLabel('Promotional price for 4800000100011').fill('abc');
+    await addProduct(page, MONITOR);
+    await page.getByLabel('Effective start for 4800000100011').fill('2099-01-15');
     await page.getByRole('button', { name: 'Save price book' }).click();
     await expect(page).toHaveURL(/\/price-books\/new$/);
     await expect(page.getByRole('alert')).toContainText(
@@ -171,13 +186,9 @@ test.describe('Price book editor', () => {
     for (const m of [
       'Price book name is required.',
       'Expiration date cannot be before the effective date.',
-      'Promotional price must be a positive amount with up to 2 decimals.',
+      'Effective start cannot be before the price book effective date.',
     ])
       await expect(page.getByText(m)).toBeVisible();
-    await page.getByLabel('Promotional price for 4800000100011').fill('6000');
-    await expect(
-      page.getByText('Promotional price cannot exceed the master list price.'),
-    ).toBeVisible();
   });
 
   test('edit, remove a product, and cancel with confirmation', async ({ page }) => {
@@ -186,12 +197,11 @@ test.describe('Price book editor', () => {
     await page.getByLabel('Description / memo').fill('Revised shelf prices');
     await page.getByRole('button', { name: 'Remove 4800000200014' }).click();
     await page.getByRole('button', { name: 'Add products' }).click();
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Search catalog', exact: true })
-      .click();
-    await expect(page.getByRole('dialog').getByLabel('Select 4800000100011')).toBeDisabled();
-    await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add products' });
+    await dialog.getByLabel('Product ID', { exact: true }).fill('4800000100011');
+    await dialog.getByRole('button', { name: 'Add product', exact: true }).click();
+    await expect(dialog.getByText('This Product ID is already in the price book.')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close' }).click();
     await page.getByRole('button', { name: 'Save price book' }).click();
     await expect(page.getByRole('status')).toHaveText('Price book PL000013 saved.');
     await page.getByRole('link', { name: 'Back to price books' }).click();
@@ -219,13 +229,15 @@ test.describe('Price book editor', () => {
   test('editor shows unit, cost and margin for the price being set', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
     await page.getByRole('link', { name: 'Edit PL000013' }).click();
-    await page.getByRole('button', { name: 'Add products' }).click();
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Search catalog', exact: true })
-      .click();
-    await page.getByRole('dialog').getByLabel('Select 4800000400010').check();
-    await page.getByRole('dialog').getByRole('button', { name: 'Add 1 product' }).click();
+    await addProduct(page, {
+      'Product ID': '4800000400010',
+      Name: 'USB-C Docking Station 8-in-1',
+      Unit: 'PCS',
+      'Master List Price': '4950',
+      'Unit Price': '4950',
+      'Net Price': '4950',
+      Cost: '4952',
+    });
     const row = page
       .getByRole('table', { name: 'Price book products' })
       .getByRole('row')
@@ -233,7 +245,7 @@ test.describe('Price book editor', () => {
     await expect(row).toContainText('PCS');
     await expect(row).toContainText('₱4,952.00');
     await expect(row).toContainText('-0.04%');
-    await page.getByLabel('Promotional price for 4800000400010').fill('4000');
+    await editNetPrice(page, '4800000400010', '4000');
     await expect(row).toContainText('-19.22%');
   });
 });

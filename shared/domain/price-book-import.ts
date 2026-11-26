@@ -69,7 +69,7 @@ export function applyZenposPriceBook(
         qty: p.qty,
         toQty: p.toQty,
         unit: p.unit,
-        masterListPrice: old?.manual?.masterListPrice ?? p.unitPrice,
+        masterListPrice: old?.manual.masterListPrice ?? p.unitPrice,
         unitPrice: p.unitPrice,
         discountPercent: p.discountPercent,
         discount: p.discount,

@@ -2,7 +2,7 @@ import { test, expect, Page } from './fixtures';
 import * as XLSX from 'xlsx';
 import { SAMPLE_EXPORT_ROWS } from '../frontend/src/app/mock-data/sample-export';
 import { SAMPLE_PRICE_BOOK_ROWS } from '../frontend/src/app/mock-data/sample-price-book';
-import { ACCOUNTS, signIn, signOut } from './helpers';
+import { ACCOUNTS, editNetPrice, signIn, signOut } from './helpers';
 
 function sampleFile() {
   const wb = XLSX.utils.book_new();
@@ -80,7 +80,7 @@ test('price book changes flow to the calculator without recalculating (Admin, ke
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   await nav.getByRole('link', { name: 'Price books' }).click();
   await page.getByRole('link', { name: 'Edit PL000030' }).click();
-  await page.getByLabel('Promotional price for 4800000100011').fill('4,795.00');
+  await editNetPrice(page, '4800000100011', '4,795.00');
   await page.getByRole('button', { name: 'Save price book' }).click();
   await expect(page.getByRole('status')).toContainText('PL000030 saved');
   await nav.getByRole('link', { name: 'Price books' }).click();
@@ -98,7 +98,7 @@ test('Product Team change reaches Accounting after sign-in; sample download work
 }) => {
   await signIn(page, ...ACCOUNTS.product);
   await page.getByRole('link', { name: 'Edit PL000013' }).click();
-  await page.getByLabel('Updated selling price for 4800000100011').fill('5,695.00');
+  await editNetPrice(page, '4800000100011', '5,695.00');
   await page.getByRole('button', { name: 'Save price book' }).click();
   await expect(page.getByRole('status')).toContainText('saved');
   await signOut(page);
@@ -184,21 +184,25 @@ test('price books that cannot be loaded are reported and calculation waits', asy
 });
 
 test('a stale edit is refused and keeps the draft', async ({ page, context }) => {
-  const field = (p: Page) => p.getByLabel('Updated selling price for 4800000100011');
+  const row = (p: Page) =>
+    p
+      .getByRole('table', { name: 'Price book products' })
+      .getByRole('row')
+      .filter({ hasText: '4800000100011' });
   await signIn(page, ...ACCOUNTS.product);
   await page.getByRole('link', { name: 'Edit PL000013' }).click();
-  await field(page).fill('5695');
+  await editNetPrice(page, '4800000100011', '5695');
   const other = await context.newPage();
   await signIn(other, ...ACCOUNTS.product);
   await other.getByRole('link', { name: 'Edit PL000013' }).click();
-  await field(other).fill('5500');
+  await editNetPrice(other, '4800000100011', '5500');
   await other.getByRole('button', { name: 'Save price book' }).click();
   await expect(other.getByRole('status')).toContainText('saved');
   await page.getByRole('button', { name: 'Save price book' }).click();
   await expect(page.getByRole('alert').first()).toContainText(
     'was changed by Demo Product Lead after you opened it',
   );
-  await expect(field(page)).toHaveValue('5695');
+  await expect(row(page)).toContainText('₱5,695.00');
   await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
 });
 

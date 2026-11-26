@@ -17,7 +17,7 @@ const user = (over: Record<string, unknown>) => ({
   ...over,
 });
 
-test('migrations enable RLS on every table', async () => {
+test('migrations enable RLS on every table and drop the product catalog', async () => {
   const { directUrl, schema } = TEST_DB;
   const url = new URL(directUrl);
   url.searchParams.delete('schema');
@@ -25,11 +25,16 @@ test('migrations enable RLS on every table', async () => {
   await client.connect();
   try {
     const { rows } = await client.query(
-      "SELECT relname, relrowsecurity FROM pg_class WHERE relnamespace = $1::regnamespace AND relname IN ('users','products','price_books','price_book_entries','_prisma_migrations')",
+      "SELECT relname, relrowsecurity FROM pg_class WHERE relnamespace = $1::regnamespace AND relname IN ('users','price_books','price_book_entries','_prisma_migrations')",
       [schema],
     );
-    assert.equal(rows.length, 5);
+    assert.equal(rows.length, 4);
     assert.ok(rows.every((r) => r.relrowsecurity === true));
+    const products = await client.query(
+      "SELECT 1 FROM pg_class WHERE relnamespace = $1::regnamespace AND relname = 'products'",
+      [schema],
+    );
+    assert.equal(products.rows.length, 0);
   } finally {
     await client.end();
   }

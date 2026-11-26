@@ -35,7 +35,7 @@
             Set the validity, then add products and enter their prices.
           }
           @case ('edit') {
-            Changes apply to this price book only. Master list prices are never changed.
+            Changes apply to this price book only.
           }
           @default {
             {{ book()?.description || 'Price book details' }}
@@ -204,8 +204,8 @@
       <div>
         <h2>Products ({{ draft().entries.length }})</h2>
         <p>
-          Add products manually or choose from the catalog. Manual details and prices apply to this
-          price book.
+          Products come from a ZenPOS price book import or Add products. Their details and prices
+          apply to this price book only.
         </p>
       </div>
       @if (editable()) {
@@ -232,8 +232,6 @@
               <th scope="col" class="numeric">Support</th>
               <th scope="col" class="numeric">Margin after support</th>
             }
-            <th scope="col">Updated Selling Price</th>
-            <th scope="col">Promotional Price</th>
             <th scope="col">Effective Start</th>
             <th scope="col">Effective End</th>
             <th scope="col">Status</th>
@@ -246,79 +244,34 @@
         <tbody>
           @for (row of rows(); track row.entry.productId) {
             <tr
+              class="clickable-row"
+              tabindex="0"
+              title="Click to edit this product"
               [class.review-row]="row.errors.length"
-              [class.clickable-row]="!editable() || !!row.entry.manual"
               [attr.data-product]="row.entry.productId"
-              [attr.tabindex]="!editable() || row.entry.manual ? 0 : null"
-              [attr.title]="!editable() || row.entry.manual ? 'Click to edit this product' : null"
               (click)="openRow(row.entry.productId, $event)"
               (keydown.enter)="openRow(row.entry.productId, $event)"
             >
               <td class="nowrap">{{ row.entry.productId }}</td>
-              @if (row.entry.manual; as manual) {
-                @for (field of manualFields; track field.key) {
-                  <td
-                    [class.numeric]="field.kind !== 'text'"
-                    [class.name-cell]="field.key === 'name'"
-                  >
-                    @switch (field.kind) {
-                      @case ('money') {
-                        {{ parseAmount(manual[field.key]) | currency: 'PHP' : 'symbol' : '1.2-2' }}
-                      }
-                      @case ('percent') {
-                        {{ parseAmount(manual[field.key])?.toFixed(2) }}%
-                      }
-                      @default {
-                        {{ manual[field.key] || '—' }}
-                      }
+              @for (field of manualFields; track field.key) {
+                <td
+                  [class.numeric]="field.kind !== 'text'"
+                  [class.name-cell]="field.key === 'name'"
+                >
+                  @switch (field.kind) {
+                    @case ('money') {
+                      {{
+                        parseAmount(row.entry.manual[field.key])
+                          | currency: 'PHP' : 'symbol' : '1.2-2'
+                      }}
                     }
-                  </td>
-                }
-              } @else {
-                <td class="name-cell">{{ row.product?.name ?? 'Unknown product' }}</td>
-                <td class="numeric">1</td>
-                <td class="numeric">—</td>
-                <td>{{ row.product?.unit ?? '—' }}</td>
-                <td class="numeric">
-                  {{
-                    row.product
-                      ? (row.product.masterListPrice | currency: 'PHP' : 'symbol' : '1.2-2')
-                      : '—'
-                  }}
-                </td>
-                <td class="numeric">
-                  {{
-                    row.product
-                      ? (row.product.sellingPrice | currency: 'PHP' : 'symbol' : '1.2-2')
-                      : '—'
-                  }}
-                </td>
-                <td class="numeric discount-cell" [class.negative]="(row.discount ?? 0) < 0">
-                  {{ formatDiscount(row.discount) }}
-                  @if (row.discount !== null) {
-                    <small>{{ row.discountSource }}</small>
+                    @case ('percent') {
+                      {{ parseAmount(row.entry.manual[field.key])?.toFixed(2) }}%
+                    }
+                    @default {
+                      {{ row.entry.manual[field.key] || '—' }}
+                    }
                   }
-                </td>
-                <td class="numeric">
-                  {{
-                    row.discountAmount === null
-                      ? '—'
-                      : (row.discountAmount | currency: 'PHP' : 'symbol' : '1.2-2')
-                  }}
-                </td>
-                <td class="numeric">
-                  {{
-                    row.netPrice === null
-                      ? '—'
-                      : (row.netPrice | currency: 'PHP' : 'symbol' : '1.2-2')
-                  }}
-                </td>
-                <td class="numeric">
-                  {{
-                    row.product && row.product.cost !== null
-                      ? (row.product.cost | currency: 'PHP' : 'symbol' : '1.2-2')
-                      : '—'
-                  }}
                 </td>
               }
               <td class="numeric" [class.negative]="(row.margin ?? 0) < 0">
@@ -347,43 +300,6 @@
                 }
                 <td class="numeric" [class.negative]="(row.afterSupport ?? 0) < 0">
                   {{ row.afterSupport === null ? '—' : row.afterSupport.toFixed(2) + '%' }}
-                </td>
-              }
-              @if (editable() && !row.entry.manual) {
-                <td>
-                  <input
-                    class="price-input"
-                    inputmode="decimal"
-                    placeholder="—"
-                    [attr.aria-label]="entryLabel('Updated selling price', row.entry)"
-                    [value]="row.entry.updatedPrice"
-                    (input)="updateEntry(row.entry.productId, 'updatedPrice', $event)"
-                  />
-                </td>
-                <td>
-                  <input
-                    class="price-input"
-                    inputmode="decimal"
-                    placeholder="—"
-                    [attr.aria-label]="entryLabel('Promotional price', row.entry)"
-                    [value]="row.entry.promoPrice"
-                    (input)="updateEntry(row.entry.productId, 'promoPrice', $event)"
-                  />
-                </td>
-              } @else {
-                <td class="numeric">
-                  {{
-                    !row.entry.manual && row.entry.updatedPrice
-                      ? (+row.entry.updatedPrice | currency: 'PHP' : 'symbol' : '1.2-2')
-                      : '—'
-                  }}
-                </td>
-                <td class="numeric">
-                  {{
-                    !row.entry.manual && row.entry.promoPrice
-                      ? (+row.entry.promoPrice | currency: 'PHP' : 'symbol' : '1.2-2')
-                      : '—'
-                  }}
                 </td>
               }
               @if (editable()) {
@@ -430,17 +346,15 @@
                   />
                 </td>
                 <td class="action-cell">
-                  @if (row.entry.manual) {
-                    <button
-                      mat-button
-                      type="button"
-                      class="table-action"
-                      [attr.aria-label]="'Edit product ' + row.entry.productId"
-                      (click)="openProductPicker(row.entry.productId)"
-                    >
-                      Edit
-                    </button>
-                  }
+                  <button
+                    mat-button
+                    type="button"
+                    class="table-action"
+                    [attr.aria-label]="'Edit product ' + row.entry.productId"
+                    (click)="openProductPicker(row.entry.productId)"
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     class="delete-button"
@@ -466,8 +380,7 @@
           } @empty {
             <tr>
               <td [attr.colspan]="columnCount()" class="empty-table">
-                No products yet. Use Add products to enter product details or choose from the
-                catalog.
+                No products yet. Use Add products to enter product details.
               </td>
             </tr>
           }
@@ -485,7 +398,6 @@
         effectiveStart: draft().effectiveDate,
         effectiveEnd: draft().expirationDate,
       }"
-      (add)="addProducts($event)"
       (manualAdd)="saveManualProduct($event)"
       (closed)="pickerOpen.set(false)"
     ></app-product-picker>

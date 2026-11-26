@@ -1,6 +1,9 @@
 import { PriceBook } from '../domain/price-books';
 
-/** Demonstration price books. Prices are mock values for frontend testing only. */
+/**
+ * Demonstration price books. Products, prices and costs are mock values for testing only; every
+ * entry carries its own product details, like a ZenPOS import or manual entry.
+ */
 export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
   {
     id: 'PL000013',
@@ -12,6 +15,18 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
     entries: [
       {
         productId: '4800000100011',
+        manual: {
+          name: '24" IPS Monitor FHD 100Hz',
+          qty: 1,
+          toQty: null,
+          unit: 'PCS',
+          masterListPrice: 5795,
+          unitPrice: 5795,
+          discountPercent: 3.45,
+          discount: 200,
+          netPrice: 5595,
+          cost: 4681,
+        },
         updatedPrice: 5595,
         promoPrice: null,
         effectiveStart: '2026-01-01',
@@ -20,6 +35,18 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
       },
       {
         productId: '4800000200014',
+        manual: {
+          name: 'Wireless Keyboard and Mouse Combo',
+          qty: 1,
+          toQty: null,
+          unit: 'SET',
+          masterListPrice: 1495,
+          unitPrice: 1295,
+          discountPercent: 0,
+          discount: 0,
+          netPrice: 1395,
+          cost: 820,
+        },
         updatedPrice: 1395,
         promoPrice: null,
         effectiveStart: '2026-01-01',
@@ -40,16 +67,40 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
     entries: [
       {
         productId: '4800000100011',
-        updatedPrice: null,
-        promoPrice: 4995,
+        manual: {
+          name: '24" IPS Monitor FHD 100Hz',
+          qty: 1,
+          toQty: null,
+          unit: 'PCS',
+          masterListPrice: 5795,
+          unitPrice: 5795,
+          discountPercent: 13.81,
+          discount: 800,
+          netPrice: 4995,
+          cost: 4681,
+        },
+        updatedPrice: 4995,
+        promoPrice: null,
         effectiveStart: '2026-11-01',
         effectiveEnd: '2026-11-30',
         memo: '',
       },
       {
         productId: '4800000100028',
-        updatedPrice: null,
-        promoPrice: 13995,
+        manual: {
+          name: '27" Curved Gaming Monitor QHD 165Hz',
+          qty: 1,
+          toQty: null,
+          unit: 'PCS',
+          masterListPrice: 15995,
+          unitPrice: 14995,
+          discountPercent: 6.67,
+          discount: 1000,
+          netPrice: 13995,
+          cost: 12210,
+        },
+        updatedPrice: 13995,
+        promoPrice: null,
         effectiveStart: '2026-11-01',
         effectiveEnd: '2026-11-30',
         memo: '',
@@ -68,16 +119,40 @@ export const SEED_PRICE_BOOKS: readonly PriceBook[] = [
     entries: [
       {
         productId: '4800000300017',
-        updatedPrice: null,
-        promoPrice: 41995,
+        manual: {
+          name: '15.6" Laptop Core i5 16GB 512GB SSD',
+          qty: 1,
+          toQty: null,
+          unit: 'PCS',
+          masterListPrice: 45995,
+          unitPrice: 43995,
+          discountPercent: 4.55,
+          discount: 2000,
+          netPrice: 41995,
+          cost: 38750,
+        },
+        updatedPrice: 41995,
+        promoPrice: null,
         effectiveStart: '2026-12-01',
         effectiveEnd: '2026-12-31',
         memo: '',
       },
       {
         productId: '4800000200014',
-        updatedPrice: null,
-        promoPrice: 1099,
+        manual: {
+          name: 'Wireless Keyboard and Mouse Combo',
+          qty: 1,
+          toQty: null,
+          unit: 'SET',
+          masterListPrice: 1495,
+          unitPrice: 1295,
+          discountPercent: 15.14,
+          discount: 196,
+          netPrice: 1099,
+          cost: 820,
+        },
+        updatedPrice: 1099,
+        promoPrice: null,
         effectiveStart: '2026-12-01',
         effectiveEnd: '2026-12-31',
         memo: '',

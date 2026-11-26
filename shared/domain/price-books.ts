@@ -5,7 +5,6 @@ import {
   entryToDraft,
   PriceBookEntry,
   PriceBookEntryDraft,
-  Product,
   validateEntryDraft,
 } from './pricing';
 import { fail, ok, Result } from './result';
@@ -97,24 +96,9 @@ export function draftFromBook(book: PriceBook): PriceBookDraft {
   };
 }
 
-export function newEntryDraft(
-  productId: string,
-  book: Pick<PriceBookDraft, 'effectiveDate' | 'expirationDate'>,
-): PriceBookEntryDraft {
-  return {
-    productId,
-    updatedPrice: '',
-    promoPrice: '',
-    effectiveStart: book.effectiveDate,
-    effectiveEnd: book.expirationDate,
-    memo: '',
-  };
-}
-
 export function validatePriceBook(
   draft: PriceBookDraft,
   books: readonly PriceBook[],
-  catalog: readonly Product[],
   editingId: string | null,
 ): PriceBookErrors {
   const errors: PriceBookErrors = { entries: Object.create(null), form: [] };
@@ -148,8 +132,7 @@ export function validatePriceBook(
       continue;
     }
     seen.add(productIdKey(entry.productId));
-    const product = catalog.find((p) => p.id === entry.productId);
-    const entryErrors = validateEntryDraft(entry, product, draft);
+    const entryErrors = validateEntryDraft(entry, draft);
     if (entryErrors.length) errors.entries[entry.productId] = entryErrors;
   }
   return errors;
@@ -191,12 +174,11 @@ export function savePriceBook(
   books: readonly PriceBook[],
   draft: PriceBookDraft,
   editingId: string | null,
-  catalog: readonly Product[],
   actor: string,
   now: Date,
 ): Result<{ books: PriceBook[]; book: PriceBook }> {
   if (editingId !== null && !books.some((b) => b.id === editingId)) return fail(NOT_FOUND);
-  if (hasErrors(validatePriceBook(draft, books, catalog, editingId)))
+  if (hasErrors(validatePriceBook(draft, books, editingId)))
     return fail('Fix the highlighted fields before saving.');
   const id = editingId ?? (draft.autoId ? nextPriceBookId(books) : normalizePriceId(draft.id));
   if (!id) return fail('No automatic Price IDs are available. Enter an unused manual Price ID.');
@@ -247,10 +229,7 @@ export function duplicatePriceBook(
     id: nextId,
     name: copyName(books, source.name),
     active: false,
-    entries: source.entries.map((e) => ({
-      ...e,
-      ...(e.manual ? { manual: { ...e.manual } } : {}),
-    })),
+    entries: source.entries.map((e) => ({ ...e, manual: { ...e.manual } })),
     updatedAt: now.toISOString(),
     updatedBy: actor,
   };
@@ -311,8 +290,7 @@ export function supportList(books: readonly PriceBook[]): PriceSupport[] {
     );
 }
 
-/** The stored price books and product catalog, as the API returns them. */
+/** The stored price books, as the API returns them. */
 export interface PricingSnapshot {
   books: PriceBook[];
-  products: Product[];
 }

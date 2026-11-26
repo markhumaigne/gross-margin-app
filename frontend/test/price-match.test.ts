@@ -23,6 +23,18 @@ const entry = (
   promoPrice: number | null,
 ): PriceBookEntry => ({
   productId,
+  manual: {
+    name: 'Item ' + productId,
+    qty: 1,
+    toQty: null,
+    unit: 'PCS',
+    masterListPrice: promoPrice ?? updatedPrice ?? 0,
+    unitPrice: promoPrice ?? updatedPrice ?? 0,
+    discountPercent: 0,
+    discount: 0,
+    netPrice: promoPrice ?? updatedPrice ?? 0,
+    cost: 0,
+  },
   updatedPrice,
   promoPrice,
   effectiveStart: '2026-01-01',

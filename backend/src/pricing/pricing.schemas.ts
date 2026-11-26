@@ -23,7 +23,7 @@ const manualDraft = z
 
 const entryDraft = z
   .object({
-    manual: manualDraft.optional(),
+    manual: manualDraft,
     productId: id,
     updatedPrice: text,
     promoPrice: text,

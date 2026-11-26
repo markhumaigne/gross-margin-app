@@ -5,33 +5,29 @@ import {
   ElementRef,
   EventEmitter,
   HostListener,
-  inject,
   Input,
   OnInit,
   Output,
   signal,
   ViewChild,
 } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
-import { ProductCatalogService } from '../../core/product-catalog.service';
-import { PriceBookEntryDraft, Product } from '../../../../../shared/domain/pricing';
-import { marginOnCost, SupportDraft, validateSupportDraft } from '../../../../../shared/domain/support';
+import { PriceBookEntryDraft } from '../../../../../shared/domain/pricing';
+import { SupportDraft, validateSupportDraft } from '../../../../../shared/domain/support';
 import {
   emptyManualProduct,
   MANUAL_PRODUCT_FIELDS,
   ManualProductDraft,
   ManualProductField,
-  productIdKey,
   validateManualProduct,
 } from '../../../../../shared/domain/manual-products';
 
-/** Manual product entry and catalog selection for a price book. */
+/** Adds a product to a price book, or edits one, by entering its details. */
 @Component({
   selector: 'app-product-picker',
   standalone: true,
-  imports: [CurrencyPipe, MatButtonModule, A11yModule],
+  imports: [MatButtonModule, A11yModule],
   templateUrl: './product-picker.component.html',
 })
 export class ProductPickerComponent implements OnInit, AfterViewInit {
@@ -44,7 +40,6 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     effectiveStart: '',
     effectiveEnd: '',
   };
-  @Output() add = new EventEmitter<string[]>();
   @Output() manualAdd = new EventEmitter<{
     productId: string;
     manual: ManualProductDraft;
@@ -54,9 +49,7 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
     memo: string;
   }>();
   @Output() closed = new EventEmitter<void>();
-  @ViewChild('searchInput') private searchInput?: ElementRef<HTMLInputElement>;
   @ViewChild('productIdInput') private productIdInput?: ElementRef<HTMLInputElement>;
-  readonly mode = signal<'manual' | 'catalog'>('manual');
   readonly fields = MANUAL_PRODUCT_FIELDS;
   readonly productId = signal('');
   readonly manual = signal(emptyManualProduct());
@@ -68,14 +61,6 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
   readonly support = signal<SupportDraft>('');
   readonly supportError = computed(() => validateSupportDraft(this.support()));
   readonly shownSupportError = computed(() => (this.attempted() ? this.supportError() : null));
-  private readonly catalog = inject(ProductCatalogService);
-  readonly query = signal('');
-  readonly results = computed(() => this.catalog.search(this.query()));
-  readonly selected = signal<ReadonlySet<string>>(new Set());
-  readonly selectable = computed(() => this.results().filter((p) => !this.isExcluded(p.id)));
-  readonly allVisibleSelected = computed(
-    () => this.selectable().length > 0 && this.selectable().every((p) => this.selected().has(p.id)),
-  );
 
   /** Row validity and memo, edited together with the product details. */
   readonly rowInfo = signal({ effectiveStart: '', effectiveEnd: '', memo: '' });
@@ -96,11 +81,11 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
           }
         : { ...this.defaultDates, memo: '' },
     );
-    if (this.initialEntry?.manual) {
-      this.productId.set(this.initialEntry.productId);
-      this.manual.set({ ...this.initialEntry.manual });
+    if (entry) {
+      this.productId.set(entry.productId);
+      this.manual.set({ ...entry.manual });
+      if (entry.support !== undefined) this.support.set(entry.support);
     }
-    if (this.initialEntry?.support !== undefined) this.support.set(this.initialEntry.support);
   }
 
   ngAfterViewInit() {
@@ -131,43 +116,5 @@ export class ProductPickerComponent implements OnInit, AfterViewInit {
   @HostListener('document:keydown.escape')
   close() {
     this.closed.emit();
-  }
-
-  isExcluded(id: string) {
-    return this.excludedIds.some((excluded) => productIdKey(excluded) === productIdKey(id));
-  }
-
-  margin(product: Product) {
-    return product.cost === null ? null : marginOnCost(product.sellingPrice, product.cost);
-  }
-
-  setQuery(value: string) {
-    this.query.set(value);
-  }
-
-  toggle(id: string, event: Event) {
-    const checked = (event.target as HTMLInputElement).checked;
-    const next = new Set(this.selected());
-    if (checked) next.add(id);
-    else next.delete(id);
-    this.selected.set(next);
-  }
-
-  toggleAllVisible(event: Event) {
-    const checked = (event.target as HTMLInputElement).checked;
-    const next = new Set(this.selected());
-    for (const p of this.selectable()) {
-      if (checked) next.add(p.id);
-      else next.delete(p.id);
-    }
-    this.selected.set(next);
-  }
-
-  confirm() {
-    const chosen = this.catalog
-      .products()
-      .filter((p) => this.selected().has(p.id))
-      .map((p) => p.id);
-    if (chosen.length) this.add.emit(chosen);
   }
 }

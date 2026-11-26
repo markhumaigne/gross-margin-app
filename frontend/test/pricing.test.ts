@@ -1,22 +1,27 @@
 import assert from 'node:assert/strict';
 import { test } from './harness';
-import { parseMoney } from '../../shared/domain/money';
+import { emptyManualProduct } from '../../shared/domain/manual-products';
 import {
-  discountPercent,
-  effectivePrice,
   entryFromDraft,
   entryStatus,
   PriceBookEntryDraft,
   priceSource,
-  searchProducts,
   validateEntryDraft,
 } from '../../shared/domain/pricing';
-import { PRODUCTS } from '../../shared/seed/products';
 
-const p1 = PRODUCTS.find((p) => p.id === '4800000100011')!;
 const book = { effectiveDate: '2026-11-01', expirationDate: '2026-11-30' };
 const draft = (o: Partial<PriceBookEntryDraft> = {}): PriceBookEntryDraft => ({
-  productId: p1.id,
+  productId: '4800000100011',
+  manual: {
+    ...emptyManualProduct(),
+    name: '24" IPS Monitor FHD 100Hz',
+    masterListPrice: '₱5,795.00',
+    unitPrice: '5,795',
+    discountPercent: '3.45',
+    discount: '200',
+    netPrice: '₱5,595.00',
+    cost: '4681',
+  },
   updatedPrice: '',
   promoPrice: '',
   effectiveStart: '2026-11-01',
@@ -25,18 +30,10 @@ const draft = (o: Partial<PriceBookEntryDraft> = {}): PriceBookEntryDraft => ({
   ...o,
 });
 
-test('effective price prefers promo, then updated, then master', () => {
-  assert.equal(effectivePrice(p1, { updatedPrice: null, promoPrice: null }), 5795);
-  assert.equal(effectivePrice(p1, { updatedPrice: 5495, promoPrice: null }), 5495);
-  assert.equal(effectivePrice(p1, { updatedPrice: 5495, promoPrice: 4995 }), 4995);
+test('price source prefers promo, then updated, then master', () => {
+  assert.equal(priceSource({ updatedPrice: 5495, promoPrice: 4995 }), 'promo');
   assert.equal(priceSource({ updatedPrice: 5495, promoPrice: null }), 'updated');
-});
-
-test('discount percentages', () => {
-  assert.equal(discountPercent(5795, 4995), 13.81);
-  assert.equal(discountPercent(5795, 5495), 5.18);
-  assert.equal(discountPercent(1000, 1100), -10);
-  assert.equal(discountPercent(0, 10), null);
+  assert.equal(priceSource({ updatedPrice: null, promoPrice: null }), 'master');
 });
 
 test('entry status from validity dates (inclusive)', () => {
@@ -53,16 +50,24 @@ test('entry status from validity dates (inclusive)', () => {
   assert.equal(entryStatus({ effectiveStart: '2026-11-17', effectiveEnd: null }, t), 'Active');
 });
 
-test('valid entries, including peso-formatted input', () => {
-  assert.deepEqual(
-    validateEntryDraft(draft({ updatedPrice: '₱5,495.00', promoPrice: '4,995' }), p1, book),
-    [],
-  );
-  assert.deepEqual(validateEntryDraft(draft(), p1, book), []);
-  assert.deepEqual(entryFromDraft(draft({ updatedPrice: '₱5,495.00', memo: ' x ' })), {
-    productId: p1.id,
-    updatedPrice: 5495,
+test('valid entries take their price from the product details, including peso-formatted input', () => {
+  assert.deepEqual(validateEntryDraft(draft(), book), []);
+  assert.deepEqual(entryFromDraft(draft({ updatedPrice: '1', promoPrice: '1', memo: ' x ' })), {
+    productId: '4800000100011',
+    updatedPrice: 5595,
     promoPrice: null,
+    manual: {
+      name: '24" IPS Monitor FHD 100Hz',
+      qty: 1,
+      toQty: null,
+      unit: 'PCS',
+      masterListPrice: 5795,
+      unitPrice: 5795,
+      discountPercent: 3.45,
+      discount: 200,
+      netPrice: 5595,
+      cost: 4681,
+    },
     effectiveStart: '2026-11-01',
     effectiveEnd: '2026-11-30',
     memo: 'x',
@@ -70,26 +75,12 @@ test('valid entries, including peso-formatted input', () => {
 });
 
 test('invalid entries report every problem', () => {
-  const v = (o: Partial<PriceBookEntryDraft>, b = book) => validateEntryDraft(draft(o), p1, b);
-  const updatedMsg = 'Updated selling price must be a positive amount with up to 2 decimals.';
-  const promoMsg = 'Promotional price must be a positive amount with up to 2 decimals.';
-  assert.deepEqual(v({ updatedPrice: '99.999' }), [updatedMsg]);
-  assert.deepEqual(v({ promoPrice: 'abc' }), [promoMsg]);
-  assert.deepEqual(v({ promoPrice: '0' }), [promoMsg]);
-  assert.deepEqual(v({ updatedPrice: '-5' }), [updatedMsg]);
-  assert.deepEqual(v({ updatedPrice: '5000', promoPrice: '5100' }), [
-    'Promotional price cannot exceed the updated selling price.',
+  const v = (o: Partial<PriceBookEntryDraft>, b = book) => validateEntryDraft(draft(o), b);
+  assert.deepEqual(v({ manual: { ...draft().manual, netPrice: 'abc', unit: ' ' } }), [
+    'Unit is required.',
+    'Net Price must be zero or more with up to 2 decimals.',
   ]);
-  assert.deepEqual(v({ promoPrice: '6000' }), [
-    'Promotional price cannot exceed the master list price.',
-  ]);
-  assert.deepEqual(
-    v(
-      { promoPrice: '4995', effectiveEnd: '' },
-      { effectiveDate: '2026-11-01', expirationDate: '' },
-    ),
-    ['Promotional prices need an effective end date.'],
-  );
+  assert.deepEqual(v({ productId: ' ' }), ['Product ID is required.']);
   assert.deepEqual(v({ effectiveEnd: '2026-10-31' }), [
     'Effective end cannot be before effective start.',
   ]);
@@ -100,22 +91,4 @@ test('invalid entries report every problem', () => {
   assert.deepEqual(v({ effectiveEnd: '2026-12-15' }), [
     'Effective end must be on or before the price book expiration date.',
   ]);
-  assert.deepEqual(validateEntryDraft(draft(), undefined, book), [
-    'Product is not in the catalog.',
-  ]);
-});
-
-test('product search by ID or name and catalog integrity', () => {
-  assert.deepEqual(
-    searchProducts(PRODUCTS, ' 4800000100028').map((p) => p.id),
-    ['4800000100028'],
-  );
-  assert.ok(searchProducts(PRODUCTS, 'MONITOR').length >= 2);
-  assert.equal(searchProducts(PRODUCTS, '').length, PRODUCTS.length);
-  assert.equal(new Set(PRODUCTS.map((p) => p.id)).size, PRODUCTS.length);
-  assert.ok(PRODUCTS.length >= 20 && PRODUCTS.length <= 26);
-  for (const p of PRODUCTS) {
-    assert.match(p.id, /^4800\d{9}$/);
-    for (const m of [p.masterListPrice, p.sellingPrice, p.cost]) assert.equal(parseMoney(m), m);
-  }
 });

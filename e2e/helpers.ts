@@ -32,6 +32,15 @@ export async function signOut(page: Page) {
   await expect(page).toHaveURL(/\/login/);
 }
 
+/** In the price book editor: opens Edit product for a row and changes its Net Price (unsaved). */
+export async function editNetPrice(page: Page, productId: string, netPrice: string) {
+  await page.getByRole('button', { name: `Edit product ${productId}`, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit product' });
+  await dialog.getByLabel('Net Price', { exact: true }).fill(netPrice);
+  await dialog.getByRole('button', { name: 'Save product', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
 /** Top-level module links in the sidebar (calculator sub-links excluded). */
 export async function navLinks(page: Page): Promise<string[]> {
   const links = page.locator('nav[aria-label="Main navigation"] > a');

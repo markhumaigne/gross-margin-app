@@ -15,7 +15,6 @@ test('a calculation writes nothing to the database', async () => {
   try {
     const counts = async () => [
       await db.user.count(),
-      await db.product.count(),
       await db.priceBook.count(),
       await db.priceBookEntry.count(),
     ];
@@ -67,7 +66,7 @@ test('a calculation writes nothing to the database', async () => {
       );
       assert.deepEqual(
         rows.map((r) => r.table_name),
-        ['_prisma_migrations', 'price_book_entries', 'price_books', 'products', 'users'],
+        ['_prisma_migrations', 'price_book_entries', 'price_books', 'users'],
       );
     } finally {
       await client.end();

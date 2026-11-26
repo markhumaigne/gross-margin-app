@@ -1,6 +1,6 @@
 import { parseMoney } from './money';
 
-/** Details entered for this price book only; never written back to the catalog. */
+/** A price book row's own product details, from a ZenPOS price book import or manual entry. */
 export interface ManualProduct {
   name: string;
   qty: number;

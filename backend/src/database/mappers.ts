@@ -3,14 +3,13 @@ import type {
   PriceBook as PriceBookRow,
   PriceBookEntry as PriceBookEntryRow,
   Prisma,
-  Product as ProductRow,
   User as UserRow,
 } from '../generated/prisma/client';
 import type { ManualProduct } from '../../../shared/domain/manual-products';
 import type { Role } from '../../../shared/domain/roles';
 import type { UserAccount } from '../../../shared/domain/user-accounts';
 import type { PriceBook } from '../../../shared/domain/price-books';
-import type { PriceBookEntry, Product } from '../../../shared/domain/pricing';
+import type { PriceBookEntry } from '../../../shared/domain/pricing';
 
 /** Calendar dates are stored as UTC midnight so no time zone can shift them. */
 export const isoDate = (value: Date): string =>
@@ -39,34 +38,38 @@ export function userFromRow(row: UserRow): UserAccount {
   };
 }
 
-export function productFromRow(row: ProductRow): Product {
-  const product: Product = {
-    id: row.id,
-    name: row.name,
-    unit: row.unit,
-    onHand: row.onHand,
-    masterListPrice: money(row.masterListPrice),
-    sellingPrice: money(row.sellingPrice),
-    cost: moneyOrNull(row.cost),
-  };
-  if (row.source === 'demo' || row.source === 'import') product.source = row.source;
-  return product;
-}
-
-export function productToRow(p: Product): Prisma.ProductCreateManyInput {
+/** Every entry carries its own product details; a row without them is refused, never filled in. */
+function manualFromRow(bookId: string, row: PriceBookEntryRow): ManualProduct {
+  if (
+    row.manualName === null ||
+    row.manualQty === null ||
+    row.manualUnit === null ||
+    row.manualMasterListPrice === null ||
+    row.manualUnitPrice === null ||
+    row.manualDiscountPercent === null ||
+    row.manualDiscount === null ||
+    row.manualNetPrice === null ||
+    row.manualCost === null
+  )
+    throw new Error(
+      `Price book ${bookId} has no product details for product ${row.productId}. ` +
+        'Re-import the price book from ZenPOS or enter the product manually.',
+    );
   return {
-    id: p.id,
-    name: p.name,
-    unit: p.unit,
-    onHand: p.onHand,
-    masterListPrice: toMoney(p.masterListPrice),
-    sellingPrice: toMoney(p.sellingPrice),
-    cost: p.cost === null ? null : toMoney(p.cost),
-    source: p.source ?? null,
+    name: row.manualName,
+    qty: row.manualQty,
+    toQty: row.manualToQty,
+    unit: row.manualUnit,
+    masterListPrice: money(row.manualMasterListPrice),
+    unitPrice: money(row.manualUnitPrice),
+    discountPercent: money(row.manualDiscountPercent),
+    discount: money(row.manualDiscount),
+    netPrice: money(row.manualNetPrice),
+    cost: money(row.manualCost),
   };
 }
 
-function entryFromRow(row: PriceBookEntryRow): PriceBookEntry {
+function entryFromRow(bookId: string, row: PriceBookEntryRow): PriceBookEntry {
   const entry: PriceBookEntry = {
     productId: row.productId,
     updatedPrice: moneyOrNull(row.updatedPrice),
@@ -74,23 +77,9 @@ function entryFromRow(row: PriceBookEntryRow): PriceBookEntry {
     effectiveStart: isoDate(row.effectiveStart),
     effectiveEnd: row.effectiveEnd === null ? null : isoDate(row.effectiveEnd),
     memo: row.memo,
+    manual: manualFromRow(bookId, row),
   };
   if (row.support !== null) entry.support = money(row.support);
-  if (row.manualName !== null) {
-    const manual: ManualProduct = {
-      name: row.manualName,
-      qty: row.manualQty as number,
-      toQty: row.manualToQty,
-      unit: row.manualUnit as string,
-      masterListPrice: money(row.manualMasterListPrice as Prisma.Decimal),
-      unitPrice: money(row.manualUnitPrice as Prisma.Decimal),
-      discountPercent: money(row.manualDiscountPercent as Prisma.Decimal),
-      discount: money(row.manualDiscount as Prisma.Decimal),
-      netPrice: money(row.manualNetPrice as Prisma.Decimal),
-      cost: money(row.manualCost as Prisma.Decimal),
-    };
-    entry.manual = manual;
-  }
   return entry;
 }
 
@@ -102,7 +91,9 @@ export function bookFromRow(row: PriceBookRow & { entries: PriceBookEntryRow[] }
     effectiveDate: isoDate(row.effectiveDate),
     expirationDate: row.expirationDate === null ? null : isoDate(row.expirationDate),
     active: row.active,
-    entries: [...row.entries].sort((a, b) => a.position - b.position).map(entryFromRow),
+    entries: [...row.entries]
+      .sort((a, b) => a.position - b.position)
+      .map((e) => entryFromRow(row.id, e)),
     updatedAt: row.updatedAt.toISOString(),
     updatedBy: row.updatedBy,
   };
@@ -133,16 +124,16 @@ export function bookToRows(book: PriceBook): {
       effectiveEnd: e.effectiveEnd === null ? null : dateValue(e.effectiveEnd),
       memo: e.memo,
       support: moneyOrAbsent(e.support),
-      manualName: e.manual?.name ?? null,
-      manualQty: e.manual?.qty ?? null,
-      manualToQty: e.manual?.toQty ?? null,
-      manualUnit: e.manual?.unit ?? null,
-      manualMasterListPrice: moneyOrAbsent(e.manual?.masterListPrice),
-      manualUnitPrice: moneyOrAbsent(e.manual?.unitPrice),
-      manualDiscountPercent: moneyOrAbsent(e.manual?.discountPercent),
-      manualDiscount: moneyOrAbsent(e.manual?.discount),
-      manualNetPrice: moneyOrAbsent(e.manual?.netPrice),
-      manualCost: moneyOrAbsent(e.manual?.cost),
+      manualName: e.manual.name,
+      manualQty: e.manual.qty,
+      manualToQty: e.manual.toQty,
+      manualUnit: e.manual.unit,
+      manualMasterListPrice: toMoney(e.manual.masterListPrice),
+      manualUnitPrice: toMoney(e.manual.unitPrice),
+      manualDiscountPercent: toMoney(e.manual.discountPercent),
+      manualDiscount: toMoney(e.manual.discount),
+      manualNetPrice: toMoney(e.manual.netPrice),
+      manualCost: toMoney(e.manual.cost),
     })),
   };
 }

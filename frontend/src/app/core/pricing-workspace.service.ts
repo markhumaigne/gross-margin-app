@@ -7,16 +7,15 @@ import { apiResult } from './api-result';
 import { AuthService } from './auth.service';
 
 const LOAD_FAILED = 'Price books could not be loaded. Check the connection and try again.';
-const EMPTY: PricingSnapshot = { books: [], products: [] };
+const EMPTY: PricingSnapshot = { books: [] };
 
-/** Price books and the product catalog as stored by the API; empty whenever nobody is signed in. */
+/** Price books as stored by the API; empty whenever nobody is signed in. */
 @Injectable({ providedIn: 'root' })
 export class PricingWorkspaceService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly state = signal<PricingSnapshot>(EMPTY);
   readonly books = computed(() => this.state().books);
-  readonly products = computed(() => this.state().products);
   readonly loaded = signal(false);
   readonly error = signal('');
   private inFlight: Promise<Result<void>> | null = null;

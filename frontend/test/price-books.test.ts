@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { expectFail, expectOk, test } from './harness';
+import { emptyManualProduct, ManualProductDraft } from '../../shared/domain/manual-products';
 import {
   deletePriceBook,
   draftFromBook,
@@ -8,7 +9,6 @@ import {
   filterPriceBooks,
   hasErrors,
   isSupportBook,
-  newEntryDraft,
   nextPriceBookId,
   PriceBook,
   PriceBookDraft,
@@ -17,20 +17,35 @@ import {
   supportList,
   validatePriceBook,
 } from '../../shared/domain/price-books';
+import { PriceBookEntry, PriceBookEntryDraft } from '../../shared/domain/pricing';
 import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
-import { PRODUCTS } from '../../shared/seed/products';
 import { matchPriceBook } from '../src/app/domain/price-match';
 
 const now = new Date('2026-11-17T02:00:00Z');
+const entryDraft = (
+  productId: string,
+  manual: Partial<ManualProductDraft> = {},
+): PriceBookEntryDraft => ({
+  productId,
+  manual: {
+    ...emptyManualProduct(),
+    name: 'Item ' + productId,
+    masterListPrice: '5795',
+    unitPrice: '5795',
+    netPrice: '5495',
+    cost: '4681',
+    ...manual,
+  },
+  updatedPrice: '',
+  promoPrice: '',
+  effectiveStart: '2026-11-17',
+  effectiveEnd: '',
+  memo: '',
+});
 const base = (): PriceBookDraft => ({
   ...emptyDraft('2026-11-17'),
   name: 'Weekend Flash Sale',
-  entries: [
-    {
-      ...newEntryDraft('4800000100011', { effectiveDate: '2026-11-17', expirationDate: '' }),
-      updatedPrice: '₱5,495.00',
-    },
-  ],
+  entries: [entryDraft('4800000100011', { netPrice: '₱5,495.00' })],
 });
 
 test('ids increment from the highest existing id', () => {
@@ -38,15 +53,16 @@ test('ids increment from the highest existing id', () => {
   assert.equal(nextPriceBookId(SEED_PRICE_BOOKS), 'PL000035');
 });
 
-test('creating a price book converts prices and never stores master list prices', () => {
-  const catalogBefore = JSON.stringify(PRODUCTS);
+test('creating a price book takes each price from the product details', () => {
   const { books, book } = expectOk(
-    savePriceBook(SEED_PRICE_BOOKS, base(), null, PRODUCTS, 'Demo Product Lead', now),
+    savePriceBook(SEED_PRICE_BOOKS, base(), null, 'Demo Product Lead', now),
   );
   assert.equal(book.id, 'PL000035');
-  assert.equal(book.entries[0].updatedPrice, 5495);
-  assert.equal('masterListPrice' in book.entries[0], false);
-  assert.equal(JSON.stringify(PRODUCTS), catalogBefore);
+  assert.deepEqual(
+    [book.entries[0].updatedPrice, book.entries[0].promoPrice, book.entries[0].manual.netPrice],
+    [5495, null, 5495],
+  );
+  assert.equal(book.entries[0].manual.masterListPrice, 5795);
   assert.deepEqual(
     [book.updatedAt, book.updatedBy],
     ['2026-11-17T02:00:00.000Z', 'Demo Product Lead'],
@@ -57,21 +73,19 @@ test('creating a price book converts prices and never stores master list prices'
 
 test('editing keeps the id and allows keeping its own name', () => {
   const d = { ...draftFromBook(SEED_PRICE_BOOKS[0]), description: 'Updated memo' };
-  const { book } = expectOk(
-    savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', PRODUCTS, 'Demo Admin', now),
-  );
+  const { book } = expectOk(savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', 'Demo Admin', now));
   assert.deepEqual(
     [book.id, book.name, book.description],
     ['PL000013', 'Standard Retail 2026', 'Updated memo'],
   );
   assert.equal(
-    expectFail(savePriceBook(SEED_PRICE_BOOKS, d, 'PL999999', PRODUCTS, 'x', now)),
+    expectFail(savePriceBook(SEED_PRICE_BOOKS, d, 'PL999999', 'x', now)),
     'Price book not found.',
   );
 });
 
 test('price book validation', () => {
-  const e = (d: PriceBookDraft) => validatePriceBook(d, SEED_PRICE_BOOKS, PRODUCTS, null);
+  const e = (d: PriceBookDraft) => validatePriceBook(d, SEED_PRICE_BOOKS, null);
   assert.equal(e({ ...base(), name: ' ' }).name, 'Price book name is required.');
   assert.equal(
     e({ ...base(), name: 'november monitor sale ' }).name,
@@ -86,13 +100,13 @@ test('price book validation', () => {
   dup.entries.push({ ...dup.entries[0] });
   assert.deepEqual(e(dup).form, ['Product 4800000100011 is listed more than once.']);
   const bad = base();
-  bad.entries[0].promoPrice = 'abc';
+  bad.entries[0].manual.netPrice = 'abc';
   assert.deepEqual(e(bad).entries['4800000100011'], [
-    'Promotional price must be a positive amount with up to 2 decimals.',
+    'Net Price must be zero or more with up to 2 decimals.',
   ]);
   assert.equal(hasErrors(e(base())), false);
   assert.equal(
-    expectFail(savePriceBook(SEED_PRICE_BOOKS, bad, null, PRODUCTS, 'x', now)),
+    expectFail(savePriceBook(SEED_PRICE_BOOKS, bad, null, 'x', now)),
     'Fix the highlighted fields before saving.',
   );
 });
@@ -154,13 +168,16 @@ test('activate/deactivate and filtering', () => {
   );
 });
 
-test('seed price books are valid', () => {
-  for (const b of SEED_PRICE_BOOKS)
+test('seed price books are valid and priced from their own product details', () => {
+  for (const b of SEED_PRICE_BOOKS) {
     assert.equal(
-      hasErrors(validatePriceBook(draftFromBook(b), SEED_PRICE_BOOKS, PRODUCTS, b.id)),
+      hasErrors(validatePriceBook(draftFromBook(b), SEED_PRICE_BOOKS, b.id)),
       false,
       b.id,
     );
+    for (const e of b.entries)
+      assert.deepEqual([e.updatedPrice, e.promoPrice], [e.manual.netPrice, null], e.productId);
+  }
 });
 
 test('auto IDs follow the POS price list format', () => {
@@ -174,28 +191,26 @@ test('auto IDs follow the POS price list format', () => {
 
 test('manual Price IDs are normalised, validated and unique', () => {
   const manual = (id: string) => ({ ...base(), autoId: false, id });
-  const e = (id: string) => validatePriceBook(manual(id), SEED_PRICE_BOOKS, PRODUCTS, null).id;
+  const e = (id: string) => validatePriceBook(manual(id), SEED_PRICE_BOOKS, null).id;
   assert.equal(e(' ps000015 '), undefined);
   assert.equal(e('PX123'), 'Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).');
   assert.equal(e('pl000013'), 'Price ID PL000013 is already used.');
-  const { book } = expectOk(
-    savePriceBook(SEED_PRICE_BOOKS, manual(' ps000015 '), null, PRODUCTS, 'x', now),
-  );
+  const { book } = expectOk(savePriceBook(SEED_PRICE_BOOKS, manual(' ps000015 '), null, 'x', now));
   assert.equal(book.id, 'PS000015');
-  const auto = expectOk(savePriceBook(SEED_PRICE_BOOKS, base(), null, PRODUCTS, 'x', now));
+  const auto = expectOk(savePriceBook(SEED_PRICE_BOOKS, base(), null, 'x', now));
   assert.equal(auto.book.id, 'PL000035');
 });
 
 test('editing never changes the Price ID', () => {
   const d = { ...draftFromBook(SEED_PRICE_BOOKS[0]), id: 'PL999999' };
   assert.equal(
-    expectOk(savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', PRODUCTS, 'x', now)).book.id,
+    expectOk(savePriceBook(SEED_PRICE_BOOKS, d, 'PL000013', 'x', now)).book.id,
     'PL000013',
   );
 });
 
 const manualEntry = () => ({
-  ...newEntryDraft('001-NEW', { effectiveDate: '2026-11-17', expirationDate: '' }),
+  ...entryDraft('001-NEW'),
   manual: {
     name: ' Custom monitor ',
     qty: '1.5',
@@ -210,13 +225,9 @@ const manualEntry = () => ({
   },
 });
 
-test('manual products save without catalog records, retain all fields, and resolve net price', () => {
+test('manual products retain all fields and resolve net price', () => {
   const entry = manualEntry();
-  const catalogBefore = JSON.stringify(PRODUCTS);
-  const { book } = expectOk(
-    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
-  );
-  assert.equal(JSON.stringify(PRODUCTS), catalogBefore);
+  const { book } = expectOk(savePriceBook([], { ...base(), entries: [entry] }, null, 'x', now));
   assert.deepEqual(JSON.parse(JSON.stringify(book.entries[0])).manual, {
     name: 'Custom monitor',
     qty: 1.5,
@@ -236,7 +247,7 @@ test('manual products save without catalog records, retain all fields, and resol
     support: null,
   });
   const reopened = draftFromBook(book);
-  const savedAgain = expectOk(savePriceBook([book], reopened, book.id, PRODUCTS, 'x', now)).book;
+  const savedAgain = expectOk(savePriceBook([book], reopened, book.id, 'x', now)).book;
   assert.deepEqual(savedAgain.entries, book.entries);
   const copy = expectOk(duplicatePriceBook([book], book.id, 'x', now)).book;
   assert.deepEqual(copy.entries, book.entries);
@@ -259,24 +270,20 @@ test('manual products reject invalid identity, ranges, and numbers before saving
   ];
   for (const patch of invalidValues) {
     const entry = manualEntry();
-    entry.productId = PRODUCTS[0].id;
+    entry.productId = '4800000100011';
     const draft = { ...base(), entries: [{ ...entry, manual: { ...entry.manual, ...patch } }] };
-    assert.equal(
-      hasErrors(validatePriceBook(draft, [], PRODUCTS, null)),
-      true,
-      JSON.stringify(patch),
-    );
-    expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+    assert.equal(hasErrors(validatePriceBook(draft, [], null)), true, JSON.stringify(patch));
+    expectFail(savePriceBook([], draft, null, 'x', now));
   }
   for (const productId of ['', '   ']) {
     const draft = { ...base(), entries: [{ ...manualEntry(), productId }] };
-    assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true);
+    assert.equal(hasErrors(validatePriceBook(draft, [], null)), true);
   }
 });
 
-test('manual products accept zero prices and an open quantity range without changing the catalog', () => {
+test('manual products accept zero prices and an open quantity range', () => {
   const entry = manualEntry();
-  entry.productId = PRODUCTS[0].id;
+  entry.productId = '4800000100011';
   entry.manual = {
     ...entry.manual,
     toQty: '',
@@ -287,39 +294,33 @@ test('manual products accept zero prices and an open quantity range without chan
     netPrice: '0',
     cost: '0',
   };
-  const { book } = expectOk(
-    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
-  );
+  const { book } = expectOk(savePriceBook([], { ...base(), entries: [entry] }, null, 'x', now));
   assert.equal(JSON.parse(JSON.stringify(book.entries[0])).manual.toQty, null);
   assert.equal(matchPriceBook([book], book.id, entry.productId, 500).price, 0);
 });
 
 test('duplicate manual product IDs are rejected after trimming and case normalization', () => {
   const entry = manualEntry();
-  entry.productId = PRODUCTS[0].id;
+  entry.productId = '4800000100011';
   const draft = { ...base(), entries: [entry, { ...entry, productId: ` ${entry.productId} ` }] };
-  assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true);
-  expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+  assert.equal(hasErrors(validatePriceBook(draft, [], null)), true);
+  expectFail(savePriceBook([], draft, null, 'x', now));
 });
 
 test('manual product IDs cannot hide entry validation errors behind object prototype keys', () => {
   for (const productId of ['__proto__', 'constructor', 'toString']) {
     const entry = { ...manualEntry(), productId, effectiveStart: '' };
     const draft = { ...base(), entries: [entry] };
-    assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), true, productId);
-    expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+    assert.equal(hasErrors(validatePriceBook(draft, [], null)), true, productId);
+    expectFail(savePriceBook([], draft, null, 'x', now));
   }
 });
 
 test('small decimal quantities can be saved again after reopening', () => {
   const entry = manualEntry();
   entry.manual.qty = '0.0000001';
-  const { book } = expectOk(
-    savePriceBook([], { ...base(), entries: [entry] }, null, PRODUCTS, 'x', now),
-  );
-  const saved = expectOk(
-    savePriceBook([book], draftFromBook(book), book.id, PRODUCTS, 'x', now),
-  ).book;
+  const { book } = expectOk(savePriceBook([], { ...base(), entries: [entry] }, null, 'x', now));
+  const saved = expectOk(savePriceBook([book], draftFromBook(book), book.id, 'x', now)).book;
   assert.deepEqual(saved.entries, book.entries);
 });
 
@@ -337,8 +338,8 @@ const book = (id: string): PriceBook => ({
 
 test('PI Price IDs are accepted and the error names all three prefixes', () => {
   const draft = { ...emptyDraft('2026-11-18'), autoId: false, id: 'pi000004', name: 'Internal' };
-  assert.equal(validatePriceBook(draft, SEED_PRICE_BOOKS, PRODUCTS, null).id, undefined);
-  const bad = validatePriceBook({ ...draft, id: 'PX000001' }, SEED_PRICE_BOOKS, PRODUCTS, null);
+  assert.equal(validatePriceBook(draft, SEED_PRICE_BOOKS, null).id, undefined);
+  const bad = validatePriceBook({ ...draft, id: 'PX000001' }, SEED_PRICE_BOOKS, null);
   assert.equal(bad.id, 'Price ID must be PL, PS or PI followed by 6 digits (e.g. PL000123).');
   assert.equal(isSupportBook('PS000005'), true);
   assert.equal(isSupportBook('PI000005'), false);
@@ -366,25 +367,23 @@ const supportDraft = (id: string, value = '1500'): PriceBookDraft => ({
 });
 
 test('PS entries keep Support and PL entries drop it on save', () => {
-  const ps = expectOk(savePriceBook([], supportDraft('PS000077'), null, PRODUCTS, 'x', now)).book;
+  const ps = expectOk(savePriceBook([], supportDraft('PS000077'), null, 'x', now)).book;
   assert.equal(ps.entries[0].support, 1500);
-  const pl = expectOk(savePriceBook([], supportDraft('PL000077'), null, PRODUCTS, 'x', now)).book;
+  const pl = expectOk(savePriceBook([], supportDraft('PL000077'), null, 'x', now)).book;
   assert.equal('support' in pl.entries[0], false);
 });
 
 test('invalid Support blocks saving', () => {
   const draft = supportDraft('PS000077', '-5');
-  const errors = validatePriceBook(draft, [], PRODUCTS, null);
+  const errors = validatePriceBook(draft, [], null);
   assert.deepEqual(errors.entries['4800000100011'], [
     'Support must be zero or more with up to 2 decimals.',
   ]);
-  expectFail(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+  expectFail(savePriceBook([], draft, null, 'x', now));
 });
 
 test('duplicate copies Support to the next PS number', () => {
-  const { book: ps, books } = expectOk(
-    savePriceBook([], supportDraft('PS000077'), null, PRODUCTS, 'x', now),
-  );
+  const { book: ps, books } = expectOk(savePriceBook([], supportDraft('PS000077'), null, 'x', now));
   const { book: copy } = expectOk(duplicatePriceBook(books, ps.id, 'x', now));
   assert.equal(copy.id, 'PS000078');
   assert.equal(copy.entries[0].support, 1500);
@@ -394,15 +393,27 @@ test('manual products accept Qty 0 and store no typed margin', () => {
   const entry = manualEntry();
   entry.manual = { ...entry.manual, qty: '0', toQty: '99999' };
   const draft = { ...base(), entries: [entry] };
-  assert.equal(hasErrors(validatePriceBook(draft, [], PRODUCTS, null)), false);
-  const { book } = expectOk(savePriceBook([], draft, null, PRODUCTS, 'x', now));
+  assert.equal(hasErrors(validatePriceBook(draft, [], null)), false);
+  const { book } = expectOk(savePriceBook([], draft, null, 'x', now));
   assert.equal(book.entries[0].manual!.qty, 0);
   assert.equal('margin' in book.entries[0].manual!, false);
 });
 
 test('support list holds PS entries with Support only, active or not', () => {
-  const entry = (productId: string, support?: number) => ({
+  const entry = (productId: string, support?: number): PriceBookEntry => ({
     productId,
+    manual: {
+      name: 'Item ' + productId,
+      qty: 1,
+      toQty: null,
+      unit: 'PCS',
+      masterListPrice: 100,
+      unitPrice: 100,
+      discountPercent: 0,
+      discount: 0,
+      netPrice: 100,
+      cost: 50,
+    },
     updatedPrice: 100,
     promoPrice: null,
     effectiveStart: '2026-11-01',

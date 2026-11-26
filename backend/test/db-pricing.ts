@@ -76,9 +76,14 @@ test('a stale edit is refused', async () => {
   const { db, actor, pricing } = await setup();
   try {
     const original = (await pricing.snapshot()).books.find((b) => b.id === 'PL000013')!;
-    const edit = (updatedPrice: string): PriceBookDraft => {
+    const edit = (netPrice: string): PriceBookDraft => {
       const draft = draftFromBook(original);
-      draft.entries[0] = { ...draft.entries[0], updatedPrice };
+      const entry = draft.entries[0];
+      draft.entries[0] = {
+        ...entry,
+        updatedPrice: netPrice,
+        manual: { ...entry.manual, netPrice },
+      };
       return draft;
     };
     const price = 5000;

@@ -136,3 +136,23 @@ Never save in the database, and never log row contents:
    RLS are hand-written SQL appended to the generated migration.
 6. **`domain/user-accounts.ts` loses the plaintext `password` field** on `UserAccount`; the seed type
    adds it back for hashing only. Sign-in messages stay identical.
+
+## Change 2026-11-26: product catalog removed
+
+The user works only from ZenPOS: price books come from ZenPOS price book imports (each row already
+carries its own product details) or manual entry, and the calculator reads the ZenPOS Sales Report.
+After the user deleted the `products` table from the real database, `GET /api/pricing` and imports
+failed with P2021 because the app still read it. Decision: remove the catalog from the app entirely.
+
+- The `Product` model, the `Product` type, catalog search and `ProductCatalogService` are gone. The
+  table is dropped by the new migration `20261126130000_drop_products`
+  (`DROP TABLE IF EXISTS "products"`); the applied migrations are unchanged.
+- Every price book entry carries its own product details (`manual` is required in `shared/domain`).
+  Reading an entry whose `manual_*` columns are empty fails with an error naming the book and the
+  product instead of inventing details. `price_book_entries` keeps its columns.
+- `PricingSnapshot` (and `GET /api/pricing`) is `{ books }`. Add products opens manual entry
+  directly; catalog-only validation (promotional price vs. the catalog master list price) is gone,
+  and so are the editor's Updated Selling Price / Promotional Price columns (only catalog rows used
+  them; every row now shows its own details, margins and Support).
+- The demo price books carry the former demo catalog's details for their products, with
+  `updatedPrice` = net price and `promoPrice` = null, so the prices the tests compare stay the same.

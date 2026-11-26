@@ -14,240 +14,119 @@
     </div>
     <button type="button" class="delete-button" aria-label="Close" (click)="close()">×</button>
   </div>
-  @if (!initialEntry) {
-    <div class="product-entry-tabs" aria-label="Product entry method">
-      <button
-        mat-button
-        type="button"
-        [class.selected]="mode() === 'manual'"
-        [attr.aria-pressed]="mode() === 'manual'"
-        (click)="mode.set('manual')"
-      >
-        Manual entry
-      </button>
-      <button
-        mat-button
-        type="button"
-        [class.selected]="mode() === 'catalog'"
-        [attr.aria-pressed]="mode() === 'catalog'"
-        (click)="mode.set('catalog')"
-      >
-        Search catalog
-      </button>
-    </div>
-  }
-  @if (mode() === 'manual') {
-    <form
-      id="manual-product-form"
-      class="manual-product-form"
-      novalidate
-      (submit)="$event.preventDefault(); confirmManual()"
-    >
-      <p class="manual-product-hint">
-        Enter amounts per unit. Disc % is a percentage. Leave to Qty blank for no upper limit.
-        Margins are calculated in the products table.
-      </p>
-      <div class="form-grid manual-product-grid">
-        <div class="form-field">
-          <label for="manual-product-id">Product ID</label>
+  <form
+    id="manual-product-form"
+    class="manual-product-form"
+    novalidate
+    (submit)="$event.preventDefault(); confirmManual()"
+  >
+    <p class="manual-product-hint">
+      Enter amounts per unit. Disc % is a percentage. Leave to Qty blank for no upper limit. Margins
+      are calculated in the products table.
+    </p>
+    <div class="form-grid manual-product-grid">
+      <div class="form-field">
+        <label for="manual-product-id">Product ID</label>
+        <input
+          #productIdInput
+          id="manual-product-id"
+          cdkFocusInitial
+          autocomplete="off"
+          required
+          [value]="productId()"
+          (input)="productId.set(productIdInput.value)"
+          [class.invalid]="shownErrors().productId"
+          [attr.aria-invalid]="!!shownErrors().productId"
+          [attr.aria-describedby]="shownErrors().productId ? 'manual-product-id-error' : null"
+        />
+        @if (shownErrors().productId) {
+          <small id="manual-product-id-error" class="field-error">{{
+            shownErrors().productId
+          }}</small>
+        }
+      </div>
+      @for (field of fields; track field.key) {
+        <div class="form-field" [class.manual-name-field]="field.key === 'name'">
+          <label [for]="'manual-' + field.key">{{ field.label }}</label>
           <input
-            #productIdInput
-            id="manual-product-id"
-            cdkFocusInitial
+            [id]="'manual-' + field.key"
+            type="text"
             autocomplete="off"
-            required
-            [value]="productId()"
-            (input)="productId.set(productIdInput.value)"
-            [class.invalid]="shownErrors().productId"
-            [attr.aria-invalid]="!!shownErrors().productId"
-            [attr.aria-describedby]="shownErrors().productId ? 'manual-product-id-error' : null"
+            [attr.inputmode]="field.kind === 'text' ? 'text' : 'decimal'"
+            [required]="!field.optional"
+            [value]="manual()[field.key]"
+            [placeholder]="field.optional ? 'No upper limit' : ''"
+            (input)="updateManual(field.key, $event)"
+            [class.invalid]="shownErrors()[field.key]"
+            [attr.aria-invalid]="!!shownErrors()[field.key]"
+            [attr.aria-describedby]="
+              shownErrors()[field.key] ? 'manual-' + field.key + '-error' : null
+            "
           />
-          @if (shownErrors().productId) {
-            <small id="manual-product-id-error" class="field-error">{{
-              shownErrors().productId
+          @if (shownErrors()[field.key]) {
+            <small [id]="'manual-' + field.key + '-error'" class="field-error">{{
+              shownErrors()[field.key]
             }}</small>
           }
         </div>
-        @for (field of fields; track field.key) {
-          <div class="form-field" [class.manual-name-field]="field.key === 'name'">
-            <label [for]="'manual-' + field.key">{{ field.label }}</label>
-            <input
-              [id]="'manual-' + field.key"
-              type="text"
-              autocomplete="off"
-              [attr.inputmode]="field.kind === 'text' ? 'text' : 'decimal'"
-              [required]="!field.optional"
-              [value]="manual()[field.key]"
-              [placeholder]="field.optional ? 'No upper limit' : ''"
-              (input)="updateManual(field.key, $event)"
-              [class.invalid]="shownErrors()[field.key]"
-              [attr.aria-invalid]="!!shownErrors()[field.key]"
-              [attr.aria-describedby]="
-                shownErrors()[field.key] ? 'manual-' + field.key + '-error' : null
-              "
-            />
-            @if (shownErrors()[field.key]) {
-              <small [id]="'manual-' + field.key + '-error'" class="field-error">{{
-                shownErrors()[field.key]
-              }}</small>
-            }
-          </div>
-        }
-        @if (supportEnabled) {
-          <div class="form-field">
-            <label for="manual-support">Support</label>
-            <input
-              id="manual-support"
-              type="text"
-              autocomplete="off"
-              inputmode="decimal"
-              placeholder="₱ per unit"
-              [value]="support()"
-              (input)="updateSupport($event)"
-              [class.invalid]="shownSupportError()"
-              [attr.aria-invalid]="!!shownSupportError()"
-              [attr.aria-describedby]="shownSupportError() ? 'manual-support-error' : null"
-            />
-            @if (shownSupportError()) {
-              <small id="manual-support-error" class="field-error">{{ shownSupportError() }}</small>
-            }
-          </div>
-        }
+      }
+      @if (supportEnabled) {
         <div class="form-field">
-          <label for="manual-effective-start">Effective start</label>
+          <label for="manual-support">Support</label>
           <input
-            id="manual-effective-start"
-            type="date"
-            [value]="rowInfo().effectiveStart"
-            (input)="updateRowInfo('effectiveStart', $event)"
-          />
-        </div>
-        <div class="form-field">
-          <label for="manual-effective-end">Effective end</label>
-          <input
-            id="manual-effective-end"
-            type="date"
-            [value]="rowInfo().effectiveEnd"
-            (input)="updateRowInfo('effectiveEnd', $event)"
-          />
-        </div>
-        <div class="form-field manual-name-field">
-          <label for="manual-memo">Memo</label>
-          <input
-            id="manual-memo"
+            id="manual-support"
             type="text"
             autocomplete="off"
-            [value]="rowInfo().memo"
-            (input)="updateRowInfo('memo', $event)"
+            inputmode="decimal"
+            placeholder="₱ per unit"
+            [value]="support()"
+            (input)="updateSupport($event)"
+            [class.invalid]="shownSupportError()"
+            [attr.aria-invalid]="!!shownSupportError()"
+            [attr.aria-describedby]="shownSupportError() ? 'manual-support-error' : null"
           />
-        </div>
-      </div>
-    </form>
-    <div class="modal-footer">
-      <span>Values are saved as entered.</span>
-      <div class="form-actions">
-        <button mat-button type="button" (click)="close()">Cancel</button>
-        <button mat-flat-button type="submit" form="manual-product-form">
-          {{ initialEntry ? 'Save product' : 'Add product' }}
-        </button>
-      </div>
-    </div>
-  } @else {
-    <form class="modal-toolbar" (submit)="$event.preventDefault(); setQuery(searchInput.value)">
-      <label class="search-label"
-        ><svg viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="7" cy="7" r="4.5" />
-          <path d="m10.5 10.5 3 3" /></svg
-        ><input
-          #searchInput
-          type="search"
-          aria-label="Search products"
-          placeholder="Product ID or name"
-          [value]="query()"
-          (input)="setQuery(searchInput.value)"
-      /></label>
-      <button mat-flat-button type="submit">Search</button>
-    </form>
-    <div class="table-scroll modal-table">
-      <table aria-label="Product catalog">
-        <thead>
-          <tr>
-            <th scope="col" class="check-cell">
-              <input
-                type="checkbox"
-                aria-label="Select all visible"
-                [checked]="allVisibleSelected()"
-                [disabled]="!selectable().length"
-                (change)="toggleAllVisible($event)"
-              />
-            </th>
-            <th scope="col">Product ID</th>
-            <th scope="col">Name</th>
-            <th scope="col">Unit</th>
-            <th scope="col" class="numeric">On hand</th>
-            <th scope="col" class="numeric">Master List Price</th>
-            <th scope="col" class="numeric">Selling Price</th>
-            <th scope="col" class="numeric">Cost</th>
-            <th scope="col" class="numeric">Margin on cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (product of results(); track product.id) {
-            <tr [class.row-added]="isExcluded(product.id)">
-              <td class="check-cell">
-                <input
-                  type="checkbox"
-                  [attr.aria-label]="'Select ' + product.id"
-                  [disabled]="isExcluded(product.id)"
-                  [checked]="isExcluded(product.id) || selected().has(product.id)"
-                  (change)="toggle(product.id, $event)"
-                />
-              </td>
-              <td class="nowrap">{{ product.id }}</td>
-              <td class="name-cell">
-                {{ product.name }}
-                @if (product.source === 'import') {
-                  <span class="status-pill import-pill">Imported</span>
-                }
-                @if (isExcluded(product.id)) {
-                  <span class="status-pill">Added</span>
-                }
-              </td>
-              <td>{{ product.unit }}</td>
-              <td class="numeric">{{ product.onHand ?? '—' }}</td>
-              <td class="numeric">
-                {{ product.masterListPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
-              </td>
-              <td class="numeric">
-                {{ product.sellingPrice | currency: 'PHP' : 'symbol' : '1.2-2' }}
-              </td>
-              <td class="numeric">
-                {{
-                  product.cost === null
-                    ? '—'
-                    : (product.cost | currency: 'PHP' : 'symbol' : '1.2-2')
-                }}
-              </td>
-              <td class="numeric" [class.negative]="(margin(product) ?? 0) < 0">
-                {{ margin(product) === null ? '—' : margin(product)!.toFixed(2) + '%' }}
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="9" class="empty-table">No products match "{{ query() }}".</td>
-            </tr>
+          @if (shownSupportError()) {
+            <small id="manual-support-error" class="field-error">{{ shownSupportError() }}</small>
           }
-        </tbody>
-      </table>
-    </div>
-    <div class="modal-footer">
-      <span>{{ results().length }} record(s) · {{ selected().size }} selected</span>
-      <div class="form-actions">
-        <button mat-button type="button" (click)="close()">Cancel</button>
-        <button mat-flat-button type="button" [disabled]="!selected().size" (click)="confirm()">
-          {{ selected().size === 1 ? 'Add 1 product' : 'Add ' + selected().size + ' products' }}
-        </button>
+        </div>
+      }
+      <div class="form-field">
+        <label for="manual-effective-start">Effective start</label>
+        <input
+          id="manual-effective-start"
+          type="date"
+          [value]="rowInfo().effectiveStart"
+          (input)="updateRowInfo('effectiveStart', $event)"
+        />
+      </div>
+      <div class="form-field">
+        <label for="manual-effective-end">Effective end</label>
+        <input
+          id="manual-effective-end"
+          type="date"
+          [value]="rowInfo().effectiveEnd"
+          (input)="updateRowInfo('effectiveEnd', $event)"
+        />
+      </div>
+      <div class="form-field manual-name-field">
+        <label for="manual-memo">Memo</label>
+        <input
+          id="manual-memo"
+          type="text"
+          autocomplete="off"
+          [value]="rowInfo().memo"
+          (input)="updateRowInfo('memo', $event)"
+        />
       </div>
     </div>
-  }
+  </form>
+  <div class="modal-footer">
+    <span>Values are saved as entered.</span>
+    <div class="form-actions">
+      <button mat-button type="button" (click)="close()">Cancel</button>
+      <button mat-flat-button type="submit" form="manual-product-form">
+        {{ initialEntry ? 'Save product' : 'Add product' }}
+      </button>
+    </div>
+  </div>
 </div>

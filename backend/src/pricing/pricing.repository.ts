@@ -1,22 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import type { PriceBook, PricingSnapshot } from '../../../shared/domain/price-books';
-import { bookFromRow, bookToRows, productFromRow } from '../database/mappers';
+import { bookFromRow, bookToRows } from '../database/mappers';
 import { Db, PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class PricingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Books by id (entries by position) and products by id. */
+  /** Books by id, entries by position. */
   async load(db: Db = this.prisma): Promise<PricingSnapshot> {
-    const [books, products] = await Promise.all([
-      db.priceBook.findMany({
-        orderBy: { id: 'asc' },
-        include: { entries: { orderBy: { position: 'asc' } } },
-      }),
-      db.product.findMany({ orderBy: { id: 'asc' } }),
-    ]);
-    return { books: books.map(bookFromRow), products: products.map(productFromRow) };
+    const books = await db.priceBook.findMany({
+      orderBy: { id: 'asc' },
+      include: { entries: { orderBy: { position: 'asc' } } },
+    });
+    return { books: books.map(bookFromRow) };
   }
 
   /** Rewrites only the given books (entries replaced wholesale) and removes the deleted ones. */

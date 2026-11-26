@@ -1462,17 +1462,6 @@ tbody tr.review-row:hover > th.row-id {
   background: var(--warn-wash);
   color: var(--warn);
 }
-.import-pill {
-  background: var(--brand-wash);
-  color: var(--brand-strong);
-  margin-left: 6px;
-}
-.import-pill::before {
-  display: none;
-}
-.name-cell .status-pill {
-  margin-left: 6px;
-}
 .identifier-warning {
   display: block;
   position: relative;
@@ -2109,27 +2098,6 @@ tbody tr.review-row:hover > th.row-id {
   color: var(--ink-3);
   margin-top: 4px;
 }
-.product-entry-tabs {
-  display: inline-flex;
-  align-self: flex-start;
-  flex-shrink: 0;
-  gap: 4px;
-  margin: 16px var(--pad) 0;
-  padding: 3px;
-  background: var(--surface-2);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  --mat-button-text-container-height: 32px;
-  --mat-button-text-label-text-color: var(--ink-3);
-  --mat-button-text-container-shape: var(--radius);
-}
-.product-entry-tabs .selected {
-  background: var(--surface);
-  color: var(--ink) !important;
-  box-shadow:
-    0 1px 2px rgb(20 35 59 / 0.08),
-    0 0 0 1px var(--rule);
-}
 .manual-product-form {
   overflow-y: auto;
   min-height: 0;
@@ -2159,30 +2127,6 @@ tbody tr.review-row:hover > th.row-id {
 }
 .manual-name-field {
   grid-column: span 3;
-}
-.modal-toolbar {
-  display: flex;
-  gap: 10px;
-  padding: 14px var(--pad);
-  flex-wrap: wrap;
-}
-.modal-toolbar .search-label {
-  flex: 1;
-}
-.modal-table {
-  flex: 1;
-  min-height: 160px;
-  border-top: 1px solid var(--rule);
-}
-.check-cell {
-  width: 40px;
-  text-align: center;
-}
-.check-cell input {
-  vertical-align: middle;
-}
-.row-added td {
-  color: var(--ink-4);
 }
 .modal-footer {
   flex-shrink: 0;

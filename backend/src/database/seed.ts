@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs';
 import type { Prisma, PrismaClient } from '../generated/prisma/client';
-import { PRODUCTS } from '../../../shared/seed/products';
 import { SEED_PRICE_BOOKS } from '../../../shared/seed/price-books';
 import { SEED_USERS } from '../../../shared/seed/users';
 import { lock, TX_OPTIONS, USERS_LOCK } from './locks';
-import { bookToRows, productToRow } from './mappers';
+import { bookToRows } from './mappers';
 
 export const BCRYPT_COST = 12;
 let hashed: Promise<string[]> | undefined;
@@ -24,7 +23,6 @@ async function insertSeed(db: Prisma.TransactionClient, hashes: string[]): Promi
       active: u.active,
     })),
   });
-  await db.product.createMany({ data: PRODUCTS.map(productToRow) });
   const rows = SEED_PRICE_BOOKS.map(bookToRows);
   await db.priceBook.createMany({ data: rows.map((r) => r.book) });
   await db.priceBookEntry.createMany({ data: rows.flatMap((r) => r.entries) });
@@ -48,7 +46,6 @@ export async function resetAndSeed(db: PrismaClient): Promise<void> {
     await lock(tx, USERS_LOCK);
     await tx.priceBookEntry.deleteMany();
     await tx.priceBook.deleteMany();
-    await tx.product.deleteMany();
     await tx.user.deleteMany();
     await insertSeed(tx, hashes);
   }, TX_OPTIONS);

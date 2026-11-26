@@ -1,6 +1,6 @@
 # Sales Bank Rate Deduction Calculator
 
-A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 21 columns, beginning with Product ID. Bank-rate configuration stays in local JSON and the current browser session. User accounts, the product catalog and price books are stored in a PostgreSQL database (Supabase) through Prisma; Sales Reports and calculation results are never stored (see **What is saved**).
+A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 21 columns, beginning with Product ID. Bank-rate configuration stays in local JSON and the current browser session. User accounts and price books are stored in a PostgreSQL database (Supabase) through Prisma; Sales Reports and calculation results are never stored (see **What is saved**).
 
 ## Database setup
 
@@ -25,7 +25,7 @@ The API needs a PostgreSQL database. These steps use a Supabase project; the app
    npm run db:seed -w backend
    ```
 
-   `db:deploy` applies the migrations in `backend/prisma/migrations`: it creates the four tables (`users`, `products`, `price_books`, `price_book_entries`), their unique indexes, and turns on row level security on each table so Supabase's public data API cannot read them. The app reaches the tables only through the NestJS API. `db:seed` adds the three demo accounts, the 24-product catalog and three price books, and does nothing if accounts already exist. It prints `Seeded demo accounts, products and price books.`
+   `db:deploy` applies the migrations in `backend/prisma/migrations`: they create the three tables (`users`, `price_books`, `price_book_entries`), their unique indexes, and turn on row level security on each table so Supabase's public data API cannot read them. The migration `20261126130000_drop_products` removes the former product catalog table (`products`) if it is still there. The app reaches the tables only through the NestJS API. `db:seed` adds the three demo accounts and three price books, and does nothing if accounts already exist. It prints `Seeded demo accounts, products and price books.`
 
 ### Test database
 
@@ -105,7 +105,6 @@ Editing the file selection, mappings, cost basis or configuration clears the pre
 | Data                                                      | Saved in the database | Notes                                                              |
 | --------------------------------------------------------- | --------------------- | ------------------------------------------------------------------ |
 | User accounts (name, role, active flag, hashed password)  | Yes                   | Passwords are stored as bcrypt hashes; the API never returns them. |
-| Product catalog                                           | Yes                   | The 24 demo products, seeded once.                                 |
 | Price books and their products, prices, Support and memos | Yes                   | Shared by everyone who uses the same database.                     |
 | Sales Reports, calculation results, exported workbooks    | No                    | Held in memory for the request or in the browser until you leave.  |
 | ZenPOS price book files                                   | No                    | Read in the browser; only the resulting price book is saved.       |
@@ -135,7 +134,7 @@ The old `/sales-report` address forwards to the calculator. The sidebar shows on
 
 ### Price books
 
-Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Click a ZenPOS or manual product row (while viewing or editing a price book) to open **Edit product** with all of its details, prices, cost, Support (PS books), effective start and end, and memo; the **Edit** button on the right does the same. Clicking a demo catalog row opens edit mode at that row. Nothing is kept until **Save price book**. Saving writes to the database before showing success; a failed save is reported as an error and nothing is kept. Accounting's price comparison reads the saved books, so it reflects them the next time it loads.
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Products come from a ZenPOS price book import or from **Add products**, which opens manual entry of a product's details and prices; there is no shared product catalog. Click a product row (while viewing or editing a price book) to open **Edit product** with all of its details, prices, cost, Support (PS books), effective start and end, and memo; the **Edit** button on the right does the same. Nothing is kept until **Save price book**. Saving writes to the database before showing success; a failed save is reported as an error and nothing is kept. Accounting's price comparison reads the saved books, so it reflects them the next time it loads.
 
 Price IDs follow the ZenPOS format: a prefix followed by six digits (e.g. `PL000013`, `PS000015`, `PI000005`).
 
@@ -147,7 +146,7 @@ Price IDs follow the ZenPOS format: a prefix followed by six digits (e.g. `PL000
 
 With **Auto ID** on, a new book gets the next `PL` number; turn it off to type an ID that mirrors a ZenPOS price list. **Duplicate** gives the copy the next number with the same prefix (a copy of `PS000005` becomes the next free `PS` number). IDs are unique (case-insensitive) and never change. The demo books are `PL000013` Standard Retail 2026, `PL000030` November Monitor Sale and `PL000034` December Holiday Promo (inactive).
 
-**Import ZenPOS price book** reads ZenPOS "Price Book" exports (`.xlsx`, `.xls` or `.csv`), one price book per file; several files can be chosen at once. The header block gives the Price ID, name, active flag, memo (saved as the description) and Limited Period (the validity dates; `No` means effective from the import date with no expiration). Each product row keeps its own Product ID (barcodes keep every digit and leading zeros), name, Qty, to Qty, unit, Unit Price, Discount, Disc %, Price After Discount (the net price the calculator compares) and Stnd Cost. Limited Days, Time, Regions, Branches and Price Levels are not imported; ZenPOS enforces them at the till. Imported rows never change the shared catalog.
+**Import ZenPOS price book** reads ZenPOS "Price Book" exports (`.xlsx`, `.xls` or `.csv`), one price book per file; several files can be chosen at once. The header block gives the Price ID, name, active flag, memo (saved as the description) and Limited Period (the validity dates; `No` means effective from the import date with no expiration). Each product row keeps its own Product ID (barcodes keep every digit and leading zeros), name, Qty, to Qty, unit, Unit Price, Discount, Disc %, Price After Discount (the net price the calculator compares) and Stnd Cost. Limited Days, Time, Regions, Branches and Price Levels are not imported; ZenPOS enforces them at the till.
 
 - A new Price ID creates the price book. If another book already uses the name, the Price ID is appended to it.
 - An existing Price ID is updated from the file: name, memo, active flag, dates, prices and cost come from ZenPOS. Support, row memo and Master List Price entered in this app are kept for products still in the file; products missing from the file are removed and new ones are added without Support. With `Limited Period: No` the book keeps its effective date and loses its expiration. Re-importing the same file changes nothing.
@@ -163,13 +162,13 @@ With **Auto ID** on, a new book gets the next `PL` number; turn it off to type a
 
 Margin is always calculated; it is no longer typed in Add products. Manual and imported rows accept Qty 0 (ZenPOS uses 0 to mean any quantity).
 
-Each product keeps three separate prices:
+Each product row carries its own details: Name, Qty, to Qty, Unit, Master List Price, Unit Price, Disc %, Discount, Net Price and Cost.
 
-- **Master List Price** — read from the catalog and never written by a price book.
-- **Updated Selling Price** — optional new selling price.
-- **Promotional Price** — optional; needs an effective end date and cannot exceed the price it discounts.
+- **Master List Price** — the row's own value: entered in Add products or Edit product; a ZenPOS import starts it at the Unit Price and keeps the value entered in this app on re-import.
+- **Net Price** — the price the calculator compares with the sale (ZenPOS Price After Discount).
+- **Disc %** and **Discount** — kept as entered or imported; they are not recalculated.
 
-Discount % = (Master List Price − Promotional Price, or Updated Selling Price) ÷ Master List Price × 100, rounded to 2 decimals; negative values show as markup. Entry status is Scheduled, Active or Expired from its effective dates (Asia/Manila calendar date), and entry dates must fall inside the price book's validity. Amounts accept `₱`, `PHP` and comma groups; more than two decimals, zero, negative and non-numeric prices are rejected.
+Entry status is Scheduled, Active or Expired from its effective dates (Asia/Manila calendar date), and entry dates must fall inside the price book's validity. Amounts accept `₱`, `PHP` and comma groups; more than two decimals, negative and non-numeric amounts are rejected, and Disc % must be between 0 and 100.
 
 ### Product sections on the calculator (05 and 06)
 
@@ -307,7 +306,7 @@ All routes except `GET /api/health` and `POST /api/auth/login` require a signed-
 | POST /api/users/accounting-head     | `users`                       | Transfer the Accounting Head role                           |
 | PATCH /api/users/:id/role           | `users`                       | Change a role                                               |
 | PATCH /api/users/:id/active         | `users`                       | Activate or deactivate an account                           |
-| GET /api/pricing                    | `price-books` or `calculator` | Catalog and all price books                                 |
+| GET /api/pricing                    | `price-books` or `calculator` | All price books                                             |
 | POST /api/price-books               | `price-books`                 | Create a price book                                         |
 | POST /api/price-books/import        | `price-books`                 | Save imported ZenPOS price books                            |
 | PUT /api/price-books/:id            | `price-books`                 | Save changes to a price book                                |
@@ -360,7 +359,7 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. The API they start uses `TEST_DATABASE_URL`, and the suite resets and seeds the test schema first, so the real `public` data is never touched. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 21 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. The API they start uses `TEST_DATABASE_URL`, and the suite resets and seeds the test schema first, so the real `public` data is never touched. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 21 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, manual product entry and validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
 `npm test` also runs the frontend checks (`frontend/test/`, over the shared domain code in `shared/domain/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
 
@@ -396,7 +395,7 @@ backend/scripts/                    Test schema preparation
 shared/models.ts                    API contracts and exact output column definitions
 shared/api.ts                       Request/response types for the account and pricing API
 shared/domain/                      Framework-free pricing, accounts and price book logic
-shared/seed/                        Demo users, products and price books used by the seed
+shared/seed/                        Demo users and price books used by the seed
 backend/test/                       Unit/integration and actual-report checks
 e2e/                                Browser workflow tests
 sample-data/                        Instructions; private files are not bundled

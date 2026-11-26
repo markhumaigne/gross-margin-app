@@ -2,19 +2,15 @@ import assert from 'node:assert/strict';
 import { test } from './harness';
 import { Prisma } from '../src/generated/prisma/client';
 import type { PriceBook } from '../../shared/domain/price-books';
-import type { Product } from '../../shared/domain/pricing';
 import { applyZenposPriceBook } from '../../shared/domain/price-book-import';
 import type { ZenposPriceBook, ZenposProductRow } from '../../shared/domain/zenpos-price-book';
 import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
-import { PRODUCTS } from '../../shared/seed/products';
 import {
   bookFromRow,
   bookToRows,
   dateValue,
   diffBooks,
   isoDate,
-  productFromRow,
-  productToRow,
   userFromRow,
 } from '../src/database/mappers';
 import { testDatabase } from '../src/env';
@@ -80,18 +76,6 @@ function asStoredRow(rows: ReturnType<typeof bookToRows>) {
   return { ...rows.book, expirationDate: rows.book.expirationDate ?? null, entries } as never;
 }
 
-function asStoredProduct(row: Prisma.ProductCreateManyInput) {
-  return {
-    ...row,
-    onHand: row.onHand ?? null,
-    cost:
-      row.cost === undefined || row.cost === null ? null : new Prisma.Decimal(row.cost as string),
-    source: row.source ?? null,
-    masterListPrice: new Prisma.Decimal(row.masterListPrice as string),
-    sellingPrice: new Prisma.Decimal(row.sellingPrice as string),
-  } as never;
-}
-
 test('calendar dates map to UTC midnight and back', () => {
   assert.equal(dateValue('2026-11-30').toISOString(), '2026-11-30T00:00:00.000Z');
   assert.equal(isoDate(dateValue('2026-11-30')), '2026-11-30');
@@ -102,9 +86,30 @@ test('every seed price book and an imported PS book survive the row mapping', ()
     assert.deepStrictEqual(bookFromRow(asStoredRow(bookToRows(book))), book);
 });
 
-test('catalog products survive the row mapping without inventing a source', () => {
-  for (const p of PRODUCTS as readonly Product[])
-    assert.deepStrictEqual(productFromRow(asStoredProduct(productToRow(p))), p);
+test('an entry stored without its own product details fails loudly', () => {
+  const stored = asStoredRow(bookToRows(importedPsBookWithManualAndSupport())) as {
+    entries: Record<string, unknown>[];
+  };
+  for (const k of [
+    'manualName',
+    'manualQty',
+    'manualToQty',
+    'manualUnit',
+    'manualMasterListPrice',
+    'manualUnitPrice',
+    'manualDiscountPercent',
+    'manualDiscount',
+    'manualNetPrice',
+    'manualCost',
+  ])
+    stored.entries[1][k] = null;
+  assert.throws(
+    () => bookFromRow(stored as never),
+    (e: Error) =>
+      e.message ===
+      'Price book PS000015 has no product details for product B. ' +
+        'Re-import the price book from ZenPOS or enter the product manually.',
+  );
 });
 
 test('test database settings refuse anything that could reach real data', () => {
