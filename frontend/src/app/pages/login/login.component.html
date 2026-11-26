@@ -38,43 +38,10 @@
           >Password
           <input formControlName="password" type="password" autocomplete="current-password"
         /></label>
-        <button mat-flat-button type="submit" class="login-button">Sign in</button>
+        <button mat-flat-button type="submit" class="login-button" [disabled]="signingIn()">
+          Sign in
+        </button>
       </form>
-      <div class="dev-accounts">
-        <h2>Development accounts</h2>
-        <p>Mock credentials for this frontend prototype only. Not production authentication.</p>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Username</th>
-              <th scope="col">Password</th>
-              <th scope="col">Role</th>
-              <th scope="col"><span class="visually-hidden">Action</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (account of devAccounts; track account.username) {
-              <tr>
-                <td class="username">{{ account.username }}</td>
-                <td>
-                  <code>{{ account.password }}</code>
-                </td>
-                <td>{{ account.role }}</td>
-                <td class="dev-action">
-                  <button
-                    mat-button
-                    type="button"
-                    [attr.aria-label]="'Use ' + account.username"
-                    (click)="use(account)"
-                  >
-                    Use
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
     </div>
   </section>
 </div>

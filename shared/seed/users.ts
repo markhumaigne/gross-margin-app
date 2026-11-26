@@ -1,10 +1,15 @@
 import { UserAccount } from '../domain/user-accounts';
 
+/** A seed account with its demo password; the password is hashed before it is stored. */
+export interface SeedUser extends UserAccount {
+  password: string;
+}
+
 /**
  * Hardcoded development accounts for the frontend prototype. Not production authentication;
  * replace with a real identity provider and backend before any production use.
  */
-export const SEED_USERS: readonly UserAccount[] = [
+export const SEED_USERS: readonly SeedUser[] = [
   {
     id: 'u-1',
     username: 'admin',

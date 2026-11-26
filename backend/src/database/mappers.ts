@@ -4,8 +4,11 @@ import type {
   PriceBookEntry as PriceBookEntryRow,
   Prisma,
   Product as ProductRow,
+  User as UserRow,
 } from '../generated/prisma/client';
 import type { ManualProduct } from '../../../shared/domain/manual-products';
+import type { Role } from '../../../shared/domain/roles';
+import type { UserAccount } from '../../../shared/domain/user-accounts';
 import type { PriceBook } from '../../../shared/domain/price-books';
 import type { PriceBookEntry, Product } from '../../../shared/domain/pricing';
 
@@ -24,6 +27,17 @@ const money = (d: Prisma.Decimal): number => Number(d.toFixed(2));
 const moneyOrNull = (d: Prisma.Decimal | null): number | null => (d === null ? null : money(d));
 const moneyOrAbsent = (value: number | undefined): string | null =>
   value === undefined ? null : toMoney(value);
+
+/** The account as the browser may see it: the password hash is never copied. */
+export function userFromRow(row: UserRow): UserAccount {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.displayName,
+    role: row.role as Role,
+    active: row.active,
+  };
+}
 
 export function productFromRow(row: ProductRow): Product {
   const product: Product = {

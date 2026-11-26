@@ -10,5 +10,6 @@ process.env['AUTH_SECRET'] ||= 'test-secret-test-secret-test-secret-123';
 
 import { runAll } from './harness';
 import './db-schema';
+import './db-calculation';
 
 void runAll().then(() => process.exit(process.exitCode ?? 0));

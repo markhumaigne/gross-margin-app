@@ -15,6 +15,7 @@ import {
   isoDate,
   productFromRow,
   productToRow,
+  userFromRow,
 } from '../src/database/mappers';
 import { testDatabase } from '../src/env';
 
@@ -138,4 +139,26 @@ test('diffBooks reports only changed, added and removed books', () => {
     upserts: [changed],
     deletes: [c.id],
   });
+});
+
+test('user rows map to accounts without the password hash', () => {
+  const row = {
+    id: 'u-9',
+    username: 'someone',
+    displayName: 'Some One',
+    passwordHash: '$2b$12$abcdefghijklmnopqrstuv',
+    role: 'admin',
+    active: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  const account = userFromRow(row as never);
+  assert.deepStrictEqual(account, {
+    id: 'u-9',
+    username: 'someone',
+    displayName: 'Some One',
+    role: 'admin',
+    active: true,
+  });
+  assert.ok(!('passwordHash' in account));
 });

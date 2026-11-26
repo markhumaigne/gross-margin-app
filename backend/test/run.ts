@@ -19,7 +19,7 @@ import {
   BRANCH_DATE_SUMMARY_SHEET,
   Sale,
 } from '../../shared/models';
-import { sale, part, upload, workbook, reportFixture } from './helpers';
+import { sale, part, upload, workbook, reportFixture, authorize } from './helpers';
 const config = new ConfigService(),
   excel = new ExcelService(),
   calc = new CalculationService(),
@@ -2608,11 +2608,16 @@ test('Previously exported ten-column configuration remains importable', () => {
 test('Calculate accepts a mapping for every field, including Price ID, plus PS Support', async () => {
   const app = await createApplication(true);
   await app.init();
+  const auth = authorize(app);
   try {
     const server = app.getHttpServer(),
       buf = reportFixture();
-    const s = (await request(server).post('/api/excel/preview').attach('file', buf, 'sales.xlsx'))
-      .body.sheets[0];
+    const s = (
+      await request(server)
+        .post('/api/excel/preview')
+        .set('Authorization', auth)
+        .attach('file', buf, 'sales.xlsx')
+    ).body.sheets[0];
     // The browser sends every mapping field, blank when a column is not mapped.
     const mapping = Object.fromEntries(
       Object.keys(FIELDS).map((k) => [k, s.suggestedMapping[k] ?? '']),
@@ -2620,6 +2625,7 @@ test('Calculate accepts a mapping for every field, including Price ID, plus PS S
     const calculate = (priceSupport: unknown) =>
       request(server)
         .post('/api/excel/calculate')
+        .set('Authorization', auth)
         .field(
           'options',
           JSON.stringify({
@@ -2642,19 +2648,25 @@ test('Calculate accepts a mapping for every field, including Price ID, plus PS S
 test('One-file HTTP workflow previews, calculates, downloads and imports its configuration', async () => {
   const app = await createApplication(true);
   await app.init();
+  const auth = authorize(app);
   try {
     const server = app.getHttpServer(),
       buf = reportFixture();
-    const defaults = await request(server).get('/api/config/defaults').expect(200);
+    const defaults = await request(server)
+      .get('/api/config/defaults')
+      .set('Authorization', auth)
+      .expect(200);
     assert.deepEqual(defaults.body, config.defaults());
     assert.equal(defaults.body.paymentMethods.length, 49);
     const preview = await request(server)
       .post('/api/excel/preview')
+      .set('Authorization', auth)
       .attach('file', buf, 'sales.xlsx')
       .expect(201);
     const s = preview.body.sheets[0];
     const response = await request(server)
       .post('/api/excel/calculate')
+      .set('Authorization', auth)
       .field(
         'options',
         JSON.stringify({
@@ -2668,6 +2680,7 @@ test('One-file HTTP workflow previews, calculates, downloads and imports its con
     assert.equal(response.body.result.items[0].productId, '000123');
     const download = await request(server)
       .post('/api/excel/export')
+      .set('Authorization', auth)
       .send(response.body)
       .buffer(true)
       .parse((res, cb) => {
@@ -2682,17 +2695,24 @@ test('One-file HTTP workflow previews, calculates, downloads and imports its con
     );
     const imported = await request(server)
       .post('/api/config/import')
+      .set('Authorization', auth)
       .attach('file', download.body, 'report.xlsx')
       .expect(201);
     assert.deepEqual(imported.body, c());
     response.body.result.items[0].adjustment = '0';
-    await request(server).post('/api/excel/export').send(response.body).expect(400);
+    await request(server)
+      .post('/api/excel/export')
+      .set('Authorization', auth)
+      .send(response.body)
+      .expect(400);
     await request(server)
       .post('/api/excel/preview')
+      .set('Authorization', auth)
       .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), 'oversize.xlsx')
       .expect(413);
     await request(server)
       .post('/api/excel/calculate')
+      .set('Authorization', auth)
       .field(
         'options',
         JSON.stringify({

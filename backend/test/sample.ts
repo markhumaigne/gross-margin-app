@@ -16,7 +16,7 @@ import {
   BRANCH_DATE_SUMMARY_SHEET,
   BRANCH_DATE_SUMMARY_TITLE,
 } from '../../shared/models';
-import { upload } from './helpers';
+import { upload, authorize } from './helpers';
 
 async function main() {
   const args = process.argv.slice(2),
@@ -367,9 +367,11 @@ async function main() {
   assert.deepEqual(exporter.import(upload(buffer)), result.configuration);
   const app = await createApplication(true);
   await app.init();
+  const auth = authorize(app);
   try {
     const response = await request(app.getHttpServer())
       .post('/api/excel/calculate')
+      .set('Authorization', auth)
       .field('options', JSON.stringify({ sales: selection, configuration: config.defaults() }))
       .attach('sales', file.buffer, file.originalname);
     assert.equal(response.status, 201, JSON.stringify(response.body).slice(0, 300));
@@ -379,6 +381,7 @@ async function main() {
     );
     await request(app.getHttpServer())
       .post('/api/excel/export')
+      .set('Authorization', auth)
       .send(response.body)
       .expect(201)
       .expect('Content-Type', /spreadsheetml/);

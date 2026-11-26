@@ -1,37 +1,46 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import type { LoginRequest, LoginResponse } from '../../../../shared/api';
 import { Result } from '../../../../shared/domain/result';
 import { hasPermission, Permission } from '../../../../shared/domain/roles';
-import { authenticate, UserAccount } from '../../../../shared/domain/user-accounts';
+import { UserAccount } from '../../../../shared/domain/user-accounts';
+import { apiResult } from './api-result';
 import { KeepAliveRouteReuseStrategy } from './keep-alive-route-reuse.strategy';
-import { UserAccountsService } from './user-accounts.service';
 
 /**
- * Mock sign-in held in memory only. A page refresh signs the user out by design: this is a
- * frontend prototype, not production authentication.
+ * Signs in through the API. The token is held in memory only: a page refresh signs the user
+ * out by design, and nothing is written to browser storage.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly accounts = inject(UserAccountsService);
+  private readonly http = inject(HttpClient);
   private readonly keptPages = inject(KeepAliveRouteReuseStrategy);
-  private readonly userId = signal<string | null>(null);
+  private token: string | null = null;
+  private readonly user = signal<UserAccount | null>(null);
 
-  readonly currentUser = computed<UserAccount | null>(() => {
-    const id = this.userId();
-    return this.accounts.users().find((u) => u.id === id && u.active) ?? null;
-  });
-  readonly role = computed(() => this.currentUser()?.role ?? null);
+  readonly currentUser = this.user.asReadonly();
+  readonly role = computed(() => this.user()?.role ?? null);
 
-  login(username: string, password: string): Result<UserAccount> {
-    const result = authenticate(this.accounts.users(), username, password);
-    if (result.ok) {
-      this.keptPages.clear();
-      this.userId.set(result.value.id);
-    }
-    return result;
+  accessToken(): string | null {
+    return this.token;
+  }
+
+  async login(username: string, password: string): Promise<Result<UserAccount>> {
+    const body: LoginRequest = { username, password };
+    const result = await apiResult(
+      firstValueFrom(this.http.post<LoginResponse>('/api/auth/login', body)),
+    );
+    if (!result.ok) return result;
+    this.keptPages.clear();
+    this.token = result.value.token;
+    this.user.set(result.value.user);
+    return { ok: true, value: result.value.user };
   }
 
   logout(): void {
-    this.userId.set(null);
+    this.token = null;
+    this.user.set(null);
   }
 
   /** Discards pages kept alive for the signed-out session (call after leaving the shell). */

@@ -4,8 +4,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { safeReturnUrl } from '../../core/guards';
-import { ROLE_LABELS } from '../../../../../shared/domain/roles';
-import { SEED_USERS } from '../../../../../shared/seed/users';
 
 @Component({
   selector: 'app-login',
@@ -18,25 +16,17 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly error = signal('');
+  readonly signingIn = signal(false);
   readonly form = new FormGroup({
     username: new FormControl('', { nonNullable: true }),
     password: new FormControl('', { nonNullable: true }),
   });
-  /** The fixed development accounts, shown so testers can sign in quickly. */
-  readonly devAccounts = SEED_USERS.map((u) => ({
-    username: u.username,
-    password: u.password,
-    role: ROLE_LABELS[u.role],
-  }));
-
-  use(account: { username: string; password: string }) {
-    this.form.setValue({ username: account.username, password: account.password });
-    this.error.set('');
-  }
-
-  submit() {
+  async submit() {
+    if (this.signingIn()) return;
     const { username, password } = this.form.getRawValue();
-    const result = this.auth.login(username, password);
+    this.signingIn.set(true);
+    const result = await this.auth.login(username, password);
+    this.signingIn.set(false);
     if (!result.ok) {
       this.error.set(result.error);
       return;

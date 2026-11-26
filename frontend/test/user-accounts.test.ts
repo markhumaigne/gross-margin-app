@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { expectFail, expectOk, test } from './harness';
 import {
   addUser,
-  authenticate,
   changeRole,
   setUserActive,
   transferAccountingHead,
@@ -22,24 +21,6 @@ test('seed accounts match the development credentials', () => {
     ],
   );
   assert.equal(heads(SEED_USERS), 1);
-});
-
-test('authenticate checks username case-insensitively and password exactly', () => {
-  assert.equal(expectOk(authenticate(SEED_USERS, ' ADMIN ', 'Admin123!')).id, 'u-1');
-  assert.equal(
-    expectFail(authenticate(SEED_USERS, 'admin', 'admin123!')),
-    'Invalid username or password.',
-  );
-  assert.equal(
-    expectFail(authenticate(SEED_USERS, 'nobody', 'x')),
-    'Invalid username or password.',
-  );
-  assert.equal(expectFail(authenticate(SEED_USERS, '', '')), 'Enter your username and password.');
-  const inactive = expectOk(setUserActive(SEED_USERS, 'u-1', 'u-3', false));
-  assert.equal(
-    expectFail(authenticate(inactive, 'productteam', 'Product123!')),
-    'This account is inactive. Contact an Admin.',
-  );
 });
 
 test('transferring Accounting Head keeps exactly one holder and reassigns the previous one', () => {
@@ -113,6 +94,7 @@ test('addUser validates username, display name and password', () => {
   };
   const added = expectOk(addUser(SEED_USERS, draft)).at(-1)!;
   assert.deepEqual([added.id, added.active], ['u-4', true]);
+  assert.ok(!('password' in added));
   assert.equal(
     expectFail(addUser(SEED_USERS, { ...draft, username: 'ADMIN' })),
     'Username "ADMIN" is already taken.',

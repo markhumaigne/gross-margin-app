@@ -17,7 +17,15 @@ const NO_PERMISSION = 'You do not have permission to manage user accounts.';
 /** In-memory mock account store. Replace with an API-backed service when a backend exists. */
 @Injectable({ providedIn: 'root' })
 export class UserAccountsService {
-  private readonly store = signal<readonly UserAccount[]>(SEED_USERS);
+  private readonly store = signal<readonly UserAccount[]>(
+    SEED_USERS.map(({ id, username, displayName, role, active }) => ({
+      id,
+      username,
+      displayName,
+      role,
+      active,
+    })),
+  );
   readonly users = this.store.asReadonly();
   readonly accountingHead = computed(() => accountingHead(this.store()));
 

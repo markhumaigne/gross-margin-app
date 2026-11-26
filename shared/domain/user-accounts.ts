@@ -1,15 +1,21 @@
 import { fail, ok, Result } from './result';
 import { Role } from './roles';
 
-/** Mock development account. Plaintext passwords are acceptable only in this prototype. */
+/** A user account as the browser sees it: never carries a password or hash. */
 export interface UserAccount {
   id: string;
   username: string;
   displayName: string;
   role: Role;
   active: boolean;
-  password: string;
 }
+
+/** Fixed sign-in failure messages, shared by the API and its tests. */
+export const SIGN_IN_MESSAGES = {
+  missing: 'Enter your username and password.',
+  invalid: 'Invalid username or password.',
+  inactive: 'This account is inactive. Contact an Admin.',
+} as const;
 
 export interface NewUserDraft {
   username: string;
@@ -36,18 +42,6 @@ function replace(
   return users.map((u) => (u.id === id ? { ...u, ...change } : u));
 }
 
-export function authenticate(
-  users: readonly UserAccount[],
-  username: string,
-  password: string,
-): Result<UserAccount> {
-  if (!username.trim() || !password) return fail('Enter your username and password.');
-  const user = users.find((u) => sameUsername(u.username, username));
-  if (!user || user.password !== password) return fail('Invalid username or password.');
-  if (!user.active) return fail('This account is inactive. Contact an Admin.');
-  return ok(user);
-}
-
 export function accountingHead(users: readonly UserAccount[]): UserAccount | undefined {
   return users.find((u) => u.role === 'accounting-head');
 }
@@ -68,7 +62,6 @@ export function addUser(users: readonly UserAccount[], draft: NewUserDraft): Res
       id: 'u-' + nextNumber,
       username,
       displayName: draft.displayName.trim(),
-      password: draft.password,
       role: draft.role,
       active: true,
     },

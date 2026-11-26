@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run start -w backend',
-      url: 'http://127.0.0.1:3100/api/config/defaults',
+      url: 'http://127.0.0.1:3100/api/health',
       env: {
         PORT: '3100',
         DATABASE_URL: process.env.TEST_DATABASE_URL ?? '',

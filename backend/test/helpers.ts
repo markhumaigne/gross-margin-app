@@ -1,4 +1,8 @@
+import type { INestApplication } from '@nestjs/common';
 import * as XLSX from 'xlsx';
+import type { UserAccount } from '../../shared/domain/user-accounts';
+import { AccountsRepository } from '../src/accounts/accounts.repository';
+import { TokenService } from '../src/auth/token.service';
 import { Sale, PaymentPart } from '../../shared/models';
 export function sale(values: Partial<Sale> = {}): Sale {
   return {
@@ -61,4 +65,22 @@ export function reportFixture(): Buffer {
       ['000124', 46296, 'ASUS', '0002', 'Mouse', 2, 500, 300, 100, 900, 'Cash'],
     ],
   });
+}
+
+const ACCOUNTANT: UserAccount = {
+  id: 'u-2',
+  username: 'accounting',
+  displayName: 'Demo Accountant',
+  role: 'accounting-head',
+  active: true,
+};
+
+/**
+ * Lets requests to an app without a database through the sign-in guard: the account lookup is
+ * patched to return `account` and the returned header carries a genuine signed token.
+ */
+export function authorize(app: INestApplication, account: UserAccount = ACCOUNTANT): string {
+  process.env['AUTH_SECRET'] ||= 'test-secret-test-secret-test-secret-123';
+  app.get(AccountsRepository).findById = async () => account;
+  return 'Bearer ' + app.get(TokenService).sign(account.id);
 }

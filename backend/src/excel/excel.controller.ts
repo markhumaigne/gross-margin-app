@@ -19,6 +19,7 @@ import { ConfigService } from '../config/config.service';
 import { ExcelService, FIELDS } from './excel.service';
 import { ExcelExportService } from './excel-export.service';
 import { uploadOptions } from './upload';
+import { RequirePermission } from '../auth/permissions';
 
 /** Largest calculated result sent to the browser (it is posted back to /api/excel/export). */
 export const MAX_RESULT_BYTES = 100 * 1024 * 1024;
@@ -48,6 +49,7 @@ const selectionSchema = z
   })
   .strict();
 @Controller('api')
+@RequirePermission('calculator')
 export class ExcelController {
   private readonly secret = randomBytes(32);
   constructor(
