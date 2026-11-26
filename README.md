@@ -49,6 +49,13 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 
 Save the output as `backend/prisma/migrations/<timestamp>_<name>/migration.sql` and run `npm run db:deploy -w backend`. Prisma may propose dropping the hand-written parts of the first migration (the row level security statements and extra indexes); keep them.
 
+Safety steps for every change:
+
+- Every new table's migration must `ENABLE ROW LEVEL SECURITY` (Supabase exposes the `public` schema through its Data API).
+- Apply and test a new migration on the test schema first (`npm run test:db -w backend` runs `db:test:prepare`) before `npm run db:deploy -w backend` on the real database.
+- When generating SQL with `prisma migrate diff`, delete any `DROP INDEX` lines Prisma proposes for the four hand-written indexes (`users_username_lower_key`, `users_one_accounting_head_key`, `price_books_name_lower_key`, `price_book_entries_book_product_key`) and for the CHECK constraints.
+- Never edit a migration that has already been applied; add a new one.
+
 ## Install and run
 
 Use Node.js 22.12+ and npm. After the database setup above, from this repository:

@@ -225,7 +225,9 @@ function withoutSupport(entry: PriceBookEntry): PriceBookEntry {
 
 function copyName(books: readonly PriceBook[], name: string): string {
   for (let n = 1; ; n++) {
-    const candidate = `${name} (copy${n === 1 ? '' : ' ' + n})`;
+    // Trim the base so the copy still fits the 80-character name limit.
+    const suffix = ` (copy${n === 1 ? '' : ' ' + n})`;
+    const candidate = name.slice(0, 80 - suffix.length) + suffix;
     if (!books.some((b) => sameName(b.name, candidate))) return candidate;
   }
 }

@@ -22,8 +22,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         !request.url.split('?')[0].endsWith(LOGIN_URL)
       ) {
         auth.logout();
-        auth.discardKeptPages();
-        void router.navigate(['/login'], { queryParams: { returnUrl: router.url } });
+        void router
+          .navigate(['/login'], { queryParams: { returnUrl: router.url } })
+          .then(() => auth.discardKeptPages());
       }
       return throwError(() => error);
     }),

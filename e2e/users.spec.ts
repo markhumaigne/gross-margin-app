@@ -49,6 +49,26 @@ test('Admin adds an account that can sign in', async ({ page }) => {
   await expect(page).toHaveURL(/\/price-books$/);
 });
 
+test('double-clicking Add account creates one account', async ({ page }) => {
+  await signIn(page);
+  await navigateInApp(page, '/users');
+  await page.getByLabel('New username').fill('double.click');
+  await page.getByLabel('Display name').fill('Double Click');
+  await page.getByLabel('Password', { exact: true }).fill('Password1');
+  let posts = 0;
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && r.url().endsWith('/api/users')) posts++;
+  });
+  await page.route('**/api/users', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 500));
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Add account' }).dblclick();
+  await expect(page.getByRole('status')).toHaveText('Account double.click added.');
+  await page.waitForTimeout(1500);
+  expect(posts).toBe(1);
+});
+
 test('self-deactivation is refused; deactivated accounts cannot sign in', async ({ page }) => {
   await signIn(page);
   await navigateInApp(page, '/users');

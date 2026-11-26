@@ -22,6 +22,8 @@ export class PricingWorkspaceService {
   private inFlight: Promise<Result<void>> | null = null;
   /** Bumped on every sign-in and sign-out so a response for a previous session is dropped. */
   private session = 0;
+  /** Bumped by apply(); a GET that started before the latest write is stale and is dropped. */
+  private writes = 0;
 
   constructor() {
     effect(() => {
@@ -49,8 +51,10 @@ export class PricingWorkspaceService {
     });
   }
 
+  /** Reloads from the API; concurrent callers share one in-flight GET. */
   reload(): Promise<Result<void>> {
     if (!this.auth.currentUser()) return Promise.resolve(ok(undefined));
+    if (this.inFlight) return this.inFlight;
     const session = this.session;
     const request: Promise<Result<void>> = this.fetch(session).finally(() => {
       if (this.inFlight === request) this.inFlight = null;
@@ -67,19 +71,26 @@ export class PricingWorkspaceService {
 
   /** Publishes a snapshot returned by a write. */
   apply(snapshot: PricingSnapshot): void {
+    this.writes++;
+    this.publish(snapshot);
+  }
+
+  private publish(snapshot: PricingSnapshot): void {
     this.state.set(snapshot);
     this.loaded.set(true);
     this.error.set('');
   }
 
   private async fetch(session: number): Promise<Result<void>> {
+    const writes = this.writes;
     const result = await apiResult(firstValueFrom(this.http.get<PricingSnapshot>('/api/pricing')));
-    if (session !== this.session) return ok(undefined);
+    // Previous session, or a save landed after this GET started: its data is older than ours.
+    if (session !== this.session || writes !== this.writes) return ok(undefined);
     if (!result.ok) {
       this.error.set(LOAD_FAILED);
       return fail(LOAD_FAILED);
     }
-    this.apply(result.value);
+    this.publish(result.value);
     return ok(undefined);
   }
 }

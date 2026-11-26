@@ -109,6 +109,16 @@ test('duplicate creates an inactive independent copy with a unique name', () => 
   assert.equal(SEED_PRICE_BOOKS[0].entries[0].memo, '');
 });
 
+test('duplicating an 80-character name keeps copy names within 80 characters', () => {
+  const long: PriceBook = { ...SEED_PRICE_BOOKS[0], name: 'N'.repeat(80) };
+  const books = [long];
+  const first = expectOk(duplicatePriceBook(books, long.id, 'x', now));
+  assert.ok(first.book.name.length <= 80 && first.book.name.endsWith(' (copy)'));
+  const second = expectOk(duplicatePriceBook(first.books, long.id, 'x', now));
+  assert.ok(second.book.name.length <= 80 && second.book.name.endsWith(' (copy 2)'));
+  assert.equal(new Set([long.name, first.book.name, second.book.name]).size, 3);
+});
+
 test('delete removes only that price book', () => {
   const left = expectOk(deletePriceBook(SEED_PRICE_BOOKS, 'PL000030'));
   assert.deepEqual(

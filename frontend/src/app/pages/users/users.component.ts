@@ -31,6 +31,8 @@ export class UsersComponent {
   );
   readonly notice = signal('');
   readonly error = signal('');
+  /** True while a change is being saved, so double clicks send one request. */
+  readonly busy = signal(false);
 
   readonly transferForm = new FormGroup({
     newHolderId: new FormControl('', { nonNullable: true }),
@@ -89,9 +91,15 @@ export class UsersComponent {
   }
 
   private async run(action: () => Promise<Result<UserAccount[]>>) {
-    const result = await action();
-    if (!result.ok) this.showError(result.error);
-    return result;
+    if (this.busy()) return undefined;
+    this.busy.set(true);
+    try {
+      const result = await action();
+      if (!result.ok) this.showError(result.error);
+      return result;
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   private showNotice(message: string) {

@@ -50,7 +50,7 @@
         </select></label
       >
       <div class="form-actions">
-        <button mat-flat-button type="submit">Transfer role</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">Transfer role</button>
       </div>
     </form>
   </div>
@@ -114,6 +114,7 @@
                 type="button"
                 class="table-action"
                 [attr.aria-label]="(user.active ? 'Deactivate ' : 'Activate ') + user.username"
+                [disabled]="busy()"
                 (click)="toggleActive(user)"
               >
                 {{ user.active ? 'Deactivate' : 'Activate' }}
@@ -150,7 +151,7 @@
       </select></label
     >
     <div class="form-actions">
-      <button mat-flat-button type="submit">Add account</button>
+      <button mat-flat-button type="submit" [disabled]="busy()">Add account</button>
     </div>
   </form>
 </section>

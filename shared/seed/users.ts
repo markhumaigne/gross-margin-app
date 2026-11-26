@@ -6,8 +6,8 @@ export interface SeedUser extends UserAccount {
 }
 
 /**
- * Hardcoded development accounts for the frontend prototype. Not production authentication;
- * replace with a real identity provider and backend before any production use.
+ * The seeded starter accounts. Their passwords are public development passwords (see README);
+ * change or deactivate them before any real use.
  */
 export const SEED_USERS: readonly SeedUser[] = [
   {
