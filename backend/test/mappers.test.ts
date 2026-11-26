@@ -122,6 +122,12 @@ test('test database settings refuse anything that could reach real data', () => 
     testDatabase({ ...ok, TEST_DATABASE_URL: real.DATABASE_URL + '?schema=public' }),
   );
   assert.throws(() => testDatabase({ ...ok, TEST_DATABASE_URL: undefined }));
+  const same = (k: string, v: string) => assert.throws(() => testDatabase({ ...ok, [k]: v }));
+  same('TEST_DATABASE_URL', real.DATABASE_URL);
+  same('TEST_DIRECT_URL', real.DIRECT_URL);
+  assert.throws(() =>
+    testDatabase({ ...ok, DATABASE_URL: ok.TEST_DATABASE_URL, DIRECT_URL: ok.TEST_DIRECT_URL }),
+  );
 });
 
 test('diffBooks reports only changed, added and removed books', () => {

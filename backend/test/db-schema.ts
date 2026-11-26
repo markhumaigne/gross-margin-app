@@ -5,7 +5,7 @@ import { test } from './harness';
 import { freshDb } from './db-helpers';
 import { dateValue, isoDate } from '../src/database/mappers';
 import { seedIfEmpty } from '../src/database/seed';
-import { testDatabase } from '../src/env';
+import { TEST_DB } from './db-settings';
 
 const code = (e: unknown): unknown => (e as { code?: unknown }).code;
 const user = (over: Record<string, unknown>) => ({
@@ -18,7 +18,7 @@ const user = (over: Record<string, unknown>) => ({
 });
 
 test('migrations enable RLS on all four tables', async () => {
-  const { directUrl, schema } = testDatabase();
+  const { directUrl, schema } = TEST_DB;
   const url = new URL(directUrl);
   url.searchParams.delete('schema');
   const client = new Client({ connectionString: url.toString() });

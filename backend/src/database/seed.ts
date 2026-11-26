@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs';
-import type { PrismaClient } from '../generated/prisma/client';
+import type { Prisma, PrismaClient } from '../generated/prisma/client';
 import { PRODUCTS } from '../../../shared/seed/products';
 import { SEED_PRICE_BOOKS } from '../../../shared/seed/price-books';
 import { SEED_USERS } from '../../../shared/seed/users';
+import { lock, TX_OPTIONS, USERS_LOCK } from './locks';
 import { bookToRows, productToRow } from './mappers';
 
 const BCRYPT_COST = 12;
@@ -12,8 +13,7 @@ let hashed: Promise<string[]> | undefined;
 const seedHashes = (): Promise<string[]> =>
   (hashed ??= Promise.all(SEED_USERS.map((u) => bcrypt.hash(u.password, BCRYPT_COST))));
 
-async function insertSeed(db: PrismaClient): Promise<void> {
-  const hashes = await seedHashes();
+async function insertSeed(db: Prisma.TransactionClient, hashes: string[]): Promise<void> {
   await db.user.createMany({
     data: SEED_USERS.map((u, i) => ({
       id: u.id,
@@ -32,16 +32,24 @@ async function insertSeed(db: PrismaClient): Promise<void> {
 
 /** Seeds the demo data only into an empty database; existing accounts are never touched. */
 export async function seedIfEmpty(db: PrismaClient): Promise<'seeded' | 'skipped'> {
-  if ((await db.user.count()) > 0) return 'skipped';
-  await insertSeed(db);
-  return 'seeded';
+  const hashes = await seedHashes();
+  return db.$transaction(async (tx) => {
+    await lock(tx, USERS_LOCK);
+    if ((await tx.user.count()) > 0) return 'skipped';
+    await insertSeed(tx, hashes);
+    return 'seeded';
+  }, TX_OPTIONS);
 }
 
 /** Test schema only: callers must have passed testDatabase(). Prisma queries, never TRUNCATE. */
 export async function resetAndSeed(db: PrismaClient): Promise<void> {
-  await db.priceBookEntry.deleteMany();
-  await db.priceBook.deleteMany();
-  await db.product.deleteMany();
-  await db.user.deleteMany();
-  await insertSeed(db);
+  const hashes = await seedHashes();
+  await db.$transaction(async (tx) => {
+    await lock(tx, USERS_LOCK);
+    await tx.priceBookEntry.deleteMany();
+    await tx.priceBook.deleteMany();
+    await tx.product.deleteMany();
+    await tx.user.deleteMany();
+    await insertSeed(tx, hashes);
+  }, TX_OPTIONS);
 }

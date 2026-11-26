@@ -3,8 +3,9 @@ import { config } from 'dotenv';
 config({ quiet: true });
 process.env.TZ = 'Asia/Manila';
 
-import { testDatabase } from '../src/env';
-process.env['DATABASE_URL'] = testDatabase().databaseUrl;
+// Captured before DATABASE_URL is overwritten below: testDatabase() would then refuse it.
+import { TEST_DB } from './db-settings';
+process.env['DATABASE_URL'] = TEST_DB.databaseUrl;
 process.env['AUTH_SECRET'] ||= 'test-secret-test-secret-test-secret-123';
 
 import { runAll } from './harness';
