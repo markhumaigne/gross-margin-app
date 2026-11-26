@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Result } from '../src/app/domain/result';
+import type { Result } from '../../shared/domain/result';
 
 interface TestCase {
   name: string;

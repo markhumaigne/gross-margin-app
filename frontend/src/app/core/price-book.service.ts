@@ -6,15 +6,15 @@ import {
   PriceBookDraft,
   savePriceBook,
   setPriceBookActive,
-} from '../domain/price-books';
-import { todayInManila } from '../domain/dates';
-import { applyZenposPriceBook, BookImportSummary } from '../domain/price-book-import';
+} from '../../../../shared/domain/price-books';
+import { todayInManila } from '../../../../shared/domain/dates';
+import { applyZenposPriceBook, BookImportSummary } from '../../../../shared/domain/price-book-import';
 import { readSpreadsheet } from '../domain/read-spreadsheet';
-import { fail, ok, Result } from '../domain/result';
-import { hasPermission } from '../domain/roles';
+import { fail, ok, Result } from '../../../../shared/domain/result';
+import { hasPermission } from '../../../../shared/domain/roles';
 import { validateUploadFile } from '../domain/sales-report';
-import { UserAccount } from '../domain/user-accounts';
-import { parseZenposPriceBook } from '../domain/zenpos-price-book';
+import { UserAccount } from '../../../../shared/domain/user-accounts';
+import { parseZenposPriceBook } from '../../../../shared/domain/zenpos-price-book';
 import { ProductCatalogService } from './product-catalog.service';
 import { PricingWorkspaceService } from './pricing-workspace.service';
 

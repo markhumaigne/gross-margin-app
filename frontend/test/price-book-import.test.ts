@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from './harness';
-import { applyZenposPriceBook, formatImportSummary } from '../src/app/domain/price-book-import';
-import { ZenposPriceBook, ZenposProductRow } from '../src/app/domain/zenpos-price-book';
+import { applyZenposPriceBook, formatImportSummary } from '../../shared/domain/price-book-import';
+import { ZenposPriceBook, ZenposProductRow } from '../../shared/domain/zenpos-price-book';
 import {
   draftFromBook,
   hasErrors,
   PriceBook,
   validatePriceBook,
-} from '../src/app/domain/price-books';
-import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
+} from '../../shared/domain/price-books';
+import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
 
 const now = new Date('2026-11-18T02:00:00Z');
 const SUPPORT_1500 = 1500;

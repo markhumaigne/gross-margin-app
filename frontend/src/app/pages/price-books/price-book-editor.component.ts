@@ -6,9 +6,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
 import { ProductCatalogService } from '../../core/product-catalog.service';
-import { isIsoDate, todayInManila } from '../../domain/dates';
-import { fromCents, parseMoney, toCents } from '../../domain/money';
-import { ManualProductDraft, MANUAL_PRODUCT_FIELDS } from '../../domain/manual-products';
+import { isIsoDate, todayInManila } from '../../../../../shared/domain/dates';
+import { fromCents, parseMoney, toCents } from '../../../../../shared/domain/money';
+import { ManualProductDraft, MANUAL_PRODUCT_FIELDS } from '../../../../../shared/domain/manual-products';
 import {
   draftFromBook,
   emptyDraft,
@@ -19,15 +19,15 @@ import {
   PriceBookDraft,
   PriceBookErrors,
   validatePriceBook,
-} from '../../domain/price-books';
-import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../domain/pricing';
+} from '../../../../../shared/domain/price-books';
+import { discountPercent, entryStatus, PriceBookEntryDraft } from '../../../../../shared/domain/pricing';
 import {
   marginAfterSupport,
   marginOnCost,
   SupportDraft,
   supportFromDraft,
   validateSupportDraft,
-} from '../../domain/support';
+} from '../../../../../shared/domain/support';
 import { ProductPickerComponent } from './product-picker.component';
 
 type Mode = 'create' | 'edit' | 'view';

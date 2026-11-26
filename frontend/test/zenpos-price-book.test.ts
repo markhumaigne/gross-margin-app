@@ -4,7 +4,7 @@ import {
   NOT_A_PRICE_BOOK,
   parseZenposPriceBook,
   zenposProductId,
-} from '../src/app/domain/zenpos-price-book';
+} from '../../shared/domain/zenpos-price-book';
 import {
   buildSamplePriceBookWorkbook,
   SAMPLE_PRICE_BOOK_FILE_NAME,

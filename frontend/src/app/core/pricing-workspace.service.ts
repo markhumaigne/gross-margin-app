@@ -1,15 +1,15 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { PriceBook } from '../domain/price-books';
-import { Product } from '../domain/pricing';
+import { PriceBook } from '../../../../shared/domain/price-books';
+import { Product } from '../../../../shared/domain/pricing';
 import {
   PRICING_STORAGE_KEY,
   PricingSnapshot,
   readPricingStorage,
   writePricingStorage,
 } from '../domain/pricing-storage';
-import { fail, ok, Result } from '../domain/result';
-import { SEED_PRICE_BOOKS } from '../mock-data/price-books';
-import { PRODUCTS } from '../mock-data/products';
+import { fail, ok, Result } from '../../../../shared/domain/result';
+import { SEED_PRICE_BOOKS } from '../../../../shared/seed/price-books';
+import { PRODUCTS } from '../../../../shared/seed/products';
 
 const INITIAL: PricingSnapshot = { version: 1, books: SEED_PRICE_BOOKS, products: PRODUCTS };
 

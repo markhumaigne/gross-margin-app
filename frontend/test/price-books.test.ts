@@ -16,9 +16,9 @@ import {
   setPriceBookActive,
   supportList,
   validatePriceBook,
-} from '../src/app/domain/price-books';
-import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
-import { PRODUCTS } from '../src/app/mock-data/products';
+} from '../../shared/domain/price-books';
+import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
+import { PRODUCTS } from '../../shared/seed/products';
 import { matchPriceBook } from '../src/app/domain/price-match';
 
 const now = new Date('2026-11-17T02:00:00Z');

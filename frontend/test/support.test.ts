@@ -7,7 +7,7 @@ import {
   supportFromDraft,
   supportToDraft,
   validateSupportDraft,
-} from '../src/app/domain/support';
+} from '../../shared/domain/support';
 
 test('margin on cost matches ZenPOS', () => {
   assert.equal(marginOnCost(5190, 4750), 9.26);

@@ -5,8 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
 import { downloadSamplePriceBook } from '../../core/sample-download';
-import { formatImportSummary } from '../../domain/price-book-import';
-import { filterPriceBooks, PriceBook, StatusFilter } from '../../domain/price-books';
+import { formatImportSummary } from '../../../../../shared/domain/price-book-import';
+import { filterPriceBooks, PriceBook, StatusFilter } from '../../../../../shared/domain/price-books';
 
 @Component({
   selector: 'app-price-book-list',

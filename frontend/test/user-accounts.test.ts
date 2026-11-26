@@ -7,8 +7,8 @@ import {
   setUserActive,
   transferAccountingHead,
   UserAccount,
-} from '../src/app/domain/user-accounts';
-import { SEED_USERS } from '../src/app/mock-data/users';
+} from '../../shared/domain/user-accounts';
+import { SEED_USERS } from '../../shared/seed/users';
 
 const heads = (u: readonly UserAccount[]) => u.filter((x) => x.role === 'accounting-head').length;
 

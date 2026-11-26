@@ -12,7 +12,7 @@ import { filter } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../core/auth.service';
 import { PricingWorkspaceService } from '../core/pricing-workspace.service';
-import { Permission, ROLE_LABELS } from '../domain/roles';
+import { Permission, ROLE_LABELS } from '../../../../shared/domain/roles';
 
 interface NavItem {
   path: string;

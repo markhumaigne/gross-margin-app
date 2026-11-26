@@ -6,7 +6,7 @@ import {
 } from '../src/app/domain/sample-export-file';
 import { readSpreadsheet } from '../src/app/domain/read-spreadsheet';
 import { buildSalesReport, detectMapping, findHeaderRow } from '../src/app/domain/sales-report';
-import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
+import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
 
 test('demo sample export links to the seed price books', async () => {
   const rows = await readSpreadsheet(

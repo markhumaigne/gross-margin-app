@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
-import { homePath, ROLE_LABELS } from '../../domain/roles';
+import { homePath, ROLE_LABELS } from '../../../../../shared/domain/roles';
 
 @Component({
   selector: 'app-forbidden',

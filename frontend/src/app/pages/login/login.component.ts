@@ -4,8 +4,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { safeReturnUrl } from '../../core/guards';
-import { ROLE_LABELS } from '../../domain/roles';
-import { SEED_USERS } from '../../mock-data/users';
+import { ROLE_LABELS } from '../../../../../shared/domain/roles';
+import { SEED_USERS } from '../../../../../shared/seed/users';
 
 @Component({
   selector: 'app-login',

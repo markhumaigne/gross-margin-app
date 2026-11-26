@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Result } from '../domain/result';
-import { hasPermission, Permission } from '../domain/roles';
-import { authenticate, UserAccount } from '../domain/user-accounts';
+import { Result } from '../../../../shared/domain/result';
+import { hasPermission, Permission } from '../../../../shared/domain/roles';
+import { authenticate, UserAccount } from '../../../../shared/domain/user-accounts';
 import { KeepAliveRouteReuseStrategy } from './keep-alive-route-reuse.strategy';
 import { UserAccountsService } from './user-accounts.service';
 

@@ -9,7 +9,7 @@ import {
   validateEntryDraft,
 } from './pricing';
 import { fail, ok, Result } from './result';
-import type { PriceSupport } from '../../../../shared/models';
+import type { PriceSupport } from '../models';
 
 export interface PriceBook {
   id: string;

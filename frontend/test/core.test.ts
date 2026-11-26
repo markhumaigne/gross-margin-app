@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from './harness';
-import { parseMoney, percentOf } from '../src/app/domain/money';
-import { isIsoDate, todayInManila } from '../src/app/domain/dates';
+import { parseMoney, percentOf } from '../../shared/domain/money';
+import { isIsoDate, todayInManila } from '../../shared/domain/dates';
 import {
   hasPermission,
   homePath,
   pathPermission,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
-} from '../src/app/domain/roles';
+} from '../../shared/domain/roles';
 
 test('parseMoney accepts plain, comma, peso-sign, PHP and parenthesised amounts', () => {
   assert.equal(parseMoney('1,299.50'), 1299.5);

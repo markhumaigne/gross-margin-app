@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
-import { hasPermission, homePath, pathPermission, Permission, Role } from '../domain/roles';
+import { hasPermission, homePath, pathPermission, Permission, Role } from '../../../../shared/domain/roles';
 import { AuthService } from './auth.service';
 
 /** Signed-out visitors go to the sign-in page and come back afterwards. */

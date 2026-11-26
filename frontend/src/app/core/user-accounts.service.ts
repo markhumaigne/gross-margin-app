@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { fail, Result } from '../domain/result';
-import { hasPermission, Role } from '../domain/roles';
+import { fail, Result } from '../../../../shared/domain/result';
+import { hasPermission, Role } from '../../../../shared/domain/roles';
 import {
   accountingHead,
   addUser,
@@ -9,8 +9,8 @@ import {
   setUserActive,
   transferAccountingHead,
   UserAccount,
-} from '../domain/user-accounts';
-import { SEED_USERS } from '../mock-data/users';
+} from '../../../../shared/domain/user-accounts';
+import { SEED_USERS } from '../../../../shared/seed/users';
 
 const NO_PERMISSION = 'You do not have permission to manage user accounts.';
 

@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Product, searchProducts } from '../domain/pricing';
+import { Product, searchProducts } from '../../../../shared/domain/pricing';
 import { PricingWorkspaceService } from './pricing-workspace.service';
 
 /**

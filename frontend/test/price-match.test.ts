@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from './harness';
 import { buildSalesReport, detectMapping } from '../src/app/domain/sales-report';
-import { PriceBook } from '../src/app/domain/price-books';
-import { PriceBookEntry } from '../src/app/domain/pricing';
+import { PriceBook } from '../../shared/domain/price-books';
+import { PriceBookEntry } from '../../shared/domain/pricing';
 import { matchPriceBook } from '../src/app/domain/price-match';
 
 const book = (o: Partial<PriceBook>): PriceBook => ({

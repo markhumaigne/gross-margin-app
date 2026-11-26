@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from './harness';
-import { parseMoney } from '../src/app/domain/money';
+import { parseMoney } from '../../shared/domain/money';
 import {
   discountPercent,
   effectivePrice,
@@ -10,8 +10,8 @@ import {
   priceSource,
   searchProducts,
   validateEntryDraft,
-} from '../src/app/domain/pricing';
-import { PRODUCTS } from '../src/app/mock-data/products';
+} from '../../shared/domain/pricing';
+import { PRODUCTS } from '../../shared/seed/products';
 
 const p1 = PRODUCTS.find((p) => p.id === '4800000100011')!;
 const book = { effectiveDate: '2026-11-01', expirationDate: '2026-11-30' };

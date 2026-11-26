@@ -1,6 +1,6 @@
-import { isSupportBook, normalizePriceId, PriceBook } from './price-books';
-import { priceSource } from './pricing';
-import { Support } from './support';
+import { isSupportBook, normalizePriceId, PriceBook } from '../../../../shared/domain/price-books';
+import { priceSource } from '../../../../shared/domain/pricing';
+import { Support } from '../../../../shared/domain/support';
 
 export type PriceMatchStatus = 'matched' | 'not-found' | 'inactive' | 'not-in-book';
 

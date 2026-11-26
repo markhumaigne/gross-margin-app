@@ -3,9 +3,9 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { UserAccountsService } from '../../core/user-accounts.service';
-import { Result } from '../../domain/result';
-import { Role, ROLE_LABELS } from '../../domain/roles';
-import { UserAccount } from '../../domain/user-accounts';
+import { Result } from '../../../../../shared/domain/result';
+import { Role, ROLE_LABELS } from '../../../../../shared/domain/roles';
+import { UserAccount } from '../../../../../shared/domain/user-accounts';
 
 type AssignableRole = Exclude<Role, 'accounting-head'>;
 

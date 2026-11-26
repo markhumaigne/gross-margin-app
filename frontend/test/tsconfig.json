@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "../src/app/domain/**/*.ts", "../src/app/mock-data/**/*.ts"]
+  "include": ["./**/*.ts", "../src/app/domain/**/*.ts", "../src/app/mock-data/**/*.ts", "../../shared/**/*.ts"]
 }

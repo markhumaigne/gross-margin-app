@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test, expectOk, expectFail } from './harness';
 import { readPricingStorage, writePricingStorage } from '../src/app/domain/pricing-storage';
-import { SEED_PRICE_BOOKS } from '../src/app/mock-data/price-books';
-import { PRODUCTS } from '../src/app/mock-data/products';
-import { duplicatePriceBook, emptyDraft, savePriceBook } from '../src/app/domain/price-books';
+import { SEED_PRICE_BOOKS } from '../../shared/seed/price-books';
+import { PRODUCTS } from '../../shared/seed/products';
+import { duplicatePriceBook, emptyDraft, savePriceBook } from '../../shared/domain/price-books';
 
 const state = () => ({
   version: 1 as const,

@@ -16,8 +16,8 @@ import { CurrencyPipe } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { ProductCatalogService } from '../../core/product-catalog.service';
-import { PriceBookEntryDraft, Product } from '../../domain/pricing';
-import { marginOnCost, SupportDraft, validateSupportDraft } from '../../domain/support';
+import { PriceBookEntryDraft, Product } from '../../../../../shared/domain/pricing';
+import { marginOnCost, SupportDraft, validateSupportDraft } from '../../../../../shared/domain/support';
 import {
   emptyManualProduct,
   MANUAL_PRODUCT_FIELDS,
@@ -25,7 +25,7 @@ import {
   ManualProductField,
   productIdKey,
   validateManualProduct,
-} from '../../domain/manual-products';
+} from '../../../../../shared/domain/manual-products';
 
 /** Manual product entry and catalog selection for a price book. */
 @Component({

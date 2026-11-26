@@ -3,11 +3,11 @@ import {
   ManualProduct,
   manualProductToDraft,
   validateManualProduct,
-} from './manual-products';
-import { parseMoney } from './money';
-import { PriceBook, PRICE_ID_PATTERN } from './price-books';
-import { Product } from './pricing';
-import { fail, ok, Result } from './result';
+} from '../../../../shared/domain/manual-products';
+import { parseMoney } from '../../../../shared/domain/money';
+import { PriceBook, PRICE_ID_PATTERN } from '../../../../shared/domain/price-books';
+import { Product } from '../../../../shared/domain/pricing';
+import { fail, ok, Result } from '../../../../shared/domain/result';
 
 /** One snapshot keeps imported catalog records and their price-book entries together. */
 export interface PricingSnapshot {
