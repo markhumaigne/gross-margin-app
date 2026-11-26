@@ -1,4 +1,8 @@
-@if (notFound()) {
+@if (!loaded()) {
+  <section class="section-card">
+    <p>Loading price book…</p>
+  </section>
+} @else if (notFound()) {
   <section class="section-card">
     <div class="empty-state">
       <div class="empty-icon" aria-hidden="true">

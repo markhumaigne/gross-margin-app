@@ -1,50 +1,42 @@
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import {
-  deletePriceBook,
-  duplicatePriceBook,
-  PriceBook,
-  PriceBookDraft,
-  savePriceBook,
-  setPriceBookActive,
-} from '../../../../shared/domain/price-books';
-import { todayInManila } from '../../../../shared/domain/dates';
-import { applyZenposPriceBook, BookImportSummary } from '../../../../shared/domain/price-book-import';
+import { firstValueFrom, Observable } from 'rxjs';
+import type {
+  PriceBookImportRequest,
+  PriceBookImportResponse,
+  PriceBookWriteResponse,
+  SavePriceBookRequest,
+} from '../../../../shared/api';
+import { PriceBook, PriceBookDraft, PricingSnapshot } from '../../../../shared/domain/price-books';
+import { BookImportSummary } from '../../../../shared/domain/price-book-import';
 import { readSpreadsheet } from '../domain/read-spreadsheet';
 import { fail, ok, Result } from '../../../../shared/domain/result';
-import { hasPermission } from '../../../../shared/domain/roles';
 import { validateUploadFile } from '../domain/sales-report';
-import { UserAccount } from '../../../../shared/domain/user-accounts';
 import { parseZenposPriceBook } from '../../../../shared/domain/zenpos-price-book';
-import { ProductCatalogService } from './product-catalog.service';
+import { apiResult } from './api-result';
 import { PricingWorkspaceService } from './pricing-workspace.service';
-
-const NO_PERMISSION = 'You do not have permission to manage price books.';
 
 export type FileImportResult =
   | { fileName: string; ok: true; summary: BookImportSummary }
   | { fileName: string; ok: false; error: string };
 
-/** Price books shared by demo accounts, persisted in this browser with the product catalog. */
+/** Price books shared by all accounts, stored by the API. */
 @Injectable({ providedIn: 'root' })
 export class PriceBookService {
-  private readonly catalog = inject(ProductCatalogService);
+  private readonly http = inject(HttpClient);
   private readonly workspace = inject(PricingWorkspaceService);
   readonly books = this.workspace.books;
-  readonly storageError = this.workspace.error;
+  readonly loadError = this.workspace.error;
 
   /**
-   * Imports ZenPOS "Price Book" exports, one price book per file. Each file is saved on its own,
-   * so a file that fails (unreadable, not a price book, or browser storage full) never stops the
-   * others; its reason is reported instead.
+   * Imports ZenPOS "Price Book" exports, one price book per file. Each file is parsed in the
+   * browser and sent on its own, so a file that fails never stops the others; its reason is
+   * reported instead.
    */
-  async importPriceBooks(
-    actor: UserAccount,
-    files: readonly File[],
-  ): Promise<Result<FileImportResult[]>> {
-    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
+  async importPriceBooks(files: readonly File[]): Promise<Result<FileImportResult[]>> {
     const results: FileImportResult[] = [];
     for (const file of files) {
-      const result = await this.importOne(actor, file);
+      const result = await this.importOne(file);
       results.push(
         result.ok
           ? { fileName: file.name, ok: true, summary: result.value }
@@ -54,7 +46,7 @@ export class PriceBookService {
     return ok(results);
   }
 
-  private async importOne(actor: UserAccount, file: File): Promise<Result<BookImportSummary>> {
+  private async importOne(file: File): Promise<Result<BookImportSummary>> {
     const problem = validateUploadFile(file.name, file.size);
     if (problem) return fail(problem);
     let rows: unknown[][];
@@ -65,71 +57,71 @@ export class PriceBookService {
     }
     const parsed = parseZenposPriceBook(rows);
     if (!parsed.ok) return parsed;
-    const loaded = this.workspace.reload();
-    if (!loaded.ok) return loaded;
-    const { books, summary } = applyZenposPriceBook(
-      this.books(),
-      parsed.value,
-      file.name,
-      todayInManila(),
-      new Date(),
-      actor.displayName,
+    const body: PriceBookImportRequest = { fileName: file.name, book: parsed.value };
+    const result = await apiResult(
+      firstValueFrom(this.http.post<PriceBookImportResponse>('/api/price-books/import', body)),
     );
-    const saved = this.workspace.commit(books);
-    if (!saved.ok) return saved;
-    return ok(summary);
+    if (!result.ok) return result;
+    this.workspace.apply(result.value.pricing);
+    return ok(result.value.summary);
   }
 
   byId(id: string): PriceBook | undefined {
     return this.books().find((b) => b.id === id);
   }
 
-  save(actor: UserAccount, draft: PriceBookDraft, editingId: string | null): Result<PriceBook> {
-    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const loaded = this.workspace.reload();
-    if (!loaded.ok) return loaded;
-    const result = savePriceBook(
-      this.books(),
-      draft,
-      editingId,
-      this.catalog.products(),
-      actor.displayName,
-      new Date(),
+  save(
+    draft: PriceBookDraft,
+    editingId: string | null,
+    expectedUpdatedAt?: string,
+  ): Promise<Result<PriceBook>> {
+    if (editingId === null) {
+      return this.written(this.http.post<PriceBookWriteResponse>('/api/price-books', draft));
+    }
+    const body: SavePriceBookRequest = expectedUpdatedAt
+      ? { draft, expectedUpdatedAt }
+      : { draft };
+    return this.written(
+      this.http.put<PriceBookWriteResponse>(
+        `/api/price-books/${encodeURIComponent(editingId)}`,
+        body,
+      ),
+    );
+  }
+
+  duplicate(id: string): Promise<Result<PriceBook>> {
+    return this.written(
+      this.http.post<PriceBookWriteResponse>(
+        `/api/price-books/${encodeURIComponent(id)}/duplicate`,
+        {},
+      ),
+    );
+  }
+
+  setActive(id: string, active: boolean): Promise<Result<PriceBook>> {
+    return this.written(
+      this.http.patch<PriceBookWriteResponse>(
+        `/api/price-books/${encodeURIComponent(id)}/active`,
+        { active },
+      ),
+    );
+  }
+
+  async delete(id: string): Promise<Result<void>> {
+    const result = await apiResult(
+      firstValueFrom(
+        this.http.delete<PricingSnapshot>(`/api/price-books/${encodeURIComponent(id)}`),
+      ),
     );
     if (!result.ok) return result;
-    const saved = this.workspace.commit(result.value.books);
-    if (!saved.ok) return saved;
+    this.workspace.apply(result.value);
+    return ok(undefined);
+  }
+
+  private async written(request: Observable<PriceBookWriteResponse>): Promise<Result<PriceBook>> {
+    const result = await apiResult(firstValueFrom(request));
+    if (!result.ok) return result;
+    this.workspace.apply(result.value.pricing);
     return ok(result.value.book);
-  }
-
-  duplicate(actor: UserAccount, id: string): Result<PriceBook> {
-    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const loaded = this.workspace.reload();
-    if (!loaded.ok) return loaded;
-    const result = duplicatePriceBook(this.books(), id, actor.displayName, new Date());
-    if (!result.ok) return result;
-    const saved = this.workspace.commit(result.value.books);
-    if (!saved.ok) return saved;
-    return ok(result.value.book);
-  }
-
-  setActive(actor: UserAccount, id: string, active: boolean): Result<PriceBook> {
-    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const loaded = this.workspace.reload();
-    if (!loaded.ok) return loaded;
-    const result = setPriceBookActive(this.books(), id, active, actor.displayName, new Date());
-    if (!result.ok) return result;
-    const saved = this.workspace.commit(result.value);
-    if (!saved.ok) return saved;
-    return ok(this.byId(id)!);
-  }
-
-  delete(actor: UserAccount, id: string): Result<void> {
-    if (!hasPermission(actor.role, 'price-books')) return fail(NO_PERMISSION);
-    const loaded = this.workspace.reload();
-    if (!loaded.ok) return loaded;
-    const result = deletePriceBook(this.books(), id);
-    if (!result.ok) return result;
-    return this.workspace.commit(result.value);
   }
 }

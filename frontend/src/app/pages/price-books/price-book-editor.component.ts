@@ -1,11 +1,11 @@
-import { Component, computed, ElementRef, inject, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, signal, untracked } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
 import { ProductCatalogService } from '../../core/product-catalog.service';
+import { PricingWorkspaceService } from '../../core/pricing-workspace.service';
 import { isIsoDate, todayInManila } from '../../../../../shared/domain/dates';
 import { fromCents, parseMoney, toCents } from '../../../../../shared/domain/money';
 import { ManualProductDraft, MANUAL_PRODUCT_FIELDS } from '../../../../../shared/domain/manual-products';
@@ -52,7 +52,7 @@ export class PriceBookEditorComponent {
   private readonly router = inject(Router);
   private readonly service = inject(PriceBookService);
   private readonly catalog = inject(ProductCatalogService);
-  private readonly auth = inject(AuthService);
+  private readonly workspace = inject(PricingWorkspaceService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly today = todayInManila();
 
@@ -62,7 +62,12 @@ export class PriceBookEditorComponent {
     const id = this.bookId();
     return id ? this.service.byId(id) : undefined;
   });
-  readonly notFound = computed(() => this.mode() !== 'create' && !this.book());
+  readonly loaded = this.workspace.loaded;
+  readonly notFound = computed(() => this.loaded() && this.mode() !== 'create' && !this.book());
+  /** The book's `updatedAt` when it was opened; sent so a newer change by someone else refuses the save. */
+  private openedUpdatedAt: string | undefined;
+  private opened = false;
+  private pendingFocus: string | null = null;
   readonly draft = signal<PriceBookDraft>(emptyDraft(this.today));
   private initialDraft = '';
   readonly attempted = signal(false);
@@ -163,12 +168,28 @@ export class PriceBookEditorComponent {
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       this.mode.set((this.route.snapshot.data['mode'] as Mode | undefined) ?? 'view');
       this.bookId.set(params.get('id'));
-      this.load();
       const state = history.state as { notice?: unknown; focusProduct?: unknown } | null;
       this.notice.set(typeof state?.notice === 'string' ? state.notice : '');
-      if (this.mode() === 'edit' && typeof state?.focusProduct === 'string')
-        this.focusRow(state.focusProduct);
+      this.pendingFocus =
+        this.mode() === 'edit' && typeof state?.focusProduct === 'string'
+          ? state.focusProduct
+          : null;
+      this.opened = false;
+      void this.workspace.ensureLoaded().then(() => this.open());
     });
+    // A failed first load can be retried from the shell; open the book once it arrives.
+    effect(() => {
+      if (this.loaded()) untracked(() => this.open());
+    });
+  }
+
+  /** Opens the requested book once price books are loaded (once per route). */
+  private open() {
+    if (this.opened || !this.loaded()) return;
+    this.opened = true;
+    this.load();
+    if (this.pendingFocus) this.focusRow(this.pendingFocus);
+    this.pendingFocus = null;
   }
 
   /**
@@ -284,14 +305,13 @@ export class PriceBookEditorComponent {
     }));
   }
 
-  save() {
+  async save() {
     this.attempted.set(true);
-    const actor = this.auth.currentUser();
-    if (!actor) return;
-    const result = this.service.save(
-      actor,
+    const editing = this.mode() === 'edit';
+    const result = await this.service.save(
       this.draft(),
-      this.mode() === 'edit' ? this.bookId() : null,
+      editing ? this.bookId() : null,
+      editing ? this.openedUpdatedAt : undefined,
     );
     if (!result.ok) {
       this.notice.set('');
@@ -311,22 +331,20 @@ export class PriceBookEditorComponent {
     );
   }
 
-  duplicate() {
-    const actor = this.auth.currentUser();
+  async duplicate() {
     const id = this.bookId();
-    if (!actor || !id) return;
-    const result = this.service.duplicate(actor, id);
+    if (!id) return;
+    const result = await this.service.duplicate(id);
     if (!result.ok) return this.error.set(result.error);
     void this.router.navigate(['/price-books', result.value.id], {
       state: { notice: `${result.value.id} created as an inactive copy of ${id}.` },
     });
   }
 
-  toggleActive() {
-    const actor = this.auth.currentUser();
+  async toggleActive() {
     const book = this.book();
-    if (!actor || !book) return;
-    const result = this.service.setActive(actor, book.id, !book.active);
+    if (!book) return;
+    const result = await this.service.setActive(book.id, !book.active);
     if (!result.ok) return this.error.set(result.error);
     this.load();
     this.error.set('');
@@ -345,6 +363,7 @@ export class PriceBookEditorComponent {
   private load() {
     const book = this.book();
     this.draft.set(book && this.mode() !== 'create' ? draftFromBook(book) : emptyDraft(this.today));
+    this.openedUpdatedAt = book && this.mode() !== 'create' ? book.updatedAt : undefined;
     this.initialDraft = JSON.stringify(this.draft());
     this.attempted.set(false);
     this.error.set('');

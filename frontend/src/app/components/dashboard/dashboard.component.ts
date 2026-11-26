@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -9,6 +9,7 @@ import { CalculationResultsComponent } from '../calculation-results/calculation-
 import { ProductInsightsComponent } from '../product-insights/product-insights.component';
 import { downloadSampleExport } from '../../core/sample-download';
 import { PriceBookService } from '../../core/price-book.service';
+import { PricingWorkspaceService } from '../../core/pricing-workspace.service';
 import { supportList } from '../../../../../shared/domain/price-books';
 import { CalculationResponse, Configuration, ReportUpload } from '../../models';
 import { ExcelApiService, readableError, saveDownload } from '../../services/excel-api.service';
@@ -30,6 +31,7 @@ import { ExcelApiService, readableError, saveDownload } from '../../services/exc
 export class DashboardComponent {
   readonly api = inject(ExcelApiService);
   private readonly priceBooks = inject(PriceBookService);
+  private readonly pricing = inject(PricingWorkspaceService);
   readonly configSeed = signal<Configuration | undefined>(undefined);
   readonly response = signal<CalculationResponse | undefined>(undefined);
   /** The upload behind the current results; drives the product sections (05/06). */
@@ -46,7 +48,17 @@ export class DashboardComponent {
   configuration?: Configuration;
   configValid = false;
   revision = 0;
+  /** True while `error` holds the price-book load failure, so a later successful load clears it. */
+  private showingLoadFailure = false;
   constructor() {
+    effect(() => {
+      if (!this.pricing.loaded()) return;
+      untracked(() => {
+        if (!this.showingLoadFailure) return;
+        this.showingLoadFailure = false;
+        this.error.set('');
+      });
+    });
     void this.loadDefaults();
   }
   async loadDefaults() {
@@ -107,7 +119,13 @@ export class DashboardComponent {
     this.response.set(undefined);
     this.downloaded.set(false);
     try {
-      // PS Support from the price books saved in this browser becomes Supplier Support.
+      const loaded = await this.pricing.ensureLoaded();
+      if (!loaded.ok) {
+        this.showingLoadFailure = true;
+        this.error.set(loaded.error);
+        return;
+      }
+      // PS Support from the saved price books becomes Supplier Support.
       const response = await this.api.calculate(
         this.sales!,
         this.configuration!,

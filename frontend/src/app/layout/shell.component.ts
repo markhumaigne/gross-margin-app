@@ -69,6 +69,11 @@ export class ShellComponent {
       .subscribe(() => this.syncRoute());
   }
 
+  /** Opening Price books always re-reads them, even when that page is already showing. */
+  navigated(path: string) {
+    if (path.startsWith('/price-books')) void this.pricing.reload();
+  }
+
   signOut() {
     this.auth.logout();
     void this.router.navigateByUrl('/login').then(() => this.auth.discardKeptPages());

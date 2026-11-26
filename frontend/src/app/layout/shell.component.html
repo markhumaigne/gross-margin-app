@@ -9,6 +9,7 @@
     <nav aria-label="Main navigation">
       @for (item of navItems(); track item.path) {
         <a [routerLink]="item.path" routerLinkActive="nav-current" ariaCurrentWhenActive="page"
+          (click)="navigated(item.path)"
           ><svg
             class="nav-icon"
             viewBox="0 0 24 24"

@@ -82,8 +82,10 @@ test('price book changes flow to the calculator without recalculating (Admin, ke
   await page.getByRole('link', { name: 'Edit PL000030' }).click();
   await page.getByLabel('Promotional price for 4800000100011').fill('4,795.00');
   await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('PL000030 saved');
   await nav.getByRole('link', { name: 'Price books' }).click();
   await page.getByRole('button', { name: 'Deactivate PL000013' }).click();
+  await expect(page.getByRole('status')).toContainText('PL000013 deactivated');
   await nav.getByRole('link', { name: 'Bank rate calculator' }).click();
   await expect(comparisonRow(page, 'PL000030', '4800000100011')).toContainText('₱4,795.00');
   await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText(
@@ -98,6 +100,7 @@ test('Product Team change reaches Accounting after sign-in; sample download work
   await page.getByRole('link', { name: 'Edit PL000013' }).click();
   await page.getByLabel('Updated selling price for 4800000100011').fill('5,695.00');
   await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('status')).toContainText('saved');
   await signOut(page);
   await signIn(page, ...ACCOUNTS.accounting);
   const download = page.waitForEvent('download');
@@ -161,53 +164,42 @@ test('saved price books still calculate after a refresh and Accounting sign-in',
   await expect(row).toContainText('₱2,500.00');
 });
 
-test('a browser storage failure keeps the draft and never claims the price was saved', async ({
-  page,
-}) => {
-  await signIn(page, ...ACCOUNTS.product);
-  await page.getByRole('link', { name: 'Edit PL000013' }).click();
-  await page.getByLabel('Updated selling price for 4800000100011').fill('5695');
-  await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
-    Object.defineProperty(window, '__restorePricingStorage', {
-      value: () => {
-        Storage.prototype.setItem = original;
-      },
-    });
-    Storage.prototype.setItem = function (key: string, value: string) {
-      if (key === 'ledger.pricing.v1') throw new DOMException('Storage full', 'QuotaExceededError');
-      original.call(this, key, value);
-    };
-  });
-  await page.getByRole('button', { name: 'Save price book' }).click();
-  await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
-  await expect(page.getByRole('alert').first()).toContainText('Price books were not saved');
-  await expect(page.getByRole('status')).toHaveCount(0);
-  await expect(page.getByLabel('Updated selling price for 4800000100011')).toHaveValue('5695');
-  await page.evaluate(() =>
-    (window as unknown as { __restorePricingStorage: () => void }).__restorePricingStorage(),
-  );
-  await page.getByRole('button', { name: 'Save price book' }).click();
-  await expect(page.getByRole('status')).toContainText('saved');
-  await signOut(page);
-  await page.reload();
+test('price books that cannot be loaded are reported and calculation waits', async ({ page }) => {
+  const message = 'Price books could not be loaded. Check the connection and try again.';
+  await page.route('**/api/pricing', (route) => route.fulfill({ status: 500 }));
   await signIn(page, ...ACCOUNTS.accounting);
-  await uploadAndCalculate(page);
-  await expect(comparisonRow(page, 'PL000013', '4800000100011')).toContainText('₱11,390.00');
+  await expect(page.getByRole('alert').filter({ hasText: message })).toBeVisible();
+  await page.getByLabel('Upload Sales Report', { exact: true }).setInputFiles(sampleFile());
+  const calculate = page.getByRole('button', { name: 'Calculate Bank Rate Deductions' });
+  await expect(calculate).toBeEnabled();
+  await calculate.click();
+  await expect(page.getByRole('alert').filter({ hasText: message }).first()).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Calculated Sales Report' })).toHaveCount(0);
+  await page.unroute('**/api/pricing');
+  await page.getByRole('button', { name: 'Retry loading saved prices' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: message })).toHaveCount(0);
+  await calculate.click();
+  await expect(page.getByRole('table', { name: 'Calculated Sales Report' })).toBeVisible();
+  await expect(page.getByText('Support to claim').first()).toBeVisible();
 });
 
-test('unreadable saved data is reported and preserved when a user tries to save', async ({
-  page,
-}) => {
-  await page.addInitScript(() => localStorage.setItem('ledger.pricing.v1', '{broken'));
+test('a stale edit is refused and keeps the draft', async ({ page, context }) => {
+  const field = (p: Page) => p.getByLabel('Updated selling price for 4800000100011');
   await signIn(page, ...ACCOUNTS.product);
-  await expect(page.getByRole('alert')).toContainText('Saved price books could not be read');
   await page.getByRole('link', { name: 'Edit PL000013' }).click();
-  await page.getByLabel('Updated selling price for 4800000100011').fill('5000');
+  await field(page).fill('5695');
+  const other = await context.newPage();
+  await signIn(other, ...ACCOUNTS.product);
+  await other.getByRole('link', { name: 'Edit PL000013' }).click();
+  await field(other).fill('5500');
+  await other.getByRole('button', { name: 'Save price book' }).click();
+  await expect(other.getByRole('status')).toContainText('saved');
   await page.getByRole('button', { name: 'Save price book' }).click();
+  await expect(page.getByRole('alert').first()).toContainText(
+    'was changed by Demo Product Lead after you opened it',
+  );
+  await expect(field(page)).toHaveValue('5695');
   await expect(page).toHaveURL(/\/price-books\/PL000013\/edit$/);
-  expect(await page.evaluate(() => localStorage.getItem('ledger.pricing.v1'))).toBe('{broken');
-  await expect(page.getByRole('status')).toHaveCount(0);
 });
 
 test('an open Accounting tab receives newly saved Product Team prices', async ({
@@ -221,6 +213,8 @@ test('an open Accounting tab receives newly saved Product Team prices', async ({
   const row = comparisonRow(accounting, 'PS000015', '4800000600016');
   await expect(row).toContainText('Price ID not found');
   await createSavedHeadsetPrice(page);
+  await accounting.bringToFront();
+  await accounting.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(row).toContainText('Matched');
   await expect(row).toContainText('₱5,000.00');
   await expect(row).toContainText('₱2,500.00');

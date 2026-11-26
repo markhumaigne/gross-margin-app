@@ -2,8 +2,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { AuthService } from '../../core/auth.service';
 import { PriceBookService } from '../../core/price-book.service';
+import { PricingWorkspaceService } from '../../core/pricing-workspace.service';
 import { downloadSamplePriceBook } from '../../core/sample-download';
 import { formatImportSummary } from '../../../../../shared/domain/price-book-import';
 import { filterPriceBooks, PriceBook, StatusFilter } from '../../../../../shared/domain/price-books';
@@ -16,7 +16,7 @@ import { filterPriceBooks, PriceBook, StatusFilter } from '../../../../../shared
 })
 export class PriceBookListComponent implements OnInit {
   private readonly service = inject(PriceBookService);
-  private readonly auth = inject(AuthService);
+  private readonly workspace = inject(PricingWorkspaceService);
   readonly query = signal('');
   readonly status = signal<StatusFilter>('all');
   readonly books = computed(() =>
@@ -33,11 +33,10 @@ export class PriceBookListComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
-    const actor = this.auth.currentUser();
-    if (!files.length || !actor) return;
+    if (!files.length) return;
     this.importing.set(true);
     try {
-      const result = await this.service.importPriceBooks(actor, files);
+      const result = await this.service.importPriceBooks(files);
       if (!result.ok) return this.show(result.error, true);
       this.show('');
       this.importedLines.set(
@@ -58,6 +57,7 @@ export class PriceBookListComponent implements OnInit {
   }
 
   ngOnInit() {
+    void this.workspace.reload();
     const notice = (history.state as { notice?: unknown } | null)?.notice;
     if (typeof notice === 'string') this.notice.set(notice);
   }
@@ -70,27 +70,21 @@ export class PriceBookListComponent implements OnInit {
     this.status.set((event.target as HTMLSelectElement).value as StatusFilter);
   }
 
-  duplicate(book: PriceBook) {
-    const actor = this.auth.currentUser();
-    if (!actor) return;
-    const result = this.service.duplicate(actor, book.id);
+  async duplicate(book: PriceBook) {
+    const result = await this.service.duplicate(book.id);
     if (result.ok) this.show(`${result.value.id} created as an inactive copy of ${book.id}.`);
     else this.show(result.error, true);
   }
 
-  toggle(book: PriceBook) {
-    const actor = this.auth.currentUser();
-    if (!actor) return;
-    const result = this.service.setActive(actor, book.id, !book.active);
+  async toggle(book: PriceBook) {
+    const result = await this.service.setActive(book.id, !book.active);
     if (result.ok) this.show(`${book.id} ${result.value.active ? 'activated' : 'deactivated'}.`);
     else this.show(result.error, true);
   }
 
-  remove(book: PriceBook) {
-    const actor = this.auth.currentUser();
-    if (!actor) return;
+  async remove(book: PriceBook) {
     if (!confirm(`Delete ${book.id} (${book.name})? This cannot be undone.`)) return;
-    const result = this.service.delete(actor, book.id);
+    const result = await this.service.delete(book.id);
     if (result.ok) this.show(`${book.id} deleted.`);
     else this.show(result.error, true);
   }
