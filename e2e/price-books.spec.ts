@@ -127,6 +127,29 @@ test.describe('Price book editor', () => {
     );
   });
 
+  test('double-clicking Save creates one price book', async ({ page }) => {
+    await signIn(page, ...ACCOUNTS.product);
+    await page.getByRole('link', { name: 'New price book' }).click();
+    await page.getByLabel('Price book name').fill('Double Click Test');
+    let posts = 0;
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().endsWith('/api/price-books')) posts++;
+    });
+    await page.route('**/api/price-books', async (route) => {
+      if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 500));
+      await route.continue();
+    });
+    await page.getByRole('button', { name: 'Save price book' }).dblclick();
+    await expect(page.getByRole('status')).toHaveText('Price book PL000035 saved.');
+    await page.getByRole('link', { name: 'Back to price books' }).click();
+    // Let any second (delayed) request settle before counting.
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole('row').filter({ hasText: 'Double Click Test' })).toHaveCount(1);
+    await expect(page.getByRole('row').filter({ hasText: 'PL000035' })).toHaveCount(1);
+    await expect(page.getByRole('row').filter({ hasText: 'PL000036' })).toHaveCount(0);
+    expect(posts).toBe(1);
+  });
+
   test('invalid entries are reported and nothing is saved', async ({ page }) => {
     await signIn(page, ...ACCOUNTS.product);
     await page.getByRole('link', { name: 'New price book' }).click();

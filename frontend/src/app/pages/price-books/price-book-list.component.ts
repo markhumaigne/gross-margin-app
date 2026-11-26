@@ -28,6 +28,7 @@ export class PriceBookListComponent implements OnInit {
   readonly importedLines = signal<string[]>([]);
   readonly failedLines = signal<string[]>([]);
   readonly importing = signal(false);
+  readonly busy = signal(false);
 
   async importFiles(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -71,20 +72,41 @@ export class PriceBookListComponent implements OnInit {
   }
 
   async duplicate(book: PriceBook) {
-    const result = await this.service.duplicate(book.id);
+    if (this.busy()) return;
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.duplicate(book.id);
+    } finally {
+      this.busy.set(false);
+    }
     if (result.ok) this.show(`${result.value.id} created as an inactive copy of ${book.id}.`);
     else this.show(result.error, true);
   }
 
   async toggle(book: PriceBook) {
-    const result = await this.service.setActive(book.id, !book.active);
+    if (this.busy()) return;
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.setActive(book.id, !book.active);
+    } finally {
+      this.busy.set(false);
+    }
     if (result.ok) this.show(`${book.id} ${result.value.active ? 'activated' : 'deactivated'}.`);
     else this.show(result.error, true);
   }
 
   async remove(book: PriceBook) {
+    if (this.busy()) return;
     if (!confirm(`Delete ${book.id} (${book.name})? This cannot be undone.`)) return;
-    const result = await this.service.delete(book.id);
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.delete(book.id);
+    } finally {
+      this.busy.set(false);
+    }
     if (result.ok) this.show(`${book.id} deleted.`);
     else this.show(result.error, true);
   }

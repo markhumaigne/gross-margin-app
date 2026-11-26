@@ -46,11 +46,11 @@
     <div class="heading-actions">
       @if (editable()) {
         <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
-        <button mat-flat-button type="button" (click)="save()">Save price book</button>
+        <button mat-flat-button type="button" [disabled]="busy()" (click)="save()">Save price book</button>
       } @else {
         <a mat-button routerLink="/price-books">Back to price books</a>
-        <button mat-stroked-button type="button" (click)="duplicate()">Duplicate</button>
-        <button mat-stroked-button type="button" (click)="toggleActive()">
+        <button mat-stroked-button type="button" [disabled]="busy()" (click)="duplicate()">Duplicate</button>
+        <button mat-stroked-button type="button" [disabled]="busy()" (click)="toggleActive()">
           {{ book()?.active ? 'Deactivate' : 'Activate' }}
         </button>
         <a mat-flat-button [routerLink]="['/price-books', bookId(), 'edit']">Edit</a>

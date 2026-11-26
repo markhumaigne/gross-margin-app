@@ -78,6 +78,7 @@ export class PriceBookEditorComponent {
   );
   readonly manualFields = MANUAL_PRODUCT_FIELDS;
   readonly parseAmount = parseMoney;
+  readonly busy = signal(false);
   readonly notice = signal('');
   readonly error = signal('');
 
@@ -306,13 +307,20 @@ export class PriceBookEditorComponent {
   }
 
   async save() {
+    if (this.busy()) return;
     this.attempted.set(true);
     const editing = this.mode() === 'edit';
-    const result = await this.service.save(
-      this.draft(),
-      editing ? this.bookId() : null,
-      editing ? this.openedUpdatedAt : undefined,
-    );
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.save(
+        this.draft(),
+        editing ? this.bookId() : null,
+        editing ? this.openedUpdatedAt : undefined,
+      );
+    } finally {
+      this.busy.set(false);
+    }
     if (!result.ok) {
       this.notice.set('');
       this.error.set(result.error);
@@ -333,8 +341,14 @@ export class PriceBookEditorComponent {
 
   async duplicate() {
     const id = this.bookId();
-    if (!id) return;
-    const result = await this.service.duplicate(id);
+    if (!id || this.busy()) return;
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.duplicate(id);
+    } finally {
+      this.busy.set(false);
+    }
     if (!result.ok) return this.error.set(result.error);
     void this.router.navigate(['/price-books', result.value.id], {
       state: { notice: `${result.value.id} created as an inactive copy of ${id}.` },
@@ -343,8 +357,14 @@ export class PriceBookEditorComponent {
 
   async toggleActive() {
     const book = this.book();
-    if (!book) return;
-    const result = await this.service.setActive(book.id, !book.active);
+    if (!book || this.busy()) return;
+    this.busy.set(true);
+    let result;
+    try {
+      result = await this.service.setActive(book.id, !book.active);
+    } finally {
+      this.busy.set(false);
+    }
     if (!result.ok) return this.error.set(result.error);
     this.load();
     this.error.set('');

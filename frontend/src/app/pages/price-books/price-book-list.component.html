@@ -138,6 +138,7 @@
                 mat-button
                 type="button"
                 [attr.aria-label]="'Duplicate ' + book.id"
+                [disabled]="busy()"
                 (click)="duplicate(book)"
               >
                 Duplicate</button
@@ -145,6 +146,7 @@
                 mat-button
                 type="button"
                 [attr.aria-label]="(book.active ? 'Deactivate ' : 'Activate ') + book.id"
+                [disabled]="busy()"
                 (click)="toggle(book)"
               >
                 {{ book.active ? 'Deactivate' : 'Activate' }}</button
@@ -153,6 +155,7 @@
                 type="button"
                 class="danger-action"
                 [attr.aria-label]="'Delete ' + book.id"
+                [disabled]="busy()"
                 (click)="remove(book)"
               >
                 Delete
