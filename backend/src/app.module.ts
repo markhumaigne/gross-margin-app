@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { AccountsController } from './accounts/accounts.controller';
 import { AccountsRepository } from './accounts/accounts.repository';
+import { AccountsService } from './accounts/accounts.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthService } from './auth/auth.service';
@@ -13,7 +15,7 @@ import { CalculationService } from './calculation/calculation.service';
 import { ConfigService } from './config/config.service';
 import { HealthController } from './health.controller';
 @Module({
-  controllers: [ExcelController, AuthController, HealthController],
+  controllers: [ExcelController, AuthController, AccountsController, HealthController],
   providers: [
     ExcelService,
     ExcelExportService,
@@ -22,6 +24,7 @@ import { HealthController } from './health.controller';
     PrismaService,
     TokenService,
     AccountsRepository,
+    AccountsService,
     AuthService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

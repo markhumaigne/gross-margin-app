@@ -4,10 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth.service';
 import { UserAccountsService } from '../../core/user-accounts.service';
 import { Result } from '../../../../../shared/domain/result';
-import { Role, ROLE_LABELS } from '../../../../../shared/domain/roles';
+import { AssignableRole, Role, ROLE_LABELS } from '../../../../../shared/domain/roles';
 import { UserAccount } from '../../../../../shared/domain/user-accounts';
-
-type AssignableRole = Exclude<Role, 'accounting-head'>;
 
 @Component({
   selector: 'app-users',
@@ -45,13 +43,19 @@ export class UsersComponent {
     role: new FormControl<AssignableRole>('product-team', { nonNullable: true }),
   });
 
-  transfer() {
+  constructor() {
+    void this.accounts.load().then((result) => {
+      if (!result.ok) this.showError(result.error);
+    });
+  }
+
+  async transfer() {
     const { newHolderId, previousRole } = this.transferForm.getRawValue();
     if (!newHolderId) return this.showError('Choose the new Accounting Head.');
     const previous = this.head();
     const next = this.users().find((u) => u.id === newHolderId);
-    const result = this.run((actor) =>
-      this.accounts.transferAccountingHead(actor, newHolderId, previousRole),
+    const result = await this.run(() =>
+      this.accounts.transferAccountingHead(newHolderId, previousRole),
     );
     if (result?.ok && next) {
       this.transferForm.reset({ newHolderId: '', previousRole: 'product-team' });
@@ -62,34 +66,30 @@ export class UsersComponent {
     }
   }
 
-  changeRole(user: UserAccount, event: Event) {
+  async changeRole(user: UserAccount, event: Event) {
     const select = event.target as HTMLSelectElement;
-    const result = this.run((actor) =>
-      this.accounts.changeRole(actor, user.id, select.value as Role),
-    );
+    const result = await this.run(() => this.accounts.changeRole(user.id, select.value as Role));
     if (result?.ok) this.showNotice(`Role updated for ${user.username}.`);
     else select.value = user.role;
   }
 
-  toggleActive(user: UserAccount) {
+  async toggleActive(user: UserAccount) {
     const active = !user.active;
-    const result = this.run((actor) => this.accounts.setActive(actor, user.id, active));
+    const result = await this.run(() => this.accounts.setActive(user.id, active));
     if (result?.ok) this.showNotice(`${user.username} ${active ? 'activated' : 'deactivated'}.`);
   }
 
-  add() {
+  async add() {
     const draft = this.addForm.getRawValue();
-    const result = this.run((actor) => this.accounts.add(actor, draft));
+    const result = await this.run(() => this.accounts.add(draft));
     if (result?.ok) {
       this.addForm.reset({ username: '', displayName: '', password: '', role: 'product-team' });
       this.showNotice(`Account ${draft.username.trim()} added.`);
     }
   }
 
-  private run(action: (actor: UserAccount) => Result<UserAccount[]>) {
-    const actor = this.auth.currentUser();
-    if (!actor) return this.showError('Sign in again to manage accounts.');
-    const result = action(actor);
+  private async run(action: () => Promise<Result<UserAccount[]>>) {
+    const result = await action();
     if (!result.ok) this.showError(result.error);
     return result;
   }

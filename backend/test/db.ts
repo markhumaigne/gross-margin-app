@@ -12,5 +12,6 @@ import { runAll } from './harness';
 import './db-schema';
 import './db-calculation';
 import './db-auth';
+import './db-accounts';
 
 void runAll().then(() => process.exit(process.exitCode ?? 0));

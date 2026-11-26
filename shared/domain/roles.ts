@@ -1,4 +1,6 @@
 export type Role = 'admin' | 'accounting-head' | 'product-team';
+/** Roles an Admin may hand out directly; Accounting Head is only ever transferred. */
+export type AssignableRole = Exclude<Role, 'accounting-head'>;
 export type Permission = 'calculator' | 'price-books' | 'users';
 
 export const ROLE_LABELS: Record<Role, string> = {

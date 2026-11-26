@@ -1,59 +1,64 @@
-import { computed, Injectable, signal } from '@angular/core';
-import { fail, Result } from '../../../../shared/domain/result';
-import { hasPermission, Role } from '../../../../shared/domain/roles';
-import {
-  accountingHead,
-  addUser,
-  changeRole,
-  NewUserDraft,
-  setUserActive,
-  transferAccountingHead,
-  UserAccount,
-} from '../../../../shared/domain/user-accounts';
-import { SEED_USERS } from '../../../../shared/seed/users';
+import { HttpClient } from '@angular/common/http';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom, Observable } from 'rxjs';
+import type {
+  ChangeRoleRequest,
+  SetActiveRequest,
+  TransferAccountingHeadRequest,
+} from '../../../../shared/api';
+import { Result } from '../../../../shared/domain/result';
+import { AssignableRole, Role } from '../../../../shared/domain/roles';
+import { accountingHead, NewUserDraft, UserAccount } from '../../../../shared/domain/user-accounts';
+import { apiResult } from './api-result';
+import { AuthService } from './auth.service';
 
-const NO_PERMISSION = 'You do not have permission to manage user accounts.';
-
-/** In-memory mock account store. Replace with an API-backed service when a backend exists. */
+/** User accounts as stored by the API; the list is empty whenever nobody is signed in. */
 @Injectable({ providedIn: 'root' })
 export class UserAccountsService {
-  private readonly store = signal<readonly UserAccount[]>(
-    SEED_USERS.map(({ id, username, displayName, role, active }) => ({
-      id,
-      username,
-      displayName,
-      role,
-      active,
-    })),
-  );
+  private readonly http = inject(HttpClient);
+  private readonly store = signal<readonly UserAccount[]>([]);
   readonly users = this.store.asReadonly();
   readonly accountingHead = computed(() => accountingHead(this.store()));
 
-  add(actor: UserAccount, draft: NewUserDraft): Result<UserAccount[]> {
-    return this.apply(actor, () => addUser(this.store(), draft));
+  constructor() {
+    const auth = inject(AuthService);
+    effect(() => {
+      if (!auth.currentUser()) this.store.set([]);
+    });
   }
 
-  changeRole(actor: UserAccount, targetId: string, role: Role): Result<UserAccount[]> {
-    return this.apply(actor, () => changeRole(this.store(), actor.id, targetId, role));
+  load(): Promise<Result<UserAccount[]>> {
+    return this.settle(this.http.get<UserAccount[]>('/api/users'));
   }
 
-  transferAccountingHead(
-    actor: UserAccount,
-    newHolderId: string,
-    previousHolderRole: Exclude<Role, 'accounting-head'>,
-  ): Result<UserAccount[]> {
-    return this.apply(actor, () =>
-      transferAccountingHead(this.store(), actor.id, newHolderId, previousHolderRole),
+  add(draft: NewUserDraft): Promise<Result<UserAccount[]>> {
+    return this.settle(this.http.post<UserAccount[]>('/api/users', draft));
+  }
+
+  changeRole(targetId: string, role: Role): Promise<Result<UserAccount[]>> {
+    const body: ChangeRoleRequest = { role };
+    return this.settle(
+      this.http.patch<UserAccount[]>(`/api/users/${encodeURIComponent(targetId)}/role`, body),
     );
   }
 
-  setActive(actor: UserAccount, targetId: string, active: boolean): Result<UserAccount[]> {
-    return this.apply(actor, () => setUserActive(this.store(), actor.id, targetId, active));
+  transferAccountingHead(
+    newHolderId: string,
+    previousHolderRole: AssignableRole,
+  ): Promise<Result<UserAccount[]>> {
+    const body: TransferAccountingHeadRequest = { newHolderId, previousHolderRole };
+    return this.settle(this.http.post<UserAccount[]>('/api/users/accounting-head', body));
   }
 
-  private apply(actor: UserAccount, change: () => Result<UserAccount[]>): Result<UserAccount[]> {
-    if (!hasPermission(actor.role, 'users')) return fail(NO_PERMISSION);
-    const result = change();
+  setActive(targetId: string, active: boolean): Promise<Result<UserAccount[]>> {
+    const body: SetActiveRequest = { active };
+    return this.settle(
+      this.http.patch<UserAccount[]>(`/api/users/${encodeURIComponent(targetId)}/active`, body),
+    );
+  }
+
+  private async settle(request: Observable<UserAccount[]>): Promise<Result<UserAccount[]>> {
+    const result = await apiResult(firstValueFrom(request));
     if (result.ok) this.store.set(result.value);
     return result;
   }

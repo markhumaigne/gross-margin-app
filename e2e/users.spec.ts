@@ -70,3 +70,21 @@ test('a failed role change keeps the stored role', async ({ page }) => {
   await expect(page.getByRole('alert')).toHaveText(/You cannot remove your own Admin role\./);
   await expect(page.getByLabel('Role for admin')).toHaveValue('admin');
 });
+
+test('a deactivated user is signed out on their next request', async ({ browser }) => {
+  const context = await browser.newContext();
+  try {
+    const pageA = await context.newPage();
+    await signIn(pageA, ...ACCOUNTS.product);
+    await expect(pageA).toHaveURL(/\/price-books$/);
+    const pageB = await context.newPage();
+    await signIn(pageB);
+    await navigateInApp(pageB, '/users');
+    await pageB.getByRole('button', { name: 'Deactivate productteam' }).click();
+    await expect(pageB.getByRole('status')).toHaveText('productteam deactivated.');
+    await pageA.getByRole('link', { name: 'Price books' }).click();
+    await expect(pageA).toHaveURL(/\/login/);
+  } finally {
+    await context.close();
+  }
+});

@@ -6,7 +6,7 @@ import { SEED_USERS } from '../../../shared/seed/users';
 import { lock, TX_OPTIONS, USERS_LOCK } from './locks';
 import { bookToRows, productToRow } from './mappers';
 
-const BCRYPT_COST = 12;
+export const BCRYPT_COST = 12;
 let hashed: Promise<string[]> | undefined;
 
 /** Hashes once per process: cost 12 is deliberately slow and tests reseed before every test. */

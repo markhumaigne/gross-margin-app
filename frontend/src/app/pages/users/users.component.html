@@ -1,7 +1,7 @@
 <header class="page-heading">
   <div class="page-title">
     <h1>User accounts</h1>
-    <p>Mock development accounts for testing roles. Not production authentication.</p>
+    <p>Manage who can sign in and what each role may do.</p>
   </div>
   <div class="excel-badge">{{ users().length }} accounts</div>
 </header>
@@ -60,7 +60,7 @@
   <div class="section-heading">
     <div>
       <h2>Accounts and roles</h2>
-      <p>Change roles, or activate and deactivate accounts. Changes last until the page reloads.</p>
+      <p>Change roles, or activate and deactivate accounts.</p>
     </div>
   </div>
   <div class="table-scroll">
@@ -130,9 +130,7 @@
   <div class="section-heading">
     <div>
       <h2>Add account</h2>
-      <p>
-        New mock accounts can be Admin or Product Team. Use the transfer above for Accounting Head.
-      </p>
+      <p>New accounts can be Admin or Product Team. Use the transfer above for Accounting Head.</p>
     </div>
   </div>
   <form class="form-grid panel-body" [formGroup]="addForm" (ngSubmit)="add()">
