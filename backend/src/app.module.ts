@@ -7,6 +7,9 @@ import { AuthController } from './auth/auth.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthService } from './auth/auth.service';
 import { TokenService } from './auth/token.service';
+import { PricingController } from './pricing/pricing.controller';
+import { PricingRepository } from './pricing/pricing.repository';
+import { PricingService } from './pricing/pricing.service';
 import { PrismaService } from './database/prisma.service';
 import { ExcelController } from './excel/excel.controller';
 import { ExcelService } from './excel/excel.service';
@@ -15,7 +18,13 @@ import { CalculationService } from './calculation/calculation.service';
 import { ConfigService } from './config/config.service';
 import { HealthController } from './health.controller';
 @Module({
-  controllers: [ExcelController, AuthController, AccountsController, HealthController],
+  controllers: [
+    ExcelController,
+    AuthController,
+    AccountsController,
+    PricingController,
+    HealthController,
+  ],
   providers: [
     ExcelService,
     ExcelExportService,
@@ -25,6 +34,8 @@ import { HealthController } from './health.controller';
     TokenService,
     AccountsRepository,
     AccountsService,
+    PricingRepository,
+    PricingService,
     AuthService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

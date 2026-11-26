@@ -308,3 +308,9 @@ export function supportList(books: readonly PriceBook[]): PriceSupport[] {
       ),
     );
 }
+
+/** The stored price books and product catalog, as the API returns them. */
+export interface PricingSnapshot {
+  books: PriceBook[];
+  products: Product[];
+}

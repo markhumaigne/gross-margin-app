@@ -13,5 +13,6 @@ import './db-schema';
 import './db-calculation';
 import './db-auth';
 import './db-accounts';
+import './db-pricing';
 
 void runAll().then(() => process.exit(process.exitCode ?? 0));
