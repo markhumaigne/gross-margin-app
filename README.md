@@ -1,17 +1,64 @@
 # Sales Bank Rate Deduction Calculator
 
-A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 21 columns, beginning with Product ID. Configuration stays in local JSON and the current browser session. No database or external storage is required.
+A local Angular + NestJS application that reads **one Sales Report**, calculates product bank charges, subsidies and gross margins, and exports a formatted four-sheet workbook. Each product with a configured bank-payment match appears once in Item Bank Deductions. The main worksheet has exactly 21 columns, beginning with Product ID. Bank-rate configuration stays in local JSON and the current browser session. User accounts, the product catalog and price books are stored in a PostgreSQL database (Supabase) through Prisma; Sales Reports and calculation results are never stored (see **What is saved**).
+
+## Database setup
+
+The API needs a PostgreSQL database. These steps use a Supabase project; the app only uses its two Postgres connection strings (the Supabase project URL, publishable/secret API keys and JWKS are not used, and the secret key should not be kept in `.env`).
+
+1. Copy `backend/.env.example` to `backend/.env` (it is git-ignored; never commit it).
+2. In the Supabase dashboard open **Connect → ORMs → Prisma** and fill in:
+
+   | Variable       | Value                                                                                   |
+   | -------------- | --------------------------------------------------------------------------------------- |
+   | `DATABASE_URL` | Transaction pooler (port 6543). Used by the running API.                                |
+   | `DIRECT_URL`   | Session pooler or direct connection (port 5432). Used by the Prisma CLI and the seeder. |
+   | `AUTH_SECRET`  | Your own random secret of at least 32 characters, used to sign sign-in tokens.          |
+
+   If queries through port 6543 fail with prepared-statement errors, add `?pgbouncer=true` to `DATABASE_URL` (or use the 5432 session pooler instead).
+
+3. Install, create the tables and add the demo data:
+
+   ```powershell
+   npm install
+   npm run db:deploy -w backend
+   npm run db:seed -w backend
+   ```
+
+   `db:deploy` applies the migrations in `backend/prisma/migrations`: it creates the four tables (`users`, `products`, `price_books`, `price_book_entries`), their unique indexes, and turns on row level security on each table so Supabase's public data API cannot read them. The app reaches the tables only through the NestJS API. `db:seed` adds the three demo accounts, the 24-product catalog and three price books, and does nothing if accounts already exist. It prints `Seeded demo accounts, products and price books.`
+
+### Test database
+
+Tests that touch the database use a separate `test` schema in the same Supabase project, never the real `public` schema. Add to `backend/.env`:
+
+| Variable            | Value                                                                           |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `TEST_DATABASE_URL` | `DATABASE_URL` with `schema=test` added (`?pgbouncer=true&schema=test` on 6543) |
+| `TEST_DIRECT_URL`   | `DIRECT_URL` with `schema=test` added (`?schema=test` on 5432)                  |
+
+`npm run test:db -w backend` and `npm run test:e2e` create and migrate that schema with `db:test:prepare`, then reset and seed it before running. Both refuse to run when the URLs are missing, differ in schema, equal the real URLs or use the `public` schema. Do not run them at the same time.
+
+### Changing the database later
+
+Edit `backend/prisma/schema.prisma`, then generate the SQL for a new migration folder and review it before applying:
+
+```powershell
+cd backend
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script
+```
+
+Save the output as `backend/prisma/migrations/<timestamp>_<name>/migration.sql` and run `npm run db:deploy -w backend`. Prisma may propose dropping the hand-written parts of the first migration (the row level security statements and extra indexes); keep them.
 
 ## Install and run
 
-Use Node.js 22.12+ and npm. From this repository:
+Use Node.js 22.12+ and npm. After the database setup above, from this repository:
 
 ```powershell
 npm install
 npm start
 ```
 
-Open **http://127.0.0.1:4200** and sign in with a development account (see below). The API runs at **http://127.0.0.1:3000**. Stop with Ctrl+C.
+Open **http://127.0.0.1:4200** and sign in with a seeded account (see below). The API runs at **http://127.0.0.1:3000**. Stop with Ctrl+C. The API refuses to start unless `DATABASE_URL` is set and `AUTH_SECRET` has at least 32 characters.
 
 To run separately:
 
@@ -38,7 +85,7 @@ Build output: backend/dist and frontend/dist/browser. Run a compiled API with np
 3. Check **Cost basis** and **Explicit payment amounts apply to**. The supplied report is recognized as unit cost with invoice payment amounts repeated across products.
 4. Review rates, banks, branches, aliases, patterns and non-card methods.
 5. Click **Calculate Bank Rate Deductions**.
-6. Review all 21 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons. **Price ID** shows the POS Price ID of each sale; **Supplier Support** shows the PS price book Support for that product × quantity (Support saved in Price books in this browser is sent with Calculate, so recalculate after changing it).
+6. Review all 21 columns, search by Product ID/invoice/product, and click any column header to sort. Inspect Needs Review reasons. **Price ID** shows the POS Price ID of each sale; **Supplier Support** shows the PS price book Support for that product × quantity (Support saved in Price books is sent with Calculate, so recalculate after changing it).
 7. Click **Download Calculated Excel Report**.
 8. Below the results, review **05 Gross margin by product** and **06 Price book comparison** (see below).
 
@@ -46,11 +93,22 @@ No file to hand? Click **Download sample Sales Report by Product** on the upload
 
 Editing the file selection, mappings, cost basis or configuration clears the previous calculation. The download is available only after successful calculation. Financial results are snapshots: editing settings in Excel requires importing those settings and calculating again. The calculator lives at `/calculator`. Its upload, edited rates and results are kept while you visit other pages and are cleared when you sign out or refresh.
 
-## Mock accounts, price books and product sales (frontend prototype)
+## What is saved
 
-These modules are a **frontend-only demonstration** with no database or backend authentication. Price books and imported products are saved together in browser localStorage and shared by the Product Team, Admin and Accounting demo accounts on the same browser profile and site address. Refreshing signs you out and clears account changes and uploaded reports, but keeps saved pricing data. Other browsers, profiles and computers have separate pricing data. Clearing this site's browser storage removes saved price books and products. Do not use real customer or employee information.
+| Data                                                      | Saved in the database | Notes                                                              |
+| --------------------------------------------------------- | --------------------- | ------------------------------------------------------------------ |
+| User accounts (name, role, active flag, hashed password)  | Yes                   | Passwords are stored as bcrypt hashes; the API never returns them. |
+| Product catalog                                           | Yes                   | The 24 demo products, seeded once.                                 |
+| Price books and their products, prices, Support and memos | Yes                   | Shared by everyone who uses the same database.                     |
+| Sales Reports, calculation results, exported workbooks    | No                    | Held in memory for the request or in the browser until you leave.  |
+| ZenPOS price book files                                   | No                    | Read in the browser; only the resulting price book is saved.       |
+| Bank-rate settings (rates, banks, branches, aliases)      | No                    | Local JSON defaults plus your session edits; use Export settings.  |
 
-### Development accounts and access
+Sign-in uses a token valid for 12 hours that the browser keeps in memory only. Refreshing the page signs you out and clears the uploaded report, but accounts and price books are kept in the database. Do not use real customer or employee information in demonstration data.
+
+### Seeded accounts and access
+
+`npm run db:seed -w backend` creates these accounts the first time it runs against an empty database:
 
 | Username    | Password       | Role            |
 | ----------- | -------------- | --------------- |
@@ -58,17 +116,19 @@ These modules are a **frontend-only demonstration** with no database or backend 
 | accounting  | Accounting123! | Accounting Head |
 | productteam | Product123!    | Product Team    |
 
+These passwords are public (they are in this README and the source), and the app has no change-password screen. Before real use, replace them: sign in as `admin`, add new accounts with private passwords (**User accounts → Add account**), transfer the Accounting Head role to the new accounting account, give a new account the Admin role, then deactivate the three seeded accounts.
+
 | Module                                                       | Admin | Accounting Head | Product Team |
 | ------------------------------------------------------------ | ----- | --------------- | ------------ |
 | Bank rate calculator (`/calculator`, incl. product sections) | ✓     | ✓               | –            |
 | Price books (`/price-books`)                                 | ✓     | –               | ✓            |
 | User accounts (`/users`)                                     | ✓     | –               | –            |
 
-The old `/sales-report` address forwards to the calculator. The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and service methods re-check permissions. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
+The old `/sales-report` address forwards to the calculator. The sidebar shows only permitted modules, route guards send signed-out visitors to sign in (returning them afterwards when their role allows it) and send others to **Access denied**, and the API enforces the same permissions on every request. Exactly one account holds Accounting Head: an Admin transfers it under **User accounts → Transfer role**, choosing the previous holder's new role in the same step. The last active Admin cannot be demoted or deactivated, and Admins cannot deactivate themselves. Inactive accounts cannot sign in.
 
 ### Price books
 
-Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Click a ZenPOS or manual product row (while viewing or editing a price book) to open **Edit product** with all of its details, prices, cost, Support (PS books), effective start and end, and memo; the **Edit** button on the right does the same. Clicking a demo catalog row opens edit mode at that row. Nothing is kept until **Save price book**. Saving persists the pricing workspace before showing success. Other tabs at the same site receive the changes and update Accounting's price comparison automatically. Blocked/full browser storage is reported as an error instead of a successful save.
+Product Team (and Admin) can search, filter, create, view, edit, duplicate (as an inactive copy) and activate/deactivate price books. Add products supports manual details and prices or catalog search by Product ID or name. Click a ZenPOS or manual product row (while viewing or editing a price book) to open **Edit product** with all of its details, prices, cost, Support (PS books), effective start and end, and memo; the **Edit** button on the right does the same. Clicking a demo catalog row opens edit mode at that row. Nothing is kept until **Save price book**. Saving writes to the database before showing success; a failed save is reported as an error and nothing is kept. Accounting's price comparison reads the saved books, so it reflects them the next time it loads.
 
 Price IDs follow the ZenPOS format: a prefix followed by six digits (e.g. `PL000013`, `PS000015`, `PI000005`).
 
@@ -86,7 +146,6 @@ With **Auto ID** on, a new book gets the next `PL` number; turn it off to type a
 - An existing Price ID is updated from the file: name, memo, active flag, dates, prices and cost come from ZenPOS. Support, row memo and Master List Price entered in this app are kept for products still in the file; products missing from the file are removed and new ones are added without Support. With `Limited Period: No` the book keeps its effective date and loses its expiration. Re-importing the same file changes nothing.
 - Rows with a blank Product ID, an unreadable or negative price or cost, or a repeated Product ID are skipped and counted.
 - Each file is saved on its own and reported on its own line (for example `PS000005 updated: 2 added, 1 removed, 5 prices changed, Support kept on 64`). A file that cannot be read or is not a price book export is listed with its reason while the other files still import.
-- Browser storage holds about 5 MB: roughly eight or nine books the size of a 1,400-product `PL` book (about 550 KB each). When it is full, that file is reported as not saved and nothing from it is kept.
 
 **Download sample price book** provides a demo ZenPOS export (`PS000015` Demo Headset Promo) whose headset matches the demo sales export, so Support can be tried end to end.
 
@@ -107,7 +166,7 @@ Discount % = (Master List Price − Promotional Price, or Updated Selling Price)
 
 ### Product sections on the calculator (05 and 06)
 
-After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change, and they update immediately when a price book changes.
+After **Calculate**, the calculator reads the same uploaded file in the browser — using the worksheet, header row, column mapping and cost basis chosen for the calculation — and adds two sections. They clear when the file, mappings or rates change.
 
 **05 Gross margin by product** groups rows by Product ID with names from the file (no catalog needed): quantity, net sales revenue, COGS, gross profit, gross margin on sales %, Support, gross margin after support % and the Price IDs used (`Regular price` for rows without one). Figures are **before bank charges**; the 21-column table keeps the after-charges GrossMargin.
 
@@ -228,6 +287,29 @@ Use **Export settings**, or edit Configuration Settings from a calculated report
 
 ## API
 
+All routes except `GET /api/health` and `POST /api/auth/login` require a signed-in, active user (`Authorization: Bearer <token>`). The permission column shows what else is needed. Admin has all three permissions, Accounting Head has `calculator`, Product Team has `price-books`.
+
+| Endpoint                            | Permission                    | Purpose                                                     |
+| ----------------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| GET /api/health                     | None (public)                 | Liveness check                                              |
+| POST /api/auth/login                | None (public)                 | Username and password in; token and account out             |
+| POST /api/auth/logout               | Signed in                     | Acknowledges sign-out (tokens are not stored on the server) |
+| GET /api/auth/me                    | Signed in                     | The current account                                         |
+| GET /api/users                      | `users`                       | List accounts (never password data)                         |
+| POST /api/users                     | `users`                       | Add an account                                              |
+| POST /api/users/accounting-head     | `users`                       | Transfer the Accounting Head role                           |
+| PATCH /api/users/:id/role           | `users`                       | Change a role                                               |
+| PATCH /api/users/:id/active         | `users`                       | Activate or deactivate an account                           |
+| GET /api/pricing                    | `price-books` or `calculator` | Catalog and all price books                                 |
+| POST /api/price-books               | `price-books`                 | Create a price book                                         |
+| POST /api/price-books/import        | `price-books`                 | Save imported ZenPOS price books                            |
+| PUT /api/price-books/:id            | `price-books`                 | Save changes to a price book                                |
+| POST /api/price-books/:id/duplicate | `price-books`                 | Duplicate as an inactive copy                               |
+| PATCH /api/price-books/:id/active   | `price-books`                 | Activate or deactivate                                      |
+| DELETE /api/price-books/:id         | `price-books`                 | Delete a price book                                         |
+
+The calculator endpoints below need the `calculator` permission:
+
 | Endpoint                  | Request                                  | Response                                             |
 | ------------------------- | ---------------------------------------- | ---------------------------------------------------- |
 | GET /api/config/defaults  | None                                     | Default JSON                                         |
@@ -239,11 +321,11 @@ Use **Export settings**, or edit Configuration Settings from a calculated report
 
 Calculation options contain sales: {sheet, headerRow, mapping, costBasis, paymentScope} and configuration. Mapping keys: productId, date, branch, invoice, product, quantity, price, cost, discount, lineTotal, payment, paymentAmount. Required mappings are invoice, product, quantity and lineTotal; missing optional data stays in the output with appropriate review/warnings. Cost basis is auto/unit/line; payment scope is invoice/line.
 
-Export is signed with a random in-memory HMAC key. Modified results or results from a previous API process must be recalculated. No result database or uploaded-file store is used.
+Export is signed with a random in-memory HMAC key. Modified results or results from a previous API process must be recalculated. Calculation results and uploaded files are never written to the database.
 
 ## Limits and data handling
 
-Uploads and reports stay in memory. The browser retains the session until reload. Only an explicit download saves a file. Responses use Cache-Control: no-store. No transaction localStorage or cookies are used.
+Uploads and reports stay in memory and are never written to the database. The browser retains the calculator session until reload, and the sign-in token lives in memory only. Only an explicit download saves a file. Responses use Cache-Control: no-store. No localStorage or cookies are used.
 
 Limits: one file per request, 10 MB/file, 30 worksheets, 50,000 rows, 200 columns, 100 MB expanded ZIP content, 2,000 ZIP entries and 100 MB serialized result (a 17-day, 43,240-row ZenPOS export produces about 56 MB; a one-day export about 4 MB). Password-protected files are unsupported. Only genuine Excel ZIP/OLE content is accepted. Split larger reports into batches.
 
@@ -251,9 +333,14 @@ ExcelJS writes Product IDs and original Payment text as literal string cells (ne
 
 ## Tests
 
+`npm test` and `npm run build` need no database. `npm run test:db` and `npm run test:e2e` need the test schema from **Test database** above.
+
 ```powershell
 npm test
 npm run build
+
+# Database tests (accounts, auth, pricing, calculator access) against the test schema
+npm run test:db -w backend
 
 # Real Sales Report: source comparisons, financial checks, export and HTTP workflow
 npm run test:sample -- --sales "C:/Users/Daveee/Downloads/Sales Report.xlsx"
@@ -266,11 +353,11 @@ $env:SAMPLE_SALES="C:/Users/Daveee/Downloads/Sales Report.xlsx"
 npm run test:e2e
 ```
 
-Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 21 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
+Browser tests use isolated API/frontend ports 3100/4300 and close their servers after completion. The API they start uses `TEST_DATABASE_URL`, and the suite resets and seeds the test schema first, so the real `public` data is never touched. Each test signs in with a development account first. They exercise worksheet selection, manual mappings, all 21 columns, search/sort, editable rates, Excel configuration import/export, download and mobile layout, plus role access and guards, Accounting Head transfer, account management, price book create/edit/duplicate/activate, product selection, price validation, Price IDs, ZenPOS price book import, Support entry, and the calculator product, price-book and Support sections. Real-data screenshots, traces and videos are disabled. Screenshots contain only empty or synthetic test data.
 
-`npm test` also runs the frontend domain checks (`frontend/test/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
+`npm test` also runs the frontend checks (`frontend/test/`, over the shared domain code in `shared/domain/`): money and percentage rounding, role permissions, the single Accounting Head rule, price calculations and validation, price book operations, ZenPOS price book parsing and re-import merging, Support and margin-on-cost math, sales export parsing and gross margin aggregation, Price ID matching and Support in the calculator, and the demo samples.
 
-Backend tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety, signed download validation and skipping POS export footer rows.
+Backend unit tests (`npm test`, no database) also cover accounts, sign-in and permissions, pricing rules and row mapping. Backend calculation tests cover BDO/BPI calculations, individual products, duplicate IDs/invoices, cash, splits, multiple banks, unknown/promotional methods, missing cost/IDs, discounts, unit/line cost, subsidies, rounding, date/source-row preservation, numeric zero masks, .xls, exact export columns, formula safety, signed download validation and skipping POS export footer rows.
 
 ## Project layout
 
@@ -283,17 +370,26 @@ frontend/src/app/
   components/product-insights/      Sections 05/06: gross margin by product, price book comparison
   services/                         HttpClient API and downloads
   app.routes.ts                     Routes and role guards
-  core/                             Mock auth, guards and in-memory stores (backend seam)
+  core/                             API-backed sign-in, guards, interceptor and services
   layout/                           Shared sidebar/topbar shell
   pages/                            Login, access denied, users, price books
-  domain/                           Framework-free pricing, accounts and sales logic
-  mock-data/                        Demo users, products, price books and sample export
+  domain/                           Sales export parsing, price matching and sample files
+  mock-data/                        Downloadable sample Sales Report and price book
 frontend/test/                      Frontend domain checks (ts-node)
 backend/src/
   excel/                            SheetJS parser, endpoints and ExcelJS exporter
   calculation/                      Decimal.js calculations, allocations and matching
   config/                           Local JSON defaults and validation
+  database/                         Prisma client, row mappers, locks and first-run seeding
+  auth/                             Sign-in, tokens, auth guard and permissions
+  accounts/                         /api/users controller, service and repository
+  pricing/                          /api/pricing and /api/price-books
+backend/prisma/                     schema.prisma, migrations and the seed CLI
+backend/scripts/                    Test schema preparation
 shared/models.ts                    API contracts and exact output column definitions
+shared/api.ts                       Request/response types for the account and pricing API
+shared/domain/                      Framework-free pricing, accounts and price book logic
+shared/seed/                        Demo users, products and price books used by the seed
 backend/test/                       Unit/integration and actual-report checks
 e2e/                                Browser workflow tests
 sample-data/                        Instructions; private files are not bundled
