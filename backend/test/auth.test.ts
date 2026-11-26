@@ -6,7 +6,7 @@ import request from 'supertest';
 import { test } from './harness';
 import { authorize } from './helpers';
 import { createApplication } from '../src/create-app';
-import { AccountsRepository } from '../src/accounts/accounts.repository';
+import { AccountsRepository, escapeLike } from '../src/accounts/accounts.repository';
 import { TokenService } from '../src/auth/token.service';
 import { SIGN_IN_MESSAGES, UserAccount } from '../../shared/domain/user-accounts';
 
@@ -132,3 +132,8 @@ test('sign-in messages match the old mock login', () =>
       SIGN_IN_MESSAGES.invalid,
     );
   }));
+
+test('escapeLike makes pattern characters literal and leaves plain names alone', () => {
+  assert.equal(escapeLike('a_b%c\\'), 'a\\_b\\%c\\\\');
+  assert.equal(escapeLike('pricing.lead-1'), 'pricing.lead-1');
+});
